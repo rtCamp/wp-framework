@@ -1,0 +1,25 @@
+# PHPStan configuration — wp-php-toolkit
+# Docs: https://phpstan.org/config-reference
+
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    phpVersion: 80300
+
+    paths:
+        - src
+
+    excludePaths:
+        - vendor
+        - node_modules
+        - tests
+
+    # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
+    reportUnmatchedIgnoredErrors: true
+
+    # Ignore known false-positives here. Keep this list short — every entry is tech debt.
+    ignoreErrors:
+        # Example:
+        # - '#Call to an undefined method WP_Error::do_something\(\)#'
