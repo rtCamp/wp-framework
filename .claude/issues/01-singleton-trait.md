@@ -9,7 +9,7 @@
 
 ## Summary
 
-Add the `Singleton` trait to `src/Traits/Singleton.php`. This is the first task in the repo — every utility class and Dev Monitor collector consumes it. The trait provides `get_instance()` with late static binding, a private constructor, and clone protection. Skeleton repos do not keep a local copy; they pull it in through Composer.
+Add the `Singleton` trait to `src/Traits/Singleton.php`. This is the first task in the repo — every utility class consumes it (and the Dev Monitor collectors in the sibling `rtcamp/wp-dev-monitor` package use it too, via their dependency on this package). The trait provides `get_instance()` with late static binding, a private constructor, and clone protection. Skeleton repos do not keep a local copy; they pull it in through Composer.
 
 ---
 
