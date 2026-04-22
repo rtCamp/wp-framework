@@ -16,7 +16,7 @@ A Composer package of shared PHP utilities for rtCamp WordPress projects. Consum
 - `declare(strict_types=1);` at the top of every PHP file.
 - Every public method has full type declarations on parameters and return.
 - Every class and trait docblock has `@package` and `@since`.
-- `ai_context()` methods never return SQL text, error messages, user data, or paths.
+- The `AI_Context_Provider` interface docblock documents the privacy contract — `ai_context()` implementations in `wp-dev-monitor` must never return SQL text, errors, user data, or paths. If changing the interface signature, the PHPDoc must carry this rule forward.
 - Late static binding (`static::`) — never `self::` — for singleton access.
 
 ---
@@ -48,12 +48,15 @@ Before adding any new tool, package, or convention: check if an official WordPre
 ```
 src/
   Traits/         Singleton trait
-  Utilities/      Logger, Cache, Transients, Feature_Flags, Performance, Security
-  Dev/            Dev Monitor, collectors, interfaces, views
-tests/            PHPUnit suite, same namespace layout as src/
+  Utilities/      Logger, Cache, Transients, Performance (timers only)
+  Dev/
+    Interfaces/   Collector_Interface, Stoppable, Profilable, Renderable,
+                  Issue_Provider, AI_Context_Provider, Timeline_Event_Provider
+                  (implemented by rtcamp/wp-dev-monitor — no collectors here)
+tests/            PHPUnit suite, mirrors src/ namespace layout
 composer.json
-phpcs.xml         shared baseline — consumed by skeleton repos
-phpstan.neon      shared baseline — consumed by skeleton repos
+phpcs.xml.dist    shared baseline — consumed by skeleton repos
+phpstan.neon.dist shared baseline — consumed by skeleton repos
 CHANGELOG.md
 ```
 
@@ -67,7 +70,7 @@ Three first-class instantiation patterns. Pick the right one — don't default t
 
 | Pattern | Use when | Examples |
 |---|---|---|
-| **Singleton** (`use Singleton;`) | Shared state across the request, hook wiring once | `Logger`, `Cache`, `Dev_Monitor`, every collector |
+| **Singleton** (`use Singleton;`) | Shared state across the request, hook wiring once | `Logger`, `Cache`, `Performance` |
 | **Multi-instance** (`__construct` with config) | Per-call config, isolated state between instances | `Transients`, base classes prefixed `Abstract_` |
 | **Stateless helper** (`final class`, `private __construct()`) | Pure functions, no state at all | `AI_Data_Sanitizer` |
 
@@ -130,12 +133,11 @@ The issue file is the single source of truth for what's been decided and done on
 Invoked with `/<command>` in chat. Each loads its own instructions only when used.
 
 - `/add-utility <name>` — scaffold a new utility class with Singleton, `setup()`, tests
-- `/add-collector <name>` — scaffold a Dev Monitor collector with the right interfaces
-- `/review-collector <path>` — audit a collector for interface + privacy compliance
-- `/check-privacy` — scan every `ai_context()` method for banned data references
-- `/add-interface <name>` — scaffold a new collector interface
+- `/add-interface <name>` — scaffold a new collector interface in `src/Dev/Interfaces/` (consumed by `wp-dev-monitor`)
 - `/review-module <path>` — general PHP class review against this repo's conventions
 - `/handoff [out|in]` — generate a rotation handoff log entry + GitHub comment
+
+> Collector-specific skills (`/add-collector`, `/review-collector`, `/check-privacy`) live in the `wp-dev-monitor` repo — that's where collectors are implemented.
 
 ---
 

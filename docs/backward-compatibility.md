@@ -130,7 +130,7 @@ The BC contract covers everything in `src/` that is **not** marked `@internal`.
 ### Not covered (internal — may change anytime)
 
 - Classes with `@internal` in their docblock
-- Classes in any `Internal/` sub-namespace (e.g., `Dev\Collectors\Internal\`)
+- Classes in any `Internal/` sub-namespace (e.g., `Utilities\Internal\`)
 - `private` methods and properties
 - Anything in `tests/`
 
@@ -138,9 +138,9 @@ The BC contract covers everything in `src/` that is **not** marked `@internal`.
 
 ```php
 /**
- * @internal Used by Dev_Monitor only. May change without notice.
+ * @internal Used by Logger only. May change without notice.
  */
-final class Query_Cache_Store { ... }
+final class Log_Formatter { ... }
 ```
 
 PHPStan can flag consumers that reach into `@internal` code. Add this once per repo:
