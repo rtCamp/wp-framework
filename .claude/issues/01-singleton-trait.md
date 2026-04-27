@@ -2,7 +2,7 @@
 
 **Status:** in-review
 **Branch:** `v1.0.0/task/singleton-trait`
-**PR:** 
+**PR:** https://github.com/rtCamp/wp-php-toolkit/pull/8
 **Assignee:** @Adi-ty
 
 ---
