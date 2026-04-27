@@ -45,7 +45,7 @@ trait Singleton {
 	/**
 	 * Constructor — intentionally empty. Use setup() for initialisation.
 	 */
-	protected function __construct() {}
+	private function __construct() {}
 
 	/**
 	 * Prevent cloning to preserve the single-instance contract.
