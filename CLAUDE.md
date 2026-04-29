@@ -82,7 +82,7 @@ Singleton classes must have an empty `public function setup(): void {}` stub —
 
 ## Coding standards
 
-- PHPCS WordPress standard — zero errors before PR.
+- PHPCS WordPress standard — zero errors before PR. Fix the code, don't suppress the sniff. Add the missing docblock, rename the file, or restructure — don't edit `phpcs.xml.dist` or add `// phpcs:ignore`. Suppression is only justified when the file's *structure* makes the rule unreachable: `Generic.Files.OneObjectStructurePerFile` for test files that bundle fixtures, `WordPress.Files.FileName` for PSR-4 source. Never suppress quality rules (missing docblocks, missing `@param` / `@return`, missing file headers). `phpcs.xml.dist` ships to every consuming skeleton — every exclusion is global.
 - PHPStan level 5 — zero errors before PR.
 - No `mixed` return type unless genuinely unavoidable — flag with a code comment when used.
 - Method names: `snake_case`. Class and trait names: `PascalCase`.
