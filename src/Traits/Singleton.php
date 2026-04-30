@@ -27,7 +27,11 @@ trait Singleton {
 	 */
 	final public static function get_instance(): static {
 		/**
-		 * Collection of instance.
+		 * Per-class instance map. An array keyed by class name is required
+		 * because a trait-level static property would be shared across the
+		 * inheritance chain — Parent::get_instance() and Child::get_instance()
+		 * would return the same object. Keying by static::class ensures each
+		 * class in the hierarchy gets its own isolated instance.
 		 *
 		 * @var array<class-string, static>
 		 */
