@@ -9,3 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `Singleton` trait in `src/Traits/` providing the standard `get_instance()` pattern.
+- `Transients` utility — multi-instance wrapper around WordPress transients with per-instance key prefixing to prevent collisions between modules.
+- `bin/install-wp-tests.sh` — canonical WP-CLI scaffold script for provisioning the WordPress core test suite (`wp-tests-lib`) and a clean MySQL test database. PHPUnit boots real WordPress so utilities are tested end-to-end.

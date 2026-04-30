@@ -1,18 +1,13 @@
 <?xml version="1.0"?>
 <phpunit
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.0/phpunit.xsd"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
     bootstrap="tests/bootstrap.php"
+    cacheResultFile=".phpunit.cache/test-results"
     colors="true"
-    cacheDirectory=".phpunit.cache"
     executionOrder="random"
     failOnWarning="true"
-    failOnRisky="true"
-    displayDetailsOnTestsThatTriggerDeprecations="true"
-    displayDetailsOnTestsThatTriggerWarnings="true"
-    displayDetailsOnTestsThatTriggerErrors="true"
-    displayDetailsOnTestsThatTriggerNotices="true"
-    displayDetailsOnPhpunitDeprecations="true">
+    failOnRisky="true">
 
     <testsuites>
         <testsuite name="unit">
@@ -20,17 +15,9 @@
         </testsuite>
     </testsuites>
 
-    <source restrictNotices="true" restrictWarnings="true">
+    <coverage>
         <include>
             <directory>src</directory>
         </include>
-    </source>
-
-    <coverage>
-        <report>
-            <clover outputFile="coverage/clover.xml"/>
-            <html outputDirectory="coverage/html"/>
-            <text outputFile="php://stdout" showUncoveredFiles="false"/>
-        </report>
     </coverage>
 </phpunit>
