@@ -13,7 +13,6 @@ parameters:
 
     excludePaths:
         - vendor
-        - node_modules
         - tests
 
     # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
@@ -21,5 +20,5 @@ parameters:
 
     # Ignore known false-positives here. Keep this list short — every entry is tech debt.
     ignoreErrors:
-        # Example:
-        # - '#Call to an undefined method WP_Error::do_something\(\)#'
+        # Traits are consumed by external packages — PHPStan cannot see those usages.
+        - identifier: trait.unused
