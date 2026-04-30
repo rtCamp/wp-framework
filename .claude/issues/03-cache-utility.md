@@ -1,0 +1,90 @@
+# Issue #3 — Add Cache Utility
+
+**Status:** in-progress
+**Branch:** `v1.0.0/task/cache-utility`
+**PR:** _(not yet opened)_
+**Assignee:** @Adi-ty
+
+---
+
+## Summary
+
+Add the `Cache` utility to `src/Utilities/Cache.php`. A thin, typed wrapper over WordPress's `wp_cache_get` / `wp_cache_set` / `wp_cache_delete` / `wp_cache_flush_group`. One place to learn the caching API, one place to layer cross-cutting behaviour later (logging, telemetry, fallbacks). `wp_cache_flush_group()` is WordPress 6.1+; the wrapper centralises the version check so consumers never have to think about it.
+
+---
+
+## Decisions made
+
+- [2026-04-30] **Tests run against real WordPress via `wp-tests-lib`, not in-test stubs.** Same pattern landed in #4 Transients and #2 Logger. Real WP via `WP_UnitTestCase` is the only correct path.
+- [2026-04-30] **`flush_group()` graceful-fallback branch is verified by code review, not by an automated test — and the `function_exists` check stays inline rather than being extracted into a testability seam.** wp-tests-lib runs WP latest (6.1+), where `wp_cache_flush_group()` always exists, and PHP has no portable way to undefine a function in-process.
+- [2026-04-30] **`set()` carries an inline `phpcs:ignore` for `WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined`.** The VIP rule wants to confirm `$expiration` is ≥ 300 seconds, but `Cache::set` is a thin pass-through — the expiry value originates with the caller. The rule's intent is enforced at call sites, not inside the wrapper. Suppression carries a justification per CLAUDE.md style.
+- [2026-04-30] **No business logic inside `get` / `set` / `delete`** — pure pass-throughs per spec. No logging, no telemetry, no key-namespacing (Transients owns prefix-based namespacing; Cache defers to WP's group system).
+
+---
+
+## Files changed so far
+
+- `src/Utilities/Cache.php` — new
+- `tests/Utilities/CacheTest.php` — new (extends `WP_UnitTestCase`; 3 tests, 4 assertions)
+- `CHANGELOG.md` — Unreleased entry for `Cache`
+- `.claude/issues/03-cache-utility.md` — new (this file)
+
+---
+
+## Verification run
+
+Ran on 2026-04-30 against the final state of the files. wp-tests-lib was already provisioned from earlier work; no re-install needed.
+
+```bash
+vendor/bin/phpcs src/Utilities/Cache.php tests/Utilities/CacheTest.php
+DEPRECATED: Scanning CSS/JS files is deprecated and support will be removed in PHP_CodeSniffer 4.0.
+The WordPressVIPMinimum.JS.Window sniff is listening for JS.
+DEPRECATED: Scanning CSS/JS files is deprecated and support will be removed in PHP_CodeSniffer 4.0.
+The WordPressVIPMinimum.JS.DangerouslySetInnerHTML sniff is listening for JS.
+DEPRECATED: Scanning CSS/JS files is deprecated and support will be removed in PHP_CodeSniffer 4.0.
+The WordPressVIPMinimum.JS.InnerHTML sniff is listening for JS.
+DEPRECATED: Scanning CSS/JS files is deprecated and support will be removed in PHP_CodeSniffer 4.0.
+The WordPressVIPMinimum.JS.StrippingTags sniff is listening for JS.
+DEPRECATED: Scanning CSS/JS files is deprecated and support will be removed in PHP_CodeSniffer 4.0.
+The WordPressVIPMinimum.JS.StringConcat sniff is listening for JS.
+DEPRECATED: Scanning CSS/JS files is deprecated and support will be removed in PHP_CodeSniffer 4.0.
+The WordPressVIPMinimum.JS.HTMLExecutingFunctions sniff is listening for JS.
+
+.. 2 / 2 (100%)
+
+
+Time: 206ms; Memory: 16MB
+
+❯ vendor/bin/phpstan analyse src/Utilities/Cache.php --level=5 --memory-limit=512M
+Note: Using configuration file /Users/adi/rtproj/wp-php-toolkit/phpstan.neon.dist.
+ 1/1 [▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%
+
+
+                                                                                           
+ [OK] No errors                                                                            
+                                                                                           
+
+❯ vendor/bin/phpunit tests/Utilities/CacheTest.php
+Installing...
+Running as single site... To run multisite, use -c tests/phpunit/multisite.xml
+Not running ajax tests. To execute these, use --group ajax.
+Not running ms-files tests. To execute these, use --group ms-files.
+Not running external-http tests. To execute these, use --group external-http.
+PHPUnit 9.6.34 by Sebastian Bergmann and contributors.
+
+Random Seed:   1777550200
+
+...                                                                 3 / 3 (100%)
+
+Time: 00:00.013, Memory: 42.50 MB
+
+OK (3 tests, 4 assertions)
+```
+
+All three checks exit 0.
+
+---
+
+## Handoff log
+
+_(no rotations yet — delete this line when the first entry is added)_
