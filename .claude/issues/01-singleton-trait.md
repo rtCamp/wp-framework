@@ -1,6 +1,6 @@
 # Issue #3 — Add Singleton Trait
 
-**Status:** in-review
+**Status:** done
 **Branch:** `v1.0.0/task/singleton-trait`
 **PR:** https://github.com/rtCamp/wp-php-toolkit/pull/8
 **Assignee:** @Adi-ty
