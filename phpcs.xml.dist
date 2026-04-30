@@ -58,6 +58,7 @@
     </rule>
 
     <rule ref="Generic.Files.OneObjectStructurePerFile">
+        <!-- Test files may contain multiple classes for testing purposes -->
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>
 </ruleset>
