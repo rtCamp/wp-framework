@@ -70,11 +70,17 @@ class Transients {
 	/**
 	 * Prefix a logical key with this instance's namespace.
 	 *
+	 * Format: `<strlen(prefix)>:<prefix>_<key>`. The leading length header is
+	 * digits-only and terminated by the first `:`, so the prefix/key boundary
+	 * is unambiguous regardless of underscores in either part. Without it,
+	 * `('mod', 'a_b')` and `('mod_a', 'b')` would both collapse to `mod_a_b`
+	 * and silently target the same WordPress transient.
+	 *
 	 * @param string $key Logical key supplied by the caller.
-	 * 
+	 *
 	 * @return string Fully prefixed key passed to WordPress's transient API.
 	 */
 	private function prefixed( string $key ): string {
-		return $this->prefix . '_' . $key;
+		return strlen( $this->prefix ) . ':' . $this->prefix . '_' . $key;
 	}
 }

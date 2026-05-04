@@ -17,11 +17,12 @@ use WP_UnitTestCase;
  *
  * Runs against the real WordPress test suite (wp-tests-lib) so the wrapper
  * is exercised end-to-end through `set_transient` / `get_transient` /
- * `delete_transient`. Verifies the three runtime guarantees:
+ * `delete_transient`. Verifies the runtime guarantees:
  *
  *   - set/get round-trips a value,
  *   - two instances with different prefixes do not collide,
- *   - delete removes only the issuing instance's entry.
+ *   - delete removes only the issuing instance's entry,
+ *   - prefix/key boundary stays unambiguous when both contain underscores.
  *
  * @since 1.0.0
  */
@@ -65,5 +66,22 @@ class TransientsTest extends WP_UnitTestCase {
 
 		$this->assertFalse( $store_a->get( 'k' ) );
 		$this->assertSame( 'b', $store_b->get( 'k' ) );
+	}
+
+	/**
+	 * Prefix/key boundary must be unambiguous even when both sides contain underscores.
+	 *
+	 * `('mod', 'a_b')` and `('mod_a', 'b')` would both flatten to `mod_a_b` under
+	 * naive concatenation; the length-prefixed encoding keeps them distinct.
+	 */
+	public function test_underscore_boundary_does_not_collide_between_instances(): void {
+		$store_short = new Transients( 'mod' );
+		$store_long  = new Transients( 'mod_a' );
+
+		$store_short->set( 'a_b', 'short-prefix' );
+		$store_long->set( 'b', 'long-prefix' );
+
+		$this->assertSame( 'short-prefix', $store_short->get( 'a_b' ) );
+		$this->assertSame( 'long-prefix', $store_long->get( 'b' ) );
 	}
 }

@@ -21,6 +21,7 @@ Add the `Transients` utility to `src/Utilities/Transients.php`. It wraps WordPre
 - [2026-04-29] **`get()` documents its `mixed` return per CLAUDE.md.** CLAUDE.md requires a code comment when `mixed` is used. Transients can hold any serialisable value (mirrors WordPress's own `get_transient()` signature) — captured in the method docblock.
 - [2026-04-29] **No `flush_all_for_prefix()` method.** Spec excludes it from v1.0.0. WordPress doesn't expose a clean API to enumerate transients by prefix, and faking it via `wp_options` LIKE queries is exactly what VIP Minimum discourages.
 - [2026-04-29] **PHPStan needs `--memory-limit=256M`** to analyse with the WordPress extension loaded. Default 128M is insufficient.
+- [2026-05-04] **Length-prefix the stored key** (review feedback from @bhavz-10). `prefix_key` was ambiguous: `('mod', 'a_b')` and `('mod_a', 'b')` both flattened to `mod_a_b`. Switched `prefixed()` to `strlen($prefix) . ':' . $prefix . '_' . $key` — the digits-only header bounded by the first `:` makes the boundary unambiguous without restricting prefix or key contents. Locked in by `test_underscore_boundary_does_not_collide_between_instances`.
 
 ---
 
