@@ -1,6 +1,6 @@
 # Issue #4 — Add Transients Utility
 
-**Status:** in-review
+**Status:** done
 **Branch:** `v1.0.0/task/transients-utility`
 **PR:** https://github.com/rtCamp/wp-php-toolkit/pull/9
 **Assignee:** @Adi-ty

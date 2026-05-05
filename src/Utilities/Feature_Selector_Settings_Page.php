@@ -1,0 +1,147 @@
+<?php
+/**
+ * Feature_Selector_Settings_Page utility.
+ *
+ * @package RtCamp\WPToolkit\Utilities
+ * @since   1.0.0
+ */
+
+declare(strict_types=1);
+
+namespace RtCamp\WPToolkit\Utilities;
+
+use RtCamp\WPToolkit\Traits\Singleton;
+
+/**
+ * Minimal admin settings page that lists every registered feature flag
+ * as a checkbox. Persisted via the WordPress Settings API; no custom
+ * form handling. The page lives under `Settings → rtCamp Features`.
+ *
+ * Boot order: consumers must register features via
+ * `Feature_Selector::get_instance()->has_features( [...] )` before
+ * `admin_init` fires (typically during `plugins_loaded` or `init`).
+ *
+ * @since 1.0.0
+ */
+class Feature_Selector_Settings_Page {
+
+	use Singleton;
+
+	/**
+	 * Admin page slug.
+	 *
+	 * @var string
+	 */
+	private string $page_slug = 'rtcamp-features';
+
+	/**
+	 * Settings group used by `register_setting()` and `settings_fields()`.
+	 *
+	 * @var string
+	 */
+	private string $settings_group = 'rtcamp_features_group';
+
+	/**
+	 * Wire admin hooks. Call once at plugin boot.
+	 *
+	 * @return void
+	 */
+	public function setup(): void {
+		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+	}
+
+	/**
+	 * Register the page under Settings.
+	 *
+	 * @return void
+	 */
+	public function register_menu(): void {
+		add_options_page(
+			__( 'rtCamp Features', 'rtcamp-toolkit' ),
+			__( 'rtCamp Features', 'rtcamp-toolkit' ),
+			'manage_options',
+			$this->page_slug,
+			array( $this, 'render' )
+		);
+	}
+
+	/**
+	 * Register one boolean setting per registered feature flag.
+	 *
+	 * @return void
+	 */
+	public function register_settings(): void {
+		$features = Feature_Selector::get_instance()->get_registered();
+
+		foreach ( $features as $flag ) {
+			register_setting(
+				$this->settings_group,
+				$this->option_key( $flag ),
+				array(
+					'type'              => 'boolean',
+					'sanitize_callback' => static fn( $value ): bool => (bool) $value,
+					'default'           => false,
+				)
+			);
+		}
+	}
+
+	/**
+	 * Render the settings page. Capability-guarded.
+	 *
+	 * @return void
+	 */
+	public function render(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$features = Feature_Selector::get_instance()->get_registered();
+
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'rtCamp Features', 'rtcamp-toolkit' ); ?></h1>
+			<form method="post" action="options.php">
+				<?php settings_fields( $this->settings_group ); ?>
+				<table class="form-table" role="presentation">
+					<tbody>
+						<?php
+						foreach ( $features as $flag ) :
+							$option_key = $this->option_key( $flag );
+							$enabled    = (bool) get_option( $option_key, false );
+							?>
+							<tr>
+								<th scope="row"><?php echo esc_html( $flag ); ?></th>
+								<td>
+									<label>
+										<input
+											type="checkbox"
+											name="<?php echo esc_attr( $option_key ); ?>"
+											value="1"
+											<?php checked( $enabled, true ); ?>
+										/>
+										<?php esc_html_e( 'Enable', 'rtcamp-toolkit' ); ?>
+									</label>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php submit_button(); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Build the WP option key for a flag (mirrors `Feature_Selector::option_key()`).
+	 *
+	 * @param string $flag Feature-flag slug.
+	 *
+	 * @return string Fully qualified option key.
+	 */
+	private function option_key( string $flag ): string {
+		return 'rtcamp_feature_' . str_replace( '-', '_', $flag );
+	}
+}
