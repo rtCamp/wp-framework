@@ -1,8 +1,8 @@
 # Issue #4 — Add Logger Utility
 
-**Status:** in-progress
+**Status:** in-review
 **Branch:** `v1.0.0/task/logger-utility`
-**PR:** _(not yet opened)_
+**PR:** https://github.com/rtCamp/wp-php-toolkit/pull/10
 **Assignee:** @Adi-ty
 
 ---
