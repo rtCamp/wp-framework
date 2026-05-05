@@ -17,8 +17,3 @@ parameters:
 
     # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
     reportUnmatchedIgnoredErrors: true
-
-    # Ignore known false-positives here. Keep this list short — every entry is tech debt.
-    ignoreErrors:
-        # Traits are consumed by external packages — PHPStan cannot see those usages.
-        - identifier: trait.unused
