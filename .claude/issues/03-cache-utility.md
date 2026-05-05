@@ -1,8 +1,8 @@
-# Issue #3 — Add Cache Utility
+# Issue #5 — Add Cache Utility
 
-**Status:** in-progress
+**Status:** in-review
 **Branch:** `v1.0.0/task/cache-utility`
-**PR:** _(not yet opened)_
+**PR:** https://github.com/rtCamp/wp-php-toolkit/pull/11
 **Assignee:** @Adi-ty
 
 ---
@@ -25,9 +25,11 @@ Add the `Cache` utility to `src/Utilities/Cache.php`. A thin, typed wrapper over
 ## Files changed so far
 
 - `src/Utilities/Cache.php` — new
-- `tests/Utilities/CacheTest.php` — new (extends `WP_UnitTestCase`; 3 tests, 4 assertions)
-- `CHANGELOG.md` — Unreleased entry for `Cache`
+- `tests/Utilities/CacheTest.php` — new (3 tests, 4 assertions)
+- `CHANGELOG.md` — Unreleased entry
 - `.claude/issues/03-cache-utility.md` — new (this file)
+- `src/Traits/Singleton.php` — `private __construct` → `final protected __construct` (PHPStan `new static()` fix)
+- `phpstan.neon.dist` — removed stale `trait.unused` ignore
 
 ---
 
