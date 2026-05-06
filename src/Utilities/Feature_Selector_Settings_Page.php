@@ -17,6 +17,12 @@ use RtCamp\WPToolkit\Traits\Singleton;
  * as a checkbox. Persisted via the WordPress Settings API; no custom
  * form handling. The page lives under `Settings → rtCamp Features`.
  *
+ * When a feature is overridden by its `RTCAMP_FEATURE_<UPPER_SLUG>`
+ * constant (typically defined in `wp-config.php`), the checkbox is
+ * disabled and reflects the constant's value, with a help message
+ * naming the constant — same UX as WPVIP's "Search engine visibility"
+ * lock when `VIP_JETPACK_IS_PRIVATE` is defined.
+ *
  * Boot order: consumers must register features via
  * `Feature_Selector::get_instance()->has_features( [...] )` before
  * `admin_init` fires (typically during `plugins_loaded` or `init`).
@@ -97,7 +103,8 @@ class Feature_Selector_Settings_Page {
 			return;
 		}
 
-		$features = Feature_Selector::get_instance()->get_registered();
+		$selector = Feature_Selector::get_instance();
+		$features = $selector->get_features();
 
 		?>
 		<div class="wrap">
@@ -107,12 +114,16 @@ class Feature_Selector_Settings_Page {
 				<table class="form-table" role="presentation">
 					<tbody>
 						<?php
-						foreach ( $features as $flag ) :
-							$option_key = Feature_Selector::get_instance()->option_key( $flag );
-							$enabled    = (bool) get_option( $option_key, false );
+						foreach ( $features as $slug => $meta ) :
+							$option_key    = $selector->option_key( $slug );
+							$constant_name = $selector->constant_name( $slug );
+							$is_overridden = defined( $constant_name );
+							$enabled       = $is_overridden
+								? (bool) constant( $constant_name )
+								: (bool) get_option( $option_key, false );
 							?>
 							<tr>
-								<th scope="row"><?php echo esc_html( $flag ); ?></th>
+								<th scope="row"><?php echo esc_html( $meta['name'] ); ?></th>
 								<td>
 									<label>
 										<input
@@ -120,9 +131,24 @@ class Feature_Selector_Settings_Page {
 											name="<?php echo esc_attr( $option_key ); ?>"
 											value="1"
 											<?php checked( $enabled, true ); ?>
+											<?php disabled( $is_overridden, true ); ?>
 										/>
 										<?php esc_html_e( 'Enable', 'rtcamp-toolkit' ); ?>
 									</label>
+									<?php if ( '' !== $meta['description'] ) : ?>
+										<p class="description"><?php echo esc_html( $meta['description'] ); ?></p>
+									<?php endif; ?>
+									<?php if ( $is_overridden ) : ?>
+										<p class="description">
+											<?php
+											printf(
+												/* translators: %s: PHP constant name. */
+												esc_html__( 'This option is disabled when the constant %s is defined.', 'rtcamp-toolkit' ),
+												esc_html( $constant_name )
+											);
+											?>
+										</p>
+									<?php endif; ?>
 								</td>
 							</tr>
 						<?php endforeach; ?>
