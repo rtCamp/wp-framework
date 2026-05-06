@@ -17,6 +17,7 @@ Add a PSR-3-style Logger utility to `src/Utilities/Logger.php`. It provides `deb
 
 - [2026-04-30] **Tests extend `WP_UnitTestCase` (not `TestCase` with inline stubs).** The wp-tests-lib bootstrap provides `wp_json_encode()` and `WP_DEBUG` natively — no stubs needed.
 - [2026-04-30] **WP_DEBUG=false test omitted from initial implementation.** WordPress test bootstrap defines `WP_DEBUG = true` and constants cannot be undefined. Testing this path requires `@runInSeparateProcess` which adds complexity for a trivially-correct guard clause. Can be added if reviewer requests it.
+- [2026-04-30] **`Singleton` trait constructor changed from `private` → `final protected`, and stale `trait.unused` ignore removed from `phpstan.neon.dist`.** `composer analyse` runs PHPStan over the whole `src/` tree with `reportUnmatchedIgnoredErrors: true`, so once the trait had a real consumer (Logger) two errors fired: `new.staticInAbstractClassStaticMethod` (trait analysed in context of a concrete class wants a consistent constructor) and `ignore.unmatched` (the previously-needed `trait.unused` ignore became stale). `final protected` keeps the singleton contract — `final` blocks subclass redefinition of the constructor signature, `protected` allows the trait to be used by a class that itself can be subclassed without re-exposing `new` to external code. `private` would have triggered `consistentConstructor.private` instead.
 
 ---
 
@@ -24,6 +25,8 @@ Add a PSR-3-style Logger utility to `src/Utilities/Logger.php`. It provides `deb
 
 - `src/Utilities/Logger.php` — new (the Logger class)
 - `tests/Utilities/LoggerTest.php` — new (2 tests, 6 assertions)
+- `src/Traits/Singleton.php` — `private __construct` → `final protected __construct` (PHPStan `new static()` consistent-constructor fix)
+- `phpstan.neon.dist` — removed stale `trait.unused` ignore
 - `CHANGELOG.md` — edited (added Logger entry under Unreleased)
 - `.claude/issues/02-logger-utility.md` — new (this file)
 
@@ -82,3 +85,9 @@ OK (2 tests, 6 assertions)
 ## Open questions
 
 - _(none yet)_
+
+---
+
+## Notes for the reviewer
+
+- **`Singleton` trait + `phpstan.neon.dist` change is shared with the Cache and Feature_Selector PRs.** The same `private __construct` → `final protected __construct` fix and the `trait.unused` ignore removal appear on all three branches (composer analyse fails without it once the trait has a consumer). Whichever PR merges into `release/v1.0.0` first carries the change in; the other two will drop those two lines out of their diff on rebase. Just for information — no action needed here.
