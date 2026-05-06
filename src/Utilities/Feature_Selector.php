@@ -118,7 +118,7 @@ class Feature_Selector {
 	 *
 	 * @return string Fully qualified option key.
 	 */
-	private function option_key( string $flag ): string {
+	public function option_key( string $flag ): string {
 		return 'rtcamp_feature_' . str_replace( '-', '_', $flag );
 	}
 }

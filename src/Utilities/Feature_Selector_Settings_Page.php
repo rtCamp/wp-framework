@@ -77,7 +77,7 @@ class Feature_Selector_Settings_Page {
 		foreach ( $features as $flag ) {
 			register_setting(
 				$this->settings_group,
-				$this->option_key( $flag ),
+				Feature_Selector::get_instance()->option_key( $flag ),
 				array(
 					'type'              => 'boolean',
 					'sanitize_callback' => static fn( $value ): bool => (bool) $value,
@@ -108,7 +108,7 @@ class Feature_Selector_Settings_Page {
 					<tbody>
 						<?php
 						foreach ( $features as $flag ) :
-							$option_key = $this->option_key( $flag );
+							$option_key = Feature_Selector::get_instance()->option_key( $flag );
 							$enabled    = (bool) get_option( $option_key, false );
 							?>
 							<tr>
@@ -132,16 +132,5 @@ class Feature_Selector_Settings_Page {
 			</form>
 		</div>
 		<?php
-	}
-
-	/**
-	 * Build the WP option key for a flag (mirrors `Feature_Selector::option_key()`).
-	 *
-	 * @param string $flag Feature-flag slug.
-	 *
-	 * @return string Fully qualified option key.
-	 */
-	private function option_key( string $flag ): string {
-		return 'rtcamp_feature_' . str_replace( '-', '_', $flag );
 	}
 }
