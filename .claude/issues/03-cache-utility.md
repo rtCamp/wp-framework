@@ -19,6 +19,7 @@ Add the `Cache` utility to `src/Utilities/Cache.php`. A thin, typed wrapper over
 - [2026-04-30] **`flush_group()` graceful-fallback branch is verified by code review, not by an automated test — and the `function_exists` check stays inline rather than being extracted into a testability seam.** wp-tests-lib runs WP latest (6.1+), where `wp_cache_flush_group()` always exists, and PHP has no portable way to undefine a function in-process.
 - [2026-04-30] **`set()` carries an inline `phpcs:ignore` for `WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined`.** The VIP rule wants to confirm `$expiration` is ≥ 300 seconds, but `Cache::set` is a thin pass-through — the expiry value originates with the caller. The rule's intent is enforced at call sites, not inside the wrapper. Suppression carries a justification per CLAUDE.md style.
 - [2026-04-30] **No business logic inside `get` / `set` / `delete`** — pure pass-throughs per spec. No logging, no telemetry, no key-namespacing (Transients owns prefix-based namespacing; Cache defers to WP's group system).
+- [2026-04-30] **`Singleton` trait constructor changed from `private` → `final protected`, and stale `trait.unused` ignore removed from `phpstan.neon.dist`.** `composer analyse` runs PHPStan over the whole `src/` tree with `reportUnmatchedIgnoredErrors: true`, so once the trait had a real consumer (Cache) two errors fired: `new.staticInAbstractClassStaticMethod` (trait analysed in context of a concrete class wants a consistent constructor) and `ignore.unmatched` (the previously-needed `trait.unused` ignore became stale). `final protected` keeps the singleton contract — `final` blocks subclass redefinition of the constructor signature, `protected` allows the trait to be used by a class that itself can be subclassed without re-exposing `new` to external code. `private` would have triggered `consistentConstructor.private` instead.
 
 ---
 
@@ -84,6 +85,12 @@ OK (3 tests, 4 assertions)
 ```
 
 All three checks exit 0.
+
+---
+
+## Notes for the reviewer
+
+- **`Singleton` trait + `phpstan.neon.dist` change is shared with the Logger and Feature_Selector PRs.** The same `private __construct` → `final protected __construct` fix and the `trait.unused` ignore removal appear on all three branches (composer analyse fails without it once the trait has a consumer). Whichever PR merges into `release/v1.0.0` first carries the change in; the other two will drop those two lines out of their diff on rebase. Just for information — no action needed here.
 
 ---
 
