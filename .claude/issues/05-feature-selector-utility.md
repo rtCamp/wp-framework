@@ -106,6 +106,7 @@ Confirm:
 
 ## Notes for the reviewer
 
+- **`Singleton` trait + `phpstan.neon.dist` change is shared with the Cache and Logger PRs.** The same `private __construct` → `final protected __construct` fix and the `trait.unused` ignore removal appear on all three branches (composer analyse fails without it once the trait has a consumer). Whichever PR merges into `release/v1.0.0` first carries the change in; the other two will drop those two lines out of their diff on rebase. Just for information — no action needed here.
 - **No PR yet at the time of this writing** — implementation validated end-to-end locally before opening one.
 - **Branch base**: this branch was forked from earlier in-progress work while #4 Transients / #2 Logger / #3 Cache are in review. Once those merge into `release/v1.0.0`, this branch will rebase onto `release/v1.0.0` and the upstream commits will drop out of the diff cleanly.
 - **`composer.lock` is intentionally not committed** — same convention as Transients (#4), Logger (#2), Cache (#3), and Singleton (#8): `"type": "library"`, consuming applications resolve their own deps.
