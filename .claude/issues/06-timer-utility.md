@@ -20,13 +20,14 @@ Add the `Timer` utility to `src/Utilities/Timer.php` — a singleton with named 
 - [2026-05-05] **`_doing_it_wrong()` for misuse, not exceptions.** Matches the WordPress convention used elsewhere in the toolkit. Tests assert via `setExpectedIncorrectUsage()` (the polyfilled WP test helper).
 - [2026-05-05] **Empty-string label is a silent no-op across `start`, `stop`, `lap`, `get`.** No `_doing_it_wrong()` noise for what's most likely a missing variable in caller code; the `null` / `0.0` return signals it.
 - [2026-05-05] **`Singleton` trait constructor changed from `private` → `final protected`, and stale `trait.unused` ignore removed from `phpstan.neon.dist`.** `composer analyse` runs PHPStan over the whole `src/` tree with `reportUnmatchedIgnoredErrors: true`, so once the trait had a real consumer (Timer) two errors fired: `new.staticInAbstractClassStaticMethod` (trait analysed in context of a concrete class wants a consistent constructor) and `ignore.unmatched` (the previously-needed `trait.unused` ignore became stale). `final protected` keeps the singleton contract — `final` blocks subclass redefinition of the constructor signature, `protected` allows the trait to be used by a class that itself can be subclassed without re-exposing `new` to external code. `private` would have triggered `consistentConstructor.private` instead.
+- [2026-05-11] **Test assertions strengthened after PR review.** Four tests previously passed even on broken implementations — e.g. `test_empty_label_start_is_noop` relied on `get('')` being hard-coded to null, and `test_lap_after_stop_warns` only proved the warning fired, not the lap absence. Tightened all four to assert against the underlying registry via `get_all()` / `get()`, plus added a separate `test_lap_empty_label_is_noop` covering the `lap('', 'name')` branch (separately listed in the AC).
 
 ---
 
 ## Files changed so far
 
 - `src/Utilities/Timer.php` — new (the utility)
-- `tests/Utilities/TimerTest.php` — new (extends `WP_UnitTestCase`; 13 tests, 22 assertions)
+- `tests/Utilities/TimerTest.php` — new (extends `WP_UnitTestCase`; 14 tests, 29 assertions)
 - `src/Traits/Singleton.php` — `private __construct` → `final protected __construct` so PHPStan's `new static()` consistency check passes once a class consumes the trait, while keeping the singleton contract (external `new Timer()` still blocked) and allowing subclassing
 - `phpstan.neon.dist` — removed the now-stale `trait.unused` ignore (Singleton has a consumer, so the warning no longer fires and `reportUnmatchedIgnoredErrors` was turning the dead suppression into a hard error)
 - `CHANGELOG.md` — Unreleased entry for `Timer`

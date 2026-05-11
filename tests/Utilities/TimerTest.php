@@ -69,12 +69,14 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Empty-string start is a silent no-op; reading the empty label returns null.
+	 * Empty-string start is a silent no-op; reading the empty label returns null
+	 * and no empty-string key is created in the underlying timer registry.
 	 */
 	public function test_empty_label_start_is_noop(): void {
 		Timer::get_instance()->start( '' );
 
 		$this->assertNull( Timer::get_instance()->get( '' ) );
+		$this->assertArrayNotHasKey( '', Timer::get_instance()->get_all() );
 	}
 
 	/**
@@ -127,7 +129,7 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Lapping after stop triggers `_doing_it_wrong()` and does not record.
+	 * Lapping after stop triggers `_doing_it_wrong()` and does not record the lap.
 	 */
 	public function test_lap_after_stop_warns(): void {
 		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::lap' );
@@ -135,10 +137,13 @@ class TimerTest extends WP_UnitTestCase {
 		Timer::get_instance()->start( 'stopped_lap' );
 		Timer::get_instance()->stop( 'stopped_lap' );
 		Timer::get_instance()->lap( 'stopped_lap', 'too_late' );
+
+		$data = Timer::get_instance()->get( 'stopped_lap' );
+		$this->assertArrayNotHasKey( 'too_late', $data['laps'] );
 	}
 
 	/**
-	 * An empty lap name is a silent no-op.
+	 * An empty lap name is a silent no-op on an existing timer.
 	 */
 	public function test_lap_empty_name_is_noop(): void {
 		Timer::get_instance()->start( 'empty_lap_name' );
@@ -146,6 +151,16 @@ class TimerTest extends WP_UnitTestCase {
 
 		$data = Timer::get_instance()->get( 'empty_lap_name' );
 		$this->assertEmpty( $data['laps'] );
+	}
+
+	/**
+	 * An empty timer label on lap() is a silent no-op — no empty-label timer is
+	 * created and no _doing_it_wrong() is raised.
+	 */
+	public function test_lap_empty_label_is_noop(): void {
+		Timer::get_instance()->lap( '', 'checkpoint' );
+
+		$this->assertArrayNotHasKey( '', Timer::get_instance()->get_all() );
 	}
 
 	/**
@@ -169,11 +184,13 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * All recorded timers are exposed; running timers report a live elapsed.
+	 * All recorded timers are exposed with a computed elapsed — stopped timers
+	 * report their final elapsed, running timers report a live time-since-start.
 	 */
 	public function test_get_all_includes_running_and_stopped(): void {
 		Timer::get_instance()->start( 'all_one' );
 		Timer::get_instance()->start( 'all_two' );
+		usleep( 5000 );
 		Timer::get_instance()->stop( 'all_one' );
 
 		$all = Timer::get_instance()->get_all();
@@ -182,5 +199,10 @@ class TimerTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'all_two', $all );
 		$this->assertNotNull( $all['all_one']['end'] );
 		$this->assertNull( $all['all_two']['end'] );
+
+		$this->assertArrayHasKey( 'elapsed', $all['all_one'] );
+		$this->assertArrayHasKey( 'elapsed', $all['all_two'] );
+		$this->assertGreaterThan( 0.0, $all['all_one']['elapsed'] );
+		$this->assertGreaterThan( 0.0, $all['all_two']['elapsed'] );
 	}
 }
