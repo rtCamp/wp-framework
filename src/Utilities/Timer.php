@@ -41,7 +41,7 @@ class Timer {
 	public function setup(): void {}
 
 	/**
-	 * Start a named timer. No-op if label is empty or already started.
+	 * Start a named timer. No-op (plus `_doing_it_wrong()`) if label is empty or already started.
 	 *
 	 * @param string $label Unique identifier for this timer.
 	 *
@@ -49,10 +49,20 @@ class Timer {
 	 */
 	public function start( string $label ): void {
 		if ( '' === $label ) {
+			_doing_it_wrong(
+				__METHOD__,
+				'Timer label must not be empty.',
+				'1.0.0'
+			);
 			return;
 		}
 
 		if ( isset( $this->timers[ $label ] ) ) {
+			_doing_it_wrong(
+				__METHOD__,
+				sprintf( 'Timer "%s" has already been started.', esc_html( $label ) ),
+				'1.0.0'
+			);
 			return;
 		}
 
@@ -67,9 +77,9 @@ class Timer {
 	 * Stop a named timer.
 	 *
 	 * Return paths:
-	 *   - empty label → 0.0 silently,
-	 *   - never-started label → 0.0 plus _doing_it_wrong(),
-	 *   - already-stopped → cached elapsed (no re-computation),
+	 *   - empty label → 0.0 plus `_doing_it_wrong()`,
+	 *   - never-started label → 0.0 plus `_doing_it_wrong()`,
+	 *   - already-stopped → cached elapsed plus `_doing_it_wrong()`,
 	 *   - running → fresh elapsed and marks the timer stopped.
 	 *
 	 * @param string $label Timer to stop.
@@ -78,6 +88,11 @@ class Timer {
 	 */
 	public function stop( string $label ): float {
 		if ( '' === $label ) {
+			_doing_it_wrong(
+				__METHOD__,
+				'Timer label must not be empty.',
+				'1.0.0'
+			);
 			return 0.0;
 		}
 
@@ -91,6 +106,11 @@ class Timer {
 		}
 
 		if ( null !== $this->timers[ $label ]['end'] ) {
+			_doing_it_wrong(
+				__METHOD__,
+				sprintf( 'Timer "%s" has already been stopped.', esc_html( $label ) ),
+				'1.0.0'
+			);
 			return $this->timers[ $label ]['end'] - $this->timers[ $label ]['start'];
 		}
 
@@ -103,8 +123,9 @@ class Timer {
 	 * Record an intermediate split on a running timer.
 	 *
 	 * Stores elapsed seconds since start at the moment lap() is called.
-	 * No-op if either argument is empty. Triggers _doing_it_wrong() if
-	 * the timer does not exist or has already been stopped.
+	 * No-op (plus `_doing_it_wrong()`) if either argument is empty.
+	 * Also triggers `_doing_it_wrong()` if the timer does not exist or
+	 * has already been stopped.
 	 *
 	 * @param string $label Timer label.
 	 * @param string $name  Lap name.
@@ -112,7 +133,21 @@ class Timer {
 	 * @return void
 	 */
 	public function lap( string $label, string $name ): void {
-		if ( '' === $label || '' === $name ) {
+		if ( '' === $label ) {
+			_doing_it_wrong(
+				__METHOD__,
+				'Timer label must not be empty.',
+				'1.0.0'
+			);
+			return;
+		}
+
+		if ( '' === $name ) {
+			_doing_it_wrong(
+				__METHOD__,
+				'Lap name must not be empty.',
+				'1.0.0'
+			);
 			return;
 		}
 

@@ -55,9 +55,12 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Calling start() twice with the same label keeps the first start time.
+	 * Calling start() twice with the same label triggers `_doing_it_wrong()`
+	 * and keeps the first start time.
 	 */
 	public function test_start_twice_is_noop(): void {
+		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::start' );
+
 		Timer::get_instance()->start( 'double_start' );
 		$first = Timer::get_instance()->get( 'double_start' );
 
@@ -69,10 +72,12 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Empty-string start is a silent no-op; reading the empty label returns null
-	 * and no empty-string key is created in the underlying timer registry.
+	 * Empty-string start triggers `_doing_it_wrong()` and is a no-op; reading
+	 * the empty label returns null and no empty-string key is created.
 	 */
 	public function test_empty_label_start_is_noop(): void {
+		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::start' );
+
 		Timer::get_instance()->start( '' );
 
 		$this->assertNull( Timer::get_instance()->get( '' ) );
@@ -80,16 +85,21 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Stopping the empty label returns 0.0 silently — no `_doing_it_wrong()` noise.
+	 * Stopping the empty label returns 0.0 and triggers `_doing_it_wrong()`.
 	 */
-	public function test_stop_empty_label_returns_zero_silently(): void {
+	public function test_stop_empty_label_returns_zero(): void {
+		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::stop' );
+
 		$this->assertSame( 0.0, Timer::get_instance()->stop( '' ) );
 	}
 
 	/**
-	 * Stopping an already-stopped timer returns the cached elapsed.
+	 * Stopping an already-stopped timer triggers `_doing_it_wrong()` and
+	 * returns the cached elapsed.
 	 */
 	public function test_stop_already_stopped_returns_cached_elapsed(): void {
+		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::stop' );
+
 		Timer::get_instance()->start( 'stop_twice' );
 		usleep( 5000 );
 		$first = Timer::get_instance()->stop( 'stop_twice' );
@@ -143,9 +153,11 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * An empty lap name is a silent no-op on an existing timer.
+	 * An empty lap name triggers `_doing_it_wrong()` and is a no-op.
 	 */
 	public function test_lap_empty_name_is_noop(): void {
+		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::lap' );
+
 		Timer::get_instance()->start( 'empty_lap_name' );
 		Timer::get_instance()->lap( 'empty_lap_name', '' );
 
@@ -154,10 +166,12 @@ class TimerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * An empty timer label on lap() is a silent no-op — no empty-label timer is
-	 * created and no _doing_it_wrong() is raised.
+	 * An empty timer label on lap() triggers `_doing_it_wrong()` and is a
+	 * no-op — no empty-label timer is created.
 	 */
 	public function test_lap_empty_label_is_noop(): void {
+		$this->setExpectedIncorrectUsage( 'RtCamp\WPToolkit\Utilities\Timer::lap' );
+
 		Timer::get_instance()->lap( '', 'checkpoint' );
 
 		$this->assertArrayNotHasKey( '', Timer::get_instance()->get_all() );
