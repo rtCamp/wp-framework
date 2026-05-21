@@ -1,0 +1,33 @@
+name: Pull Requests auto-merge
+
+on:
+  workflow_run:
+    workflows: ["Test and Measure"]
+    types:
+      - completed
+
+permissions:
+  pull-requests: write
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependabot:
+    name: Dependabot PR auto-merge
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Approve and merge the PR
+        if: |
+          contains( github.event.workflow_run.head_commit.message, 'version-update:semver-minor' ) ||
+          contains( github.event.workflow_run.head_commit.message, 'version-update:semver-patch' )
+        run: gh pr merge "$PR_NUMBER" --auto --merge --delete-branch
+        env:
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -44,15 +44,22 @@
     </rule>
 
     <!-- Allow short ternary (?:) — modern PHP idiom. -->
-    <rule ref="WordPress.PHP.DisallowShortTernary.Found">
+    <rule ref="Universal.Operators.DisallowShortTernary">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Allow short array syntax [] — modern PHP idiom. -->
+    <rule ref="Universal.Arrays.DisallowShortArraySyntax">
+        <severity>0</severity>
+    </rule>
+
+    <!-- PSR-4 autoloading requires PascalCase filenames — disable WP filename rules. -->
+    <rule ref="WordPress.Files.FileName">
         <severity>0</severity>
     </rule>
 
     <!-- Test files don't need the file-level comment rules -->
     <rule ref="Squiz.Commenting.FileComment">
-        <exclude-pattern>tests/*</exclude-pattern>
-    </rule>
-    <rule ref="WordPress.Files.FileName">
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>
 </ruleset>
