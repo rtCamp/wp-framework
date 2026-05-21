@@ -1,12 +1,12 @@
 {
-    "name": "rtcamp/wp-php-toolkit",
+    "name": "rtcamp/wp-framework",
     "description": "Shared PHP utilities for rtCamp WordPress projects",
     "type": "library",
     "license": "GPL-2.0-or-later",
-    "homepage": "https://github.com/rtCamp/wp-php-toolkit",
+    "homepage": "https://github.com/rtCamp/wp-framework",
     "support": {
-        "issues": "https://github.com/rtCamp/wp-php-toolkit/issues",
-        "source": "https://github.com/rtCamp/wp-php-toolkit"
+        "issues": "https://github.com/rtCamp/wp-framework/issues",
+        "source": "https://github.com/rtCamp/wp-framework"
     },
     "require": {
         "php": ">=8.3"
@@ -24,12 +24,12 @@
     },
     "autoload": {
         "psr-4": {
-            "RtCamp\\WPToolkit\\": "src/"
+            "rtCamp\\WPFramework\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "RtCamp\\WPToolkit\\Tests\\": "tests/"
+            "rtCamp\\WPFramework\\Tests\\": "tests/"
         }
     },
     "config": {
