@@ -24,12 +24,12 @@
     },
     "autoload": {
         "psr-4": {
-            "WPFramework\\": "src/"
+            "rtCamp\\WPFramework\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "WPFramework\\Tests\\": "tests/"
+            "rtCamp\\WPFramework\\Tests\\": "tests/"
         }
     },
     "config": {
