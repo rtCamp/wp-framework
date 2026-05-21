@@ -19,14 +19,15 @@ Add the `Cache` utility to `src/Utilities/Cache.php`. A thin, typed wrapper over
 - [2026-04-30] **`flush_group()` graceful-fallback branch is verified by code review, not by an automated test — and the `function_exists` check stays inline rather than being extracted into a testability seam.** wp-tests-lib runs WP latest (6.1+), where `wp_cache_flush_group()` always exists, and PHP has no portable way to undefine a function in-process.
 - [2026-04-30] **`set()` carries an inline `phpcs:ignore` for `WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined`.** The VIP rule wants to confirm `$expiration` is ≥ 300 seconds, but `Cache::set` is a thin pass-through — the expiry value originates with the caller. The rule's intent is enforced at call sites, not inside the wrapper. Suppression carries a justification per CLAUDE.md style.
 - [2026-04-30] **No business logic inside `get` / `set` / `delete`** — pure pass-throughs per spec. No logging, no telemetry, no key-namespacing (Transients owns prefix-based namespacing; Cache defers to WP's group system).
+- [2026-05-21] **`remember()` added with stale-while-revalidate (SWR) stampede prevention.** On expiry, stale data (`{key}_stale`, TTL = 2× real TTL) is served immediately while one process regenerates. Spin-wait (2 retries × 50ms) is only hit on cold start (both fresh and stale absent) — never on normal expiry. Effective only with a persistent object cache (Redis/Memcached); documented clearly. Lock TTL (30s) PHPCS warning suppressed with justification — it is a dead-man-switch for the lock entry, not a data TTL.
 - [2026-04-30] **`Singleton` trait constructor changed from `private` → `final protected`, and stale `trait.unused` ignore removed from `phpstan.neon.dist`.** `composer analyse` runs PHPStan over the whole `src/` tree with `reportUnmatchedIgnoredErrors: true`, so once the trait had a real consumer (Cache) two errors fired: `new.staticInAbstractClassStaticMethod` (trait analysed in context of a concrete class wants a consistent constructor) and `ignore.unmatched` (the previously-needed `trait.unused` ignore became stale). `final protected` keeps the singleton contract — `final` blocks subclass redefinition of the constructor signature, `protected` allows the trait to be used by a class that itself can be subclassed without re-exposing `new` to external code. `private` would have triggered `consistentConstructor.private` instead.
 
 ---
 
 ## Files changed so far
 
-- `src/Utilities/Cache.php` — new
-- `tests/Utilities/CacheTest.php` — new (3 tests, 4 assertions)
+- `src/Utilities/Cache.php` — new; `remember()` (SWR) added 2026-05-21
+- `tests/Utilities/CacheTest.php` — new (7 tests, 12 assertions)
 - `CHANGELOG.md` — Unreleased entry
 - `.claude/issues/03-cache-utility.md` — new (this file)
 - `src/Traits/Singleton.php` — `private __construct` → `final protected __construct` (PHPStan `new static()` fix)

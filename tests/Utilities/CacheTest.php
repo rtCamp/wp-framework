@@ -67,4 +67,86 @@ class CacheTest extends WP_UnitTestCase {
 		$this->assertTrue( $result );
 		$this->assertFalse( Cache::get_instance()->get( 'k3', 'demo' ) );
 	}
+
+	/**
+	 * Returns the cached value without invoking the callback when the key already exists.
+	 */
+	public function test_remember_returns_cached_value_on_hit(): void {
+		Cache::get_instance()->set( 'r1', 'cached', 'demo' );
+
+		$calls  = 0;
+		$result = Cache::get_instance()->remember(
+			'r1',
+			function () use ( &$calls ): string {
+				++$calls;
+				return 'generated';
+			},
+			'demo',
+			300
+		);
+
+		$this->assertSame( 'cached', $result );
+		$this->assertSame( 0, $calls );
+	}
+
+	/**
+	 * Calls the callback and stores its return value at both the fresh and stale keys on a cache miss.
+	 */
+	public function test_remember_calls_callback_and_stores_on_miss(): void {
+		$result = Cache::get_instance()->remember(
+			'r2',
+			fn(): string => 'generated',
+			'demo',
+			300
+		);
+
+		$this->assertSame( 'generated', $result );
+		$this->assertSame( 'generated', Cache::get_instance()->get( 'r2', 'demo' ) );
+		$this->assertSame( 'generated', Cache::get_instance()->get( 'r2_stale', 'demo' ) );
+	}
+
+	/**
+	 * Calls the callback only once for sequential calls targeting the same key.
+	 *
+	 * Verifies the stored-value path: the second call hits the cache populated
+	 * by the first call and does not invoke the callback again.
+	 */
+	public function test_remember_calls_callback_only_once_for_sequential_calls(): void {
+		$calls = 0;
+		$make  = function () use ( &$calls ): string {
+			++$calls;
+			return 'once';
+		};
+
+		Cache::get_instance()->remember( 'r3', $make, 'demo', 300 );
+		Cache::get_instance()->remember( 'r3', $make, 'demo', 300 );
+
+		$this->assertSame( 1, $calls );
+	}
+
+	/**
+	 * Serves stale data immediately when the fresh key has expired.
+	 *
+	 * Simulates expiry by deleting the fresh key while the stale key remains.
+	 * Verifies that the stale value is returned and the callback is invoked
+	 * exactly once (background regeneration in the same request).
+	 */
+	public function test_remember_serves_stale_on_fresh_key_miss(): void {
+		Cache::get_instance()->remember( 'r4', fn(): string => 'initial', 'demo', 300 );
+		Cache::get_instance()->delete( 'r4', 'demo' );
+
+		$calls  = 0;
+		$result = Cache::get_instance()->remember(
+			'r4',
+			function () use ( &$calls ): string {
+				++$calls;
+				return 'regenerated';
+			},
+			'demo',
+			300
+		);
+
+		$this->assertSame( 'initial', $result );
+		$this->assertSame( 1, $calls );
+	}
 }
