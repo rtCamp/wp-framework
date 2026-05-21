@@ -10,9 +10,9 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Contracts\Interfaces;
 
 /**
- * Interface - CLI_Command
+ * Interface - CLICommand
  */
-interface CLI_Command {
+interface CLICommand {
 	/**
 	 * Get the command name.
 	 */

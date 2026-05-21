@@ -15,9 +15,9 @@ use WP_REST_Controller;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_REST_Controller
+ * Class - AbstractRESTController
  */
-abstract class Abstract_REST_Controller extends WP_REST_Controller implements Registrable {
+abstract class AbstractRESTController extends WP_REST_Controller implements Registrable {
 	/**
 	 * Route namespace for the REST API routes.
 	 *

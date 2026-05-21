@@ -1,8 +1,10 @@
 <?php
 /**
- * Abstract Admin Page class.
+ * Abstract Settings Page class.
  *
- * Provides a clean interface for registering WordPress admin menu pages.
+ * Provides a clean interface for registering a WordPress settings page
+ * with the Settings API. Handles menu registration, settings registration,
+ * and rendering in a single class.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
  */
@@ -14,18 +16,18 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_Admin_Page
+ * Class - AbstractSettingsPage
  */
-abstract class Abstract_Admin_Page implements Registrable {
+abstract class AbstractSettingsPage implements Registrable {
 	/**
-	 * Get the menu slug (page identifier).
+	 * Get the menu/page slug.
 	 *
 	 * @return non-empty-string
 	 */
 	abstract public static function get_slug(): string;
 
 	/**
-	 * Get the page title (shown in browser tab).
+	 * Get the page title (shown in the browser tab).
 	 *
 	 * @return string
 	 */
@@ -39,7 +41,17 @@ abstract class Abstract_Admin_Page implements Registrable {
 	abstract protected function get_menu_title(): string;
 
 	/**
-	 * Render the admin page content.
+	 * Get the settings definitions.
+	 *
+	 * Each key is the option name, and the value is the array of args
+	 * passed to register_setting().
+	 *
+	 * @return array<string, array<string, mixed>>
+	 */
+	abstract protected function get_settings(): array;
+
+	/**
+	 * Render the settings page output.
 	 */
 	abstract public function render(): void;
 
@@ -48,10 +60,12 @@ abstract class Abstract_Admin_Page implements Registrable {
 	 */
 	public function register_hooks(): void {
 		add_action( 'admin_menu', [ $this, 'register_page' ] );
+		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'rest_api_init', [ $this, 'register_settings' ] );
 	}
 
 	/**
-	 * Register the admin page.
+	 * Register the settings page in the admin menu.
 	 */
 	public function register_page(): void {
 		$parent = $this->get_parent_slug();
@@ -80,15 +94,37 @@ abstract class Abstract_Admin_Page implements Registrable {
 	}
 
 	/**
+	 * Register the settings with the Settings API.
+	 *
+	 * Iterates over get_settings() and calls register_setting() for each.
+	 */
+	public function register_settings(): void {
+		foreach ( $this->get_settings() as $option_name => $args ) {
+			register_setting( $this->get_option_group(), $option_name, $args );
+		}
+	}
+
+	/**
+	 * Get the option group for register_setting().
+	 *
+	 * Defaults to the page slug. Override if needed.
+	 *
+	 * @return non-empty-string
+	 */
+	protected function get_option_group(): string {
+		return static::get_slug();
+	}
+
+	/**
 	 * Get the parent menu slug.
 	 *
-	 * Return null for a top-level menu, or a slug string for a submenu.
-	 * E.g. 'options-general.php' for Settings submenu.
+	 * Return null for a top-level menu page, or a slug for a submenu.
+	 * Common values: 'options-general.php', 'tools.php', 'edit.php'.
 	 *
 	 * @return string|null
 	 */
 	protected function get_parent_slug(): ?string {
-		return null;
+		return 'options-general.php';
 	}
 
 	/**
@@ -101,9 +137,9 @@ abstract class Abstract_Admin_Page implements Registrable {
 	}
 
 	/**
-	 * Get the menu icon (for top-level menus only).
+	 * Get the menu icon (top-level menus only).
 	 *
-	 * @return string Dashicon class or SVG URL.
+	 * @return string Dashicon class or SVG data URI.
 	 */
 	protected function get_icon(): string {
 		return '';

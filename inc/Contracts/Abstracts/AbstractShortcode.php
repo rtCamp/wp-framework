@@ -14,9 +14,9 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_Shortcode
+ * Class - AbstractShortcode
  */
-abstract class Abstract_Shortcode implements Registrable {
+abstract class AbstractShortcode implements Registrable {
 	/**
 	 * Get the shortcode tag name.
 	 *

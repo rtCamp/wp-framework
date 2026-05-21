@@ -58,14 +58,16 @@ trait Loader {
 	 *
 	 * @template T of object
 	 *
-	 * @param class-string<T> $id Class name.
+	 * @param string $id Class name.
 	 *
 	 * @return T
 	 *
 	 * @throws \RuntimeException If the class was not registered as Shareable.
 	 */
 	public function get_shared( string $id ): object {
-		/** @var T $instance */
+		/** 
+		 * Instance of the requested class.
+		 * */
 		$instance = $this->container->get( $id );
 
 		return $instance;

@@ -16,9 +16,9 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_Block
+ * Class - AbstractBlock
  */
-abstract class Abstract_Block implements Registrable {
+abstract class AbstractBlock implements Registrable {
 	/**
 	 * Get the block name (including namespace).
 	 *

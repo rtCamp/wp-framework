@@ -15,9 +15,9 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_Module
+ * Class - AbstractModule
  */
-abstract class Abstract_Module implements Registrable {
+abstract class AbstractModule implements Registrable {
 
 	/**
 	 * Get the Registrable class-strings this module manages.

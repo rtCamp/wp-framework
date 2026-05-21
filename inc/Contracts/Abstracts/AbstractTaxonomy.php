@@ -14,9 +14,9 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_Taxonomy
+ * Class - AbstractTaxonomy
  */
-abstract class Abstract_Taxonomy implements Registrable {
+abstract class AbstractTaxonomy implements Registrable {
 	/**
 	 * Get slug of post type.
 	 *

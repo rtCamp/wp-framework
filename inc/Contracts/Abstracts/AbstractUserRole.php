@@ -16,9 +16,9 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
- * Class - Abstract_User_Role
+ * Class - AbstractUserRole
  */
-abstract class Abstract_User_Role implements Registrable {
+abstract class AbstractUserRole implements Registrable {
 	/**
 	 * Get the role slug (identifier).
 	 *
