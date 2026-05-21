@@ -15,6 +15,7 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Contracts\Traits;
 
 use rtCamp\WPFramework\Container;
+use rtCamp\WPFramework\Contracts\Interfaces\ConditionallyRegistrable;
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 use rtCamp\WPFramework\Contracts\Interfaces\Shareable;
 
@@ -44,7 +45,9 @@ trait Loader {
 			$instance = new $class_name();
 
 			if ( $instance instanceof Registrable ) {
-				$instance->register_hooks();
+				if ( ! $instance instanceof ConditionallyRegistrable || $instance->can_register() ) {
+					$instance->register_hooks();
+				}
 			}
 
 			if ( $instance instanceof Shareable ) {

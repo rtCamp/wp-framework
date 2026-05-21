@@ -3,18 +3,17 @@
  * Abstract Post Type class.
  *
  * Provides a rich base for registering WordPress custom post types.
- * Subclasses declare the name, labels and icon; the base class builds
+ * Subclasses declare the slug, labels and icon; the base class builds
  * the full options array and handles registration, including optional
  * taxonomy association and a post-registration hook.
  *
  * Usage:
  *
  *   class FooPostType extends AbstractPostType {
- *       public function get_name(): string          { return 'foo'; }
+ *       public function get_slug(): string          { return 'foo'; }
  *       public function get_singular_label(): string { return 'Foo'; }
  *       public function get_plural_label(): string   { return 'Foos'; }
  *       public function get_menu_icon(): string      { return 'dashicons-admin-post'; }
- *       protected function get_text_domain(): string { return 'my-plugin'; }
  *   }
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
@@ -36,7 +35,7 @@ abstract class AbstractPostType implements Registrable {
 	 *
 	 * @return lowercase-string&non-empty-string
 	 */
-	abstract public function get_name(): string;
+	abstract public static function get_slug(): string;
 
 	/**
 	 * Get the singular label (e.g. "Article").
@@ -87,7 +86,7 @@ abstract class AbstractPostType implements Registrable {
 	 * Register the post type with WordPress.
 	 */
 	public function register_post_type(): void {
-		register_post_type( $this->get_name(), $this->get_options() ); // phpcs:ignore WordPress.NamingConventions.ValidPostTypeSlug.NotStringLiteral
+		register_post_type( static::get_slug(), $this->get_options() ); // phpcs:ignore WordPress.NamingConventions.ValidPostTypeSlug.NotStringLiteral
 	}
 
 	/**
@@ -98,7 +97,7 @@ abstract class AbstractPostType implements Registrable {
 	 */
 	public function register_taxonomies(): void {
 		foreach ( $this->get_supported_taxonomies() as $taxonomy ) {
-			register_taxonomy_for_object_type( $taxonomy, $this->get_name() );
+			register_taxonomy_for_object_type( $taxonomy, static::get_slug() );
 		}
 	}
 
@@ -137,53 +136,34 @@ abstract class AbstractPostType implements Registrable {
 			$options['menu_position'] = $menu_position;
 		}
 
+		$options = array_merge( $options, $this->get_custom_options() );
+
 		return $options;
 	}
 
 	/**
-	 * Build the labels array from the singular and plural label methods.
+	 * Get any additional options to merge into the post type args.
 	 *
-	 * Uses get_text_domain() for translations — override that in the
-	 * child class to set your plugin's text domain.
+	 * Override to add or override any options not covered by the other
+	 * helper methods.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_custom_options(): array {
+		return [];
+	}
+
+	/**
+	 * Get the post type labels.
+	 * Override to add more labels or customise as needed.
 	 *
 	 * @return array<string, string>
 	 */
 	public function get_labels(): array {
-		$singular = $this->get_singular_label();
-		$plural   = $this->get_plural_label();
-		$domain   = $this->get_text_domain();
-
-		// phpcs:disable WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.NonSingularStringLiteralDomain
 		return [
-			'name'                     => $plural,
-			'singular_name'            => $singular,
-			'add_new'                  => sprintf( __( 'Add New %s', $domain ), $singular ),
-			'add_new_item'             => sprintf( __( 'Add New %s', $domain ), $singular ),
-			'edit_item'                => sprintf( __( 'Edit %s', $domain ), $singular ),
-			'new_item'                 => sprintf( __( 'New %s', $domain ), $singular ),
-			'view_item'                => sprintf( __( 'View %s', $domain ), $singular ),
-			'view_items'               => sprintf( __( 'View %s', $domain ), $plural ),
-			'search_items'             => sprintf( __( 'Search %s', $domain ), $plural ),
-			'not_found'                => sprintf( __( 'No %s found.', $domain ), strtolower( $plural ) ),
-			'not_found_in_trash'       => sprintf( __( 'No %s found in Trash.', $domain ), strtolower( $plural ) ),
-			'parent_item_colon'        => sprintf( __( 'Parent %s:', $domain ), $plural ),
-			'all_items'                => sprintf( __( 'All %s', $domain ), $plural ),
-			'archives'                 => sprintf( __( '%s Archives', $domain ), $singular ),
-			'attributes'               => sprintf( __( '%s Attributes', $domain ), $singular ),
-			'insert_into_item'         => sprintf( __( 'Insert into %s', $domain ), strtolower( $singular ) ),
-			'uploaded_to_this_item'    => sprintf( __( 'Uploaded to this %s', $domain ), strtolower( $singular ) ),
-			'filter_items_list'        => sprintf( __( 'Filter %s list', $domain ), strtolower( $plural ) ),
-			'items_list_navigation'    => sprintf( __( '%s list navigation', $domain ), $plural ),
-			'items_list'               => sprintf( __( '%s list', $domain ), $plural ),
-			'item_published'           => sprintf( __( '%s published.', $domain ), $singular ),
-			'item_published_privately' => sprintf( __( '%s published privately.', $domain ), $singular ),
-			'item_reverted_to_draft'   => sprintf( __( '%s reverted to draft.', $domain ), $singular ),
-			'item_scheduled'           => sprintf( __( '%s scheduled.', $domain ), $singular ),
-			'item_updated'             => sprintf( __( '%s updated.', $domain ), $singular ),
-			'menu_name'                => $plural,
-			'name_admin_bar'           => $singular,
+			'name'          => $this->get_plural_label(),
+			'singular_name' => $this->get_singular_label(),
 		];
-		// phpcs:enable WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.NonSingularStringLiteralDomain
 	}
 
 	/**
@@ -225,16 +205,5 @@ abstract class AbstractPostType implements Registrable {
 	 */
 	public function is_hierarchical(): bool {
 		return false;
-	}
-
-	/**
-	 * Get the text domain for label translations.
-	 *
-	 * Override in the child class with your plugin's or theme's text domain.
-	 *
-	 * @return string
-	 */
-	protected function get_text_domain(): string {
-		return '';
 	}
 }

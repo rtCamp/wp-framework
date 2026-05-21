@@ -13,11 +13,14 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Contracts\Abstracts;
 
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
+use WPFramework\Contracts\Traits\Loader;
 
 /**
  * Class - AbstractModule
  */
 abstract class AbstractModule implements Registrable {
+
+	use Loader;
 
 	/**
 	 * Get the Registrable class-strings this module manages.
@@ -32,9 +35,6 @@ abstract class AbstractModule implements Registrable {
 	 * Instantiates each class from get_classes() and calls register_hooks().
 	 */
 	public function register_hooks(): void {
-		foreach ( $this->get_classes() as $class_name ) {
-			$instance = new $class_name();
-			$instance->register_hooks();
-		}
+		$this->load( $this->get_classes() );
 	}
 }
