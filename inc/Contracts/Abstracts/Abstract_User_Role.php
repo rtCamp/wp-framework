@@ -6,14 +6,14 @@
  * Uses an option in the database to track the version, so roles are only
  * re-registered when the definition changes.
  *
- * @package WPFramework\Contracts\Abstracts
+ * @package rtCamp\WPFramework\Contracts\Abstracts
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Abstracts;
+namespace rtCamp\WPFramework\Contracts\Abstracts;
 
-use WPFramework\Contracts\Interfaces\Registrable;
+use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
  * Class - Abstract_User_Role

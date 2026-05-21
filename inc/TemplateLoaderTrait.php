@@ -5,12 +5,12 @@
  * Allows plugins to provide template files that themes can override.
  * Follows WordPress template hierarchy: Child Theme > Parent Theme > Plugin.
  *
- * @package WPFramework
+ * @package rtCamp\WPFramework
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework;
+namespace rtCamp\WPFramework;
 
 /**
  * Trait - TemplateLoaderTrait.

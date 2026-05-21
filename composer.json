@@ -19,12 +19,12 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"WPFramework\\": "inc/"
+			"rtCamp\\WPFramework\\": "inc/"
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"WPFramework\\Tests\\": "tests/"
+			"rtCamp\\WPFramework\\Tests\\": "tests/"
 		}
 	},
 	"config": {

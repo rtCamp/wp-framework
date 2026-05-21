@@ -10,13 +10,13 @@
  * Implemented alongside Registrable when a hooked class must also be shared,
  * or on its own for a plain shared service.
  *
- * @package WPFramework\Contracts\Interfaces
+ * @package rtCamp\WPFramework\Contracts\Interfaces
  * @since 0.0.1
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Interfaces;
+namespace rtCamp\WPFramework\Contracts\Interfaces;
 
 /**
  * Interface - Shareable

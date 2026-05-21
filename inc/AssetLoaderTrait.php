@@ -2,12 +2,12 @@
 /**
  * Trait for WordPress asset loading.
  *
- * @package WPFramework
+ * @package rtCamp\WPFramework
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework;
+namespace rtCamp\WPFramework;
 
 /**
  * Trait - AssetLoaderTrait

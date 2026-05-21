@@ -4,12 +4,12 @@
  *
  * Simple container that stores object instances and retrieves them by class name.
  *
- * @package WPFramework
+ * @package rtCamp\WPFramework
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework;
+namespace rtCamp\WPFramework;
 
 /**
  * Class - Container

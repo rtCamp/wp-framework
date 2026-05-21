@@ -4,15 +4,15 @@
  *
  * Includes the shared namespace, version and hook registration.
  *
- * @package WPFramework\Contracts\Abstracts
+ * @package rtCamp\WPFramework\Contracts\Abstracts
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Abstracts;
+namespace rtCamp\WPFramework\Contracts\Abstracts;
 
 use WP_REST_Controller;
-use WPFramework\Contracts\Interfaces\Registrable;
+use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
  * Class - Abstract_REST_Controller

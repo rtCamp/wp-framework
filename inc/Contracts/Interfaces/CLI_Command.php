@@ -2,12 +2,12 @@
 /**
  * Interface for WP_CLI commands.
  *
- * @package WPFramework\Contracts\Interfaces
+ * @package rtCamp\WPFramework\Contracts\Interfaces
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Interfaces;
+namespace rtCamp\WPFramework\Contracts\Interfaces;
 
 /**
  * Interface - CLI_Command

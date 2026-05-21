@@ -6,17 +6,17 @@
  * Registrable, and caches any Shareable instance in a per-host Container.
  * Plain classes (neither Registrable nor Shareable) are just instantiated.
  *
- * @package WPFramework\Contracts\Traits
+ * @package rtCamp\WPFramework\Contracts\Traits
  * @since 0.0.1
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Traits;
+namespace rtCamp\WPFramework\Contracts\Traits;
 
-use WPFramework\Container;
-use WPFramework\Contracts\Interfaces\Registrable;
-use WPFramework\Contracts\Interfaces\Shareable;
+use rtCamp\WPFramework\Container;
+use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
+use rtCamp\WPFramework\Contracts\Interfaces\Shareable;
 
 /**
  * Loader trait.

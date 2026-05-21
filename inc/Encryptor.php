@@ -4,12 +4,12 @@
  *
  * Useful for encrypting sensitive data before storing it in the database, with a fallback to return raw values if OpenSSL is unavailable.
  *
- * @package WPFramework
+ * @package rtCamp\WPFramework
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework;
+namespace rtCamp\WPFramework;
 
 /**
  * Class - Encryptor

@@ -4,14 +4,14 @@
  *
  * Class to be extended by all taxonomies in the plugin. It includes the shared hook registration and default args.
  *
- * @package WPFramework\Contracts\Abstracts
+ * @package rtCamp\WPFramework\Contracts\Abstracts
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Abstracts;
+namespace rtCamp\WPFramework\Contracts\Abstracts;
 
-use WPFramework\Contracts\Interfaces\Registrable;
+use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
  * Class - Abstract_Taxonomy

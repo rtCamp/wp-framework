@@ -4,14 +4,14 @@
  *
  * Class to be extended by all shortcodes. Handles registration and provides a clean render interface.
  *
- * @package WPFramework\Contracts\Abstracts
+ * @package rtCamp\WPFramework\Contracts\Abstracts
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Abstracts;
+namespace rtCamp\WPFramework\Contracts\Abstracts;
 
-use WPFramework\Contracts\Interfaces\Registrable;
+use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
  * Class - Abstract_Shortcode

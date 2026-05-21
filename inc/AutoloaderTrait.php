@@ -4,12 +4,12 @@
  *
  * Wraps the Composer autoloader to provide graceful failure if it is missing.
  *
- * @package WPFramework
+ * @package rtCamp\WPFramework
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework;
+namespace rtCamp\WPFramework;
 
 /**
  * Class - AutoloaderTrait

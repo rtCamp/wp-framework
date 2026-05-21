@@ -4,12 +4,12 @@
  *
  * Registrable classes are those that register hooks (actions/filters) with WordPress.
  *
- * @package WPFramework\Contracts\Interfaces
+ * @package rtCamp\WPFramework\Contracts\Interfaces
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Interfaces;
+namespace rtCamp\WPFramework\Contracts\Interfaces;
 
 /**
  * Interface - Registrable

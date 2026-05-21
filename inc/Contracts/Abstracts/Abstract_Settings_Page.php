@@ -6,14 +6,14 @@
  * with the Settings API. Handles menu registration, settings registration,
  * and rendering in a single class.
  *
- * @package WPFramework\Contracts\Abstracts
+ * @package rtCamp\WPFramework\Contracts\Abstracts
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Abstracts;
+namespace rtCamp\WPFramework\Contracts\Abstracts;
 
-use WPFramework\Contracts\Interfaces\Registrable;
+use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 
 /**
  * Class - Abstract_Settings_Page

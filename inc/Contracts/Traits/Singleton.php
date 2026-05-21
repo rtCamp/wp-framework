@@ -5,12 +5,12 @@
  * Singletons are an ANTI-PATTERN. Use with caution and only when necessary.
  * In most cases, it's better to use dependency injection.
  *
- * @package WPFramework\Contracts\Traits
+ * @package rtCamp\WPFramework\Contracts\Traits
  */
 
 declare( strict_types = 1 );
 
-namespace WPFramework\Contracts\Traits;
+namespace rtCamp\WPFramework\Contracts\Traits;
 
 /**
  * Singleton trait.
