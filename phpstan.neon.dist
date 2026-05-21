@@ -9,7 +9,7 @@ parameters:
     phpVersion: 80300
 
     paths:
-        - src
+        - inc
 
     excludePaths:
         - vendor

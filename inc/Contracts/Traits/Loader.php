@@ -59,20 +59,17 @@ trait Loader {
 	/**
 	 * Fetch a shared instance populated during load.
 	 *
-	 * @template T of object
-	 *
 	 * @param string $id Class name.
 	 *
-	 * @return T
+	 * @return object The shared instance.
 	 *
 	 * @throws \RuntimeException If the class was not registered as Shareable.
 	 */
 	public function get_shared( string $id ): object {
-		/** 
+		/**
 		 * Instance of the requested class.
-		 * */
+		 */
 		$instance = $this->container->get( $id );
-
 		return $instance;
 	}
 }

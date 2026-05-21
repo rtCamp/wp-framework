@@ -13,7 +13,7 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Contracts\Abstracts;
 
 use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
-use WPFramework\Contracts\Traits\Loader;
+use rtCamp\WPFramework\Contracts\Traits\Loader;
 
 /**
  * Class - AbstractModule
