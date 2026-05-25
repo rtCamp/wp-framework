@@ -111,6 +111,9 @@ final class Encryptor {
 	 * Gets the encryption key.
 	 *
 	 * Uses WP_FRAMEWORK_ENCRYPTION_KEY if defined, otherwise falls back to LOGGED_IN_KEY.
+	 * Throws if no usable key is available — encryption must not proceed with a weak key.
+	 *
+	 * @throws \RuntimeException If no encryption key is available.
 	 */
 	private static function get_key(): string {
 		if ( defined( 'WP_FRAMEWORK_ENCRYPTION_KEY' ) && '' !== WP_FRAMEWORK_ENCRYPTION_KEY ) {
@@ -121,7 +124,8 @@ final class Encryptor {
 			return LOGGED_IN_KEY;
 		}
 
-		// If you're here, you're either not on a live site or have a serious security issue.
-		return 'this-is-not-a-real-key-change-me';
+		throw new \RuntimeException(
+			'No encryption key available. Define WP_FRAMEWORK_ENCRYPTION_KEY or ensure LOGGED_IN_KEY is set in wp-config.php.'
+		);
 	}
 }
