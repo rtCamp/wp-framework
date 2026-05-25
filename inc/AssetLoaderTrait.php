@@ -38,7 +38,7 @@ trait AssetLoaderTrait {
 	/**
 	 * Register data from the block manifest file.
 	 *
-	 * @param string $block_path The relative path to the block collect. E.g. `build/blocks`.
+	 * @param string $block_path The relative path to the block collection. E.g. `build/blocks`.
 	 * @param string $manifest_file Path to the manifest file, relative to the plugin directory. E.g. `build/blocks-manifest.php`.
 	 */
 	private function register_block_manifest( string $block_path, string $manifest_file ): void {
@@ -73,7 +73,7 @@ trait AssetLoaderTrait {
 			return false;
 		}
 
-		$asset_src = sprintf( '%s/%s.js', $this->plugin_url . untrailingslashit( $this->assets_dir ), $filename );
+		$asset_src = sprintf( '%s/%s.js', trailingslashit( $this->plugin_url ) . untrailingslashit( $this->assets_dir ), $filename );
 		$deps      = $deps ?: ( $asset['dependencies'] ?? [] );
 		$version   = $ver ?? $asset['version'];
 
@@ -106,7 +106,7 @@ trait AssetLoaderTrait {
 			return false;
 		}
 
-		$asset_src = sprintf( '%s/%s.css', $this->plugin_url . untrailingslashit( $this->assets_dir ), $filename );
+		$asset_src = sprintf( '%s/%s.css', trailingslashit( $this->plugin_url ) . untrailingslashit( $this->assets_dir ), $filename );
 		$deps      = $deps ?: ( $asset['dependencies'] ?? [] );
 		$version   = $ver ?? $asset['version'];
 
@@ -130,7 +130,7 @@ trait AssetLoaderTrait {
 	 * @return ?array{version:string, ...} The asset file array, or null if the asset file does not exist or is invalid.
 	 */
 	private function get_asset_file( string $filename ): ?array {
-		$asset_file = sprintf( '%s/%s.asset.php', $this->plugin_dir . untrailingslashit( $this->assets_dir ), $filename );
+		$asset_file = sprintf( '%s/%s.asset.php', trailingslashit( $this->plugin_dir ) . untrailingslashit( $this->assets_dir ), $filename );
 
 		// Bail if the asset file does not exist.
 		if ( ! file_exists( $asset_file ) ) {
@@ -164,7 +164,7 @@ trait AssetLoaderTrait {
 
 		// Fallback to filemtime if version is not set in the asset file.
 		if ( ! isset( $asset['version'] ) ) {
-			$asset['version'] = filemtime( $asset_file );
+			$asset['version'] = (string) filemtime( $asset_file );
 		}
 
 		return $asset;

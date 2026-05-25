@@ -10,7 +10,7 @@
  * Usage:
  *
  *   class FooPostType extends AbstractPostType {
- *       public function get_slug(): string          { return 'foo'; }
+ *       public static function get_slug(): string    { return 'foo'; }
  *       public function get_singular_label(): string { return 'Foo'; }
  *       public function get_plural_label(): string   { return 'Foos'; }
  *       public function get_menu_icon(): string      { return 'dashicons-admin-post'; }
