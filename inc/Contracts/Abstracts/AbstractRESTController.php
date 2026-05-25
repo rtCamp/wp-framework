@@ -44,14 +44,6 @@ abstract class AbstractRESTController extends WP_REST_Controller implements Regi
 
 	/**
 	 * {@inheritDoc}
-	 *
-	 * We throw an exception here to force the child class to implement this method.
-	 *
-	 * @throws \Exception If method not implemented.
-	 *
-	 * @codeCoverageIgnore
 	 */
-	public function register_routes(): void {
-		throw new \Exception( __FUNCTION__ . ' Method not implemented.' );
-	}
+	abstract public function register_routes(): void;
 }
