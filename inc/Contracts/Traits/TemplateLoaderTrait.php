@@ -168,8 +168,20 @@ trait TemplateLoaderTrait {
 	 * @return string|false Located template path, or false if not found.
 	 */
 	private function locate_template( array $templates ): string|false {
-		// Sanitize templates array.
-		$templates = array_filter( array_map( 'sanitize_file_name', $templates ) );
+		// Sanitize each path segment individually to preserve directory separators.
+		$templates = array_filter(
+			array_map(
+				static function ( string $template ): string {
+					$segments = array_filter(
+						array_map( 'sanitize_file_name', explode( '/', $template ) ),
+						static fn( string $seg ): bool => '' !== $seg && '..' !== $seg
+					);
+
+					return implode( '/', $segments );
+				},
+				$templates
+			)
+		);
 
 		if ( empty( $templates ) ) {
 			return false;
