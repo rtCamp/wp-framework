@@ -14,7 +14,7 @@ namespace rtCamp\WPFramework;
  */
 trait AssetLoaderTrait {
 	/**
-	 * The path to the built assets directory, relative to the plugin directory.
+	 * The path to the built assets directory, relative to the base directory.
 	 * No preceding or trailing slashes.
 	 *
 	 * @var string
@@ -22,18 +22,18 @@ trait AssetLoaderTrait {
 	private string $assets_dir;
 
 	/**
-	 * Plugin directory path.
+	 * Base directory path (plugin or theme root).
 	 *
 	 * @var string
 	 */
-	private string $plugin_dir;
+	private string $base_dir;
 
 	/**
-	 * Plugin URL.
+	 * Base URL (plugin or theme root URL).
 	 *
 	 * @var string
 	 */
-	private string $plugin_url;
+	private string $base_url;
 
 	/**
 	 * Register data from the block manifest file.
@@ -42,7 +42,7 @@ trait AssetLoaderTrait {
 	 * @param string $manifest_file Path to the manifest file, relative to the plugin directory. E.g. `build/blocks-manifest.php`.
 	 */
 	private function register_block_manifest( string $block_path, string $manifest_file ): void {
-		$manifest_path = trailingslashit( $this->plugin_dir ) . $manifest_file;
+		$manifest_path = trailingslashit( $this->base_dir ) . $manifest_file;
 		if ( ! file_exists( $manifest_path ) ) {
 			_doing_it_wrong(
 				self::class,
@@ -52,7 +52,7 @@ trait AssetLoaderTrait {
 			return;
 		}
 
-		wp_register_block_types_from_metadata_collection( trailingslashit( $this->plugin_dir ) . $block_path, $manifest_path );
+		wp_register_block_types_from_metadata_collection( trailingslashit( $this->base_dir ) . $block_path, $manifest_path );
 	}
 
 	/**
@@ -73,7 +73,7 @@ trait AssetLoaderTrait {
 			return false;
 		}
 
-		$asset_src = sprintf( '%s/%s.js', trailingslashit( $this->plugin_url ) . untrailingslashit( $this->assets_dir ), $filename );
+		$asset_src = sprintf( '%s/%s.js', trailingslashit( $this->base_url ) . untrailingslashit( $this->assets_dir ), $filename );
 		$deps      = $deps ?: ( $asset['dependencies'] ?? [] );
 		$version   = $ver ?? $asset['version'];
 
@@ -106,7 +106,7 @@ trait AssetLoaderTrait {
 			return false;
 		}
 
-		$asset_src = sprintf( '%s/%s.css', trailingslashit( $this->plugin_url ) . untrailingslashit( $this->assets_dir ), $filename );
+		$asset_src = sprintf( '%s/%s.css', trailingslashit( $this->base_url ) . untrailingslashit( $this->assets_dir ), $filename );
 		$deps      = $deps ?: ( $asset['dependencies'] ?? [] );
 		$version   = $ver ?? $asset['version'];
 
@@ -130,7 +130,7 @@ trait AssetLoaderTrait {
 	 * @return ?array{version:string, ...} The asset file array, or null if the asset file does not exist or is invalid.
 	 */
 	private function get_asset_file( string $filename ): ?array {
-		$asset_file = sprintf( '%s/%s.asset.php', trailingslashit( $this->plugin_dir ) . untrailingslashit( $this->assets_dir ), $filename );
+		$asset_file = sprintf( '%s/%s.asset.php', trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir ), $filename );
 
 		// Bail if the asset file does not exist.
 		if ( ! file_exists( $asset_file ) ) {

@@ -41,10 +41,10 @@ final class Encryptor {
 		if ( ! extension_loaded( 'openssl' ) ) {
 			_doing_it_wrong(
 				__METHOD__,
-				'OpenSSL extension is not loaded. Returning unencrypted value.',
+				'OpenSSL extension is not loaded. Encryption cannot proceed.',
 				'0.0.1',
 			);
-			return $raw_value;
+			return false;
 		}
 
 		$iv  = random_bytes( self::IV_LENGTH );
@@ -75,10 +75,10 @@ final class Encryptor {
 		if ( ! extension_loaded( 'openssl' ) ) {
 			_doing_it_wrong(
 				__METHOD__,
-				'OpenSSL extension is not loaded. Returning unencrypted value.',
+				'OpenSSL extension is not loaded. Decryption cannot proceed.',
 				'0.0.1',
 			);
-			return $raw_value;
+			return false;
 		}
 
 		$decoded_value = base64_decode( $raw_value, true );

@@ -63,13 +63,13 @@ trait Loader {
 	 *
 	 * @return object The shared instance.
 	 *
-	 * @throws \RuntimeException If the class was not registered as Shareable.
+	 * @throws \RuntimeException If load() has not been called or the class was not registered as Shareable.
 	 */
 	public function get_shared( string $id ): object {
-		/**
-		 * Instance of the requested class.
-		 */
-		$instance = $this->container->get( $id );
-		return $instance;
+		if ( ! isset( $this->container ) ) {
+			throw new \RuntimeException( 'Cannot call get_shared() before load() has been called.' );
+		}
+
+		return $this->container->get( $id );
 	}
 }
