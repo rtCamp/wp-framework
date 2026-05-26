@@ -10,7 +10,7 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Tests;
 
 use PHPUnit\Framework\TestCase;
-use rtCamp\WPFramework\Encryptor;
+use rtCamp\WPFramework\Utils\Encryptor;
 
 final class EncryptorTest extends TestCase {
 

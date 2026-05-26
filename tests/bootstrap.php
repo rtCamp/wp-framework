@@ -16,8 +16,8 @@ declare( strict_types = 1 );
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // A deterministic 32-byte key so Encryptor tests are reproducible.
-if ( ! defined( 'WP_FRAMEWORK_ENCRYPTION_KEY' ) ) {
-	define( 'WP_FRAMEWORK_ENCRYPTION_KEY', str_repeat( 'k', 32 ) );
+if ( ! defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) ) {
+	define( 'RT_FRAMEWORK_ENCRYPTION_KEY', str_repeat( 'k', 32 ) );
 }
 
 // --- WordPress function stubs ------------------------------------------------

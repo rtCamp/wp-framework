@@ -9,7 +9,7 @@
 
 declare( strict_types = 1 );
 
-namespace rtCamp\WPFramework;
+namespace rtCamp\WPFramework\Utils;
 
 /**
  * Class - Encryptor
