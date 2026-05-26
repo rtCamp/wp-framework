@@ -116,8 +116,8 @@ final class Encryptor {
 	 * @throws \RuntimeException If no encryption key is available.
 	 */
 	private static function get_key(): string {
-		if ( defined( 'WP_FRAMEWORK_ENCRYPTION_KEY' ) && '' !== WP_FRAMEWORK_ENCRYPTION_KEY ) {
-			return WP_FRAMEWORK_ENCRYPTION_KEY;
+		if ( defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) && '' !== RT_FRAMEWORK_ENCRYPTION_KEY ) {
+			return RT_FRAMEWORK_ENCRYPTION_KEY;
 		}
 
 		if ( defined( 'LOGGED_IN_KEY' ) && '' !== LOGGED_IN_KEY ) {
@@ -125,7 +125,7 @@ final class Encryptor {
 		}
 
 		throw new \RuntimeException(
-			'No encryption key available. Define WP_FRAMEWORK_ENCRYPTION_KEY or ensure LOGGED_IN_KEY is set in wp-config.php.'
+			'No encryption key available. Define RT_FRAMEWORK_ENCRYPTION_KEY or ensure LOGGED_IN_KEY is set in wp-config.php.'
 		);
 	}
 }
