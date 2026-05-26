@@ -2,7 +2,7 @@
 /**
  * WordPress-safe encryption utilities.
  *
- * Useful for encrypting sensitive data before storing it in the database, with a fallback to return raw values if OpenSSL is unavailable.
+ * Useful for encrypting sensitive data before storing it in the database.
  *
  * @package rtCamp\WPFramework
  */
@@ -110,7 +110,7 @@ final class Encryptor {
 	/**
 	 * Gets the encryption key.
 	 *
-	 * Uses WP_FRAMEWORK_ENCRYPTION_KEY if defined, otherwise falls back to LOGGED_IN_KEY.
+	 * Uses RT_FRAMEWORK_ENCRYPTION_KEY if defined, otherwise falls back to LOGGED_IN_KEY.
 	 * Throws if no usable key is available — encryption must not proceed with a weak key.
 	 *
 	 * @throws \RuntimeException If no encryption key is available.
