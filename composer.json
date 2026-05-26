@@ -1,62 +1,62 @@
 {
-    "name": "rtcamp/wp-framework",
-    "description": "Shared PHP utilities for rtCamp WordPress projects",
-    "type": "library",
-    "license": "GPL-2.0-or-later",
-    "homepage": "https://github.com/rtCamp/wp-framework",
-    "support": {
-        "issues": "https://github.com/rtCamp/wp-framework/issues",
-        "source": "https://github.com/rtCamp/wp-framework"
-    },
-    "require": {
-        "php": ">=8.3"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^12.0",
-        "yoast/phpunit-polyfills": "^4.0",
-        "squizlabs/php_codesniffer": "^3.10",
-        "wp-coding-standards/wpcs": "^3.1",
-        "automattic/vipwpcs": "^3.0",
-        "phpcompatibility/phpcompatibility-wp": "^2.1",
-        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-        "phpstan/phpstan": "^2.0",
-        "szepeviktor/phpstan-wordpress": "^2.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "rtCamp\\WPFramework\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "rtCamp\\WPFramework\\Tests\\": "tests/"
-        }
-    },
-    "config": {
-        "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
-        },
-        "optimize-autoloader": true,
-        "sort-packages": true
-    },
-    "scripts": {
-        "lint": "phpcs",
-        "lint:fix": "phpcbf",
-        "analyse": "phpstan analyse",
-        "test": "phpunit",
-        "check": [
-            "@lint",
-            "@analyse",
-            "@test"
-        ]
-    },
-    "scripts-descriptions": {
-        "lint": "Run PHPCS against the WordPress Coding Standards.",
-        "lint:fix": "Auto-fix fixable PHPCS violations.",
-        "analyse": "Run PHPStan static analysis.",
-        "test": "Run the PHPUnit test suite.",
-        "check": "Run lint + analyse + test in sequence. Exit code 0 if all green."
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true
+	"name": "rtcamp/wp-framework",
+	"description": "Shared PHP utilities for rtCamp WordPress projects",
+	"type": "library",
+	"license": "GPL-2.0-or-later",
+	"homepage": "https://github.com/rtCamp/wp-framework",
+	"support": {
+		"issues": "https://github.com/rtCamp/wp-framework/issues",
+		"source": "https://github.com/rtCamp/wp-framework"
+	},
+	"require": {
+		"php": ">=8.2"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^11.0",
+		"yoast/phpunit-polyfills": "^4.0",
+		"squizlabs/php_codesniffer": "^3.10",
+		"wp-coding-standards/wpcs": "^3.1",
+		"automattic/vipwpcs": "^3.0",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
+		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+		"phpstan/phpstan": "^2.0",
+		"szepeviktor/phpstan-wordpress": "^2.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"rtCamp\\WPFramework\\": "inc/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"rtCamp\\WPFramework\\Tests\\": "tests/"
+		}
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		},
+		"optimize-autoloader": true,
+		"sort-packages": true
+	},
+	"scripts": {
+		"lint": "phpcs",
+		"lint:fix": "phpcbf",
+		"analyse": "phpstan analyse --memory-limit=1G",
+		"test": "phpunit",
+		"check": [
+			"@lint",
+			"@analyse",
+			"@test"
+		]
+	},
+	"scripts-descriptions": {
+		"lint": "Run PHPCS against the WordPress Coding Standards.",
+		"lint:fix": "Auto-fix fixable PHPCS violations.",
+		"analyse": "Run PHPStan static analysis.",
+		"test": "Run the PHPUnit test suite.",
+		"check": "Run lint + analyse + test in sequence. Exit code 0 if all green."
+	},
+	"minimum-stability": "stable",
+	"prefer-stable": true
 }
