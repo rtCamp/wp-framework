@@ -2,6 +2,10 @@
 /**
  * Interface for Shareable classes.
  *
+ * Shareable is a SOFT ANTI-PATTERN. It introduces hidden shared state similar
+ * to a Singleton. Use only when a hooked class genuinely must be retrieved
+ * later.
+ *
  * Shareable classes are those whose instance should be reused. When the Loader
  * meets a Shareable, it caches the instance in a Container for later retrieval
  * via get_shared(). Absence of this interface means a fresh, non-shared
