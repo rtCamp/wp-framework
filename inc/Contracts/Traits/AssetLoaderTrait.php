@@ -65,7 +65,7 @@ trait AssetLoaderTrait {
 	 * @param ?string  $ver           Optional. String specifying script version number, if not set, the version will be inherited from the asset file.
 	 * @param bool     $in_footer     Optional. Whether to enqueue the script before </body> instead of in the <head>.
 	 */
-	private function register_script( string $handle, string $filename, array $deps = [], $ver = null, bool $in_footer = true ): bool {
+	private function register_script( string $handle, string $filename, array $deps = [], ?string $ver = null, bool $in_footer = true ): bool {
 
 		$asset = $this->get_asset_file( $filename );
 		// Bail if the asset file does not exist or is invalid.
@@ -99,7 +99,7 @@ trait AssetLoaderTrait {
 	 *                                Default 'all'. Accepts media types like 'all', 'print' and 'screen', or media queries like
 	 *                                '(orientation: portrait)' and '(max-width: 640px)'.
 	 */
-	private function register_style( string $handle, string $filename, array $deps = [], $ver = null, string $media = 'all' ): bool {
+	private function register_style( string $handle, string $filename, array $deps = [], ?string $ver = null, string $media = 'all' ): bool {
 		$asset = $this->get_asset_file( $filename );
 		// Bail if the asset file does not exist or is invalid.
 		if ( ! $asset ) {
