@@ -54,9 +54,10 @@ abstract class AbstractBlock implements Registrable {
 
 		// Always set the render callback to this class's render method.
 		$args['render_callback'] = [ $this, 'render' ];
+		$block_dir               = $this->get_block_dir();
 
-		if ( $this->get_block_dir() ) {
-			register_block_type( $this->get_block_dir(), $args );
+		if ( $block_dir ) {
+			register_block_type( $block_dir, $args );
 		} else {
 			register_block_type( static::get_name(), $args );
 		}
