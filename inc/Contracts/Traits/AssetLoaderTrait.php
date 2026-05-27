@@ -130,6 +130,8 @@ trait AssetLoaderTrait {
 	 *                          (module ID) or an array with 'id' and 'import' keys.
 	 * @param ?string $ver      Optional. String specifying module version number. If not set,
 	 *                          the version will be inherited from the asset file.
+	 * 
+	 * @return bool True on success, false on failure.
 	 */
 	private function register_script_module( string $handle, string $filename, array $deps = [], ?string $ver = null ): bool {
 		$asset = $this->get_asset_file( $filename );
