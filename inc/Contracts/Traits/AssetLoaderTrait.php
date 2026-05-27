@@ -121,6 +121,34 @@ trait AssetLoaderTrait {
 	}
 
 	/**
+	 * Register a script module.
+	 *
+	 * @param string  $handle   Name of the script module. Should be unique.
+	 * @param string  $filename Path of the module relative to the assets directory,
+	 *                          excluding the .js extension.
+	 * @param array   $deps     Optional. An array of module dependencies. Each can be a string
+	 *                          (module ID) or an array with 'id' and 'import' keys.
+	 * @param ?string $ver      Optional. String specifying module version number. If not set,
+	 *                          the version will be inherited from the asset file.
+	 * 
+	 * @return bool True on success, false on failure.
+	 */
+	private function register_script_module( string $handle, string $filename, array $deps = [], ?string $ver = null ): bool {
+		$asset = $this->get_asset_file( $filename );
+		if ( ! $asset ) {
+			return false;
+		}
+
+		$asset_src = sprintf( '%s/%s.js', trailingslashit( $this->base_url ) . untrailingslashit( $this->assets_dir ), $filename );
+		$deps      = $deps ?: ( $asset['dependencies'] ?? [] );
+		$version   = $ver ?? $asset['version'];
+
+		wp_register_script_module( $handle, $asset_src, $deps, $version ?: false );
+
+		return true;
+	}
+
+	/**
 	 * Get the asset version from the asset file.
 	 *
 	 * This is used to ensure that the version is consistent between registered scripts and styles, and to avoid code duplication in the `register_script` and `register_style` methods.
