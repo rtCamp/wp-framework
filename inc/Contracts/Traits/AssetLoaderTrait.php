@@ -155,12 +155,12 @@ trait AssetLoaderTrait {
 	 * @return array{version: string, dependencies?: array<int, string>}|null Asset metadata, or null if the asset file itself is missing or the manifest is invalid.
 	 */
 	private function get_asset_file( string $filename, string $extension ): ?array {
-		$base       = trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir );
-		$asset_file = sprintf( '%s/%s.asset.php', $base, $filename );
-		$real_file  = sprintf( '%s/%s.%s', $base, $filename, $extension );
+		$base          = trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir );
+		$manifest_file = sprintf( '%s/%s.asset.php', $base, $filename );
+		$asset_file    = sprintf( '%s/%s.%s', $base, $filename, $extension );
 
 		// The actual asset file is required — if it's missing, there is nothing to register.
-		if ( ! file_exists( $real_file ) ) {
+		if ( ! file_exists( $asset_file ) ) {
 			_doing_it_wrong(
 				self::class,
 				sprintf(
@@ -175,9 +175,9 @@ trait AssetLoaderTrait {
 		}
 
 		// The .asset.php manifest is optional — when present, it provides deps + version.
-		if ( file_exists( $asset_file ) ) {
+		if ( file_exists( $manifest_file ) ) {
 			// phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- The file is checked for existence above.
-			$asset = require $asset_file;
+			$asset = require $manifest_file;
 
 			if ( ! is_array( $asset ) ) {
 				_doing_it_wrong(
@@ -196,7 +196,7 @@ trait AssetLoaderTrait {
 		}
 
 		if ( ! isset( $asset['version'] ) ) {
-			$asset['version'] = (string) filemtime( $real_file );
+			$asset['version'] = (string) filemtime( $asset_file );
 		}
 
 		return $asset;
