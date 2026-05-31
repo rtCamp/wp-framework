@@ -19,7 +19,7 @@ use rtCamp\WPFramework\Contracts\Traits\AssetLoaderTrait;
  *
  * @since 1.0.0
  */
-class ComponentLoader {
+abstract class ComponentLoader {
 	use AssetLoaderTrait {
 		register_script as private register_asset_loader_script;
 		register_style as private register_asset_loader_style;
@@ -37,12 +37,22 @@ class ComponentLoader {
 	 *
 	 * @var array<string, array<string, mixed>>
 	 */
-	private array $default_paths = [
+	protected array $default_paths = [
 		'theme' => [
 			'php'    => 'src/components',
 			'style'  => 'assets/build/css/components',
 			'script' => 'assets/build/js/components',
 		],
+	];
+
+	/**
+	 * Default enqueue settings for components.
+	 *
+	 * @var array<string, bool>
+	 */
+	protected array $default_enqueue_settings = [
+		'script' => true,
+		'style'  => true,
 	];
 
 	/**
@@ -131,13 +141,22 @@ class ComponentLoader {
 
 		$options['component'] = $component;
 
-		do_action( 'wp_framework_before_get_component', $name, $args, $options );
+		$this->before_get_component( $name, $args, $options );
 
 		require (string) $component['file']; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable, WordPressVIPMinimum.Files.IncludingFile.NotAbsolutePath -- Component file path is resolved and readability-checked before inclusion.
 
 		$this->enqueue_component_assets( $component, $options );
 
-		do_action( 'wp_framework_after_get_component', $name, $args, $options );
+		$this->after_get_component( $name, $args, $options );
+	}
+
+	/**
+	 * Get default enqueue settings for components.
+	 *
+	 * @return array<string, bool> Default enqueue settings.
+	 */
+	protected function get_enqueue_settings(): array {
+		return $this->default_enqueue_settings;
 	}
 
 	/**
@@ -148,26 +167,7 @@ class ComponentLoader {
 	 * @return array<string, mixed> Render options with enqueue settings resolved.
 	 */
 	private function get_render_options( array $options ): array {
-		/**
-		 * Filters the default enqueue settings for components.
-		 *
-		 * This filter allows developers to modify whether scripts and styles
-		 * should be enqueued by default for the component.
-		 *
-		 * @param array<string, bool> $defaults {
-		 * Default enqueue settings.
-		 *
-		 * @type bool $script Whether to enqueue the component's script. Default true.
-		 * @type bool $style  Whether to enqueue the component's style. Default true.
-		 * }
-		 */
-		$enqueue = apply_filters(
-			'wp_framework_component_enqueue_defaults',
-			[
-				'script' => true,
-				'style'  => true,
-			]
-		);
+		$enqueue = $this->get_enqueue_settings();
 
 		if ( ! is_array( $enqueue ) ) {
 			$enqueue = [];
@@ -228,25 +228,7 @@ class ComponentLoader {
 			return false;
 		}
 
-		/**
-		 * Filters the registered component paths.
-		 *
-		 * Supported source keys are 'theme' and 'plugin'. Theme PHP, style, and
-		 * script paths are relative to the theme root. Plugin PHP paths are
-		 * absolute, and plugin assets use absolute dir/url config.
-		 *
-		 * @since 1.0.0
-		 *
-		 * @param array<string, array<string, mixed>> $paths   Associative array of source => path config.
-		 * @param string                              $name    Component name being resolved.
-		 * @param array<string, mixed>                $options Options passed to render().
-		 */
-		$paths = apply_filters(
-			'wp_framework_component_paths',
-			$this->default_paths,
-			$component_name,
-			$options
-		);
+		$paths = $this->get_component_paths( $component_name, $options );
 
 		if ( empty( $paths ) || ! is_array( $paths ) ) {
 			return false;
@@ -596,4 +578,38 @@ class ComponentLoader {
 
 		return $name;
 	}
+
+	/**
+	 * Get the registered component paths.
+	 *
+	 * @param string               $component_name Component name being resolved.
+	 * @param array<string, mixed> $options        Options passed to render().
+	 *
+	 * @return array<string, array<string, mixed>> Associative array of source => path config.
+	 */
+	protected function get_component_paths( string $component_name, array $options ): array {
+		return $this->default_paths;
+	}
+
+	/**
+	 * Hook that fires before a component is rendered.
+	 *
+	 * @param string               $name    Component name.
+	 * @param array<string, mixed> $args    Component arguments.
+	 * @param array<string, mixed> $options Component options.
+	 *
+	 * @return void
+	 */
+	protected function before_get_component( string $name, array $args, array $options ): void {}
+
+	/**
+	 * Hook that fires after a component is rendered.
+	 *
+	 * @param string               $name    Component name.
+	 * @param array<string, mixed> $args    Component arguments.
+	 * @param array<string, mixed> $options Component options.
+	 *
+	 * @return void
+	 */
+	protected function after_get_component( string $name, array $args, array $options ): void {}
 }
