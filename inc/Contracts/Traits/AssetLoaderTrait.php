@@ -127,7 +127,7 @@ trait AssetLoaderTrait {
 	 *
 	 * @param string $filename Path of the asset relative to the assets directory, excluding the file extension.
 	 *
-	 * @return ?array{version:string, ...} The asset file array, or null if the asset file does not exist or is invalid.
+	 * @return ?array{version:string, dependencies?: array<string>, ...} The asset file array, or null if the asset file does not exist or is invalid.
 	 */
 	private function get_asset_file( string $filename ): ?array {
 		$asset_file = sprintf( '%s/%s.asset.php', trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir ), $filename );

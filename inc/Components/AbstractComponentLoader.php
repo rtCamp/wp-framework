@@ -15,22 +15,15 @@ namespace rtCamp\WPFramework\Components;
 use rtCamp\WPFramework\Contracts\Traits\AssetLoaderTrait;
 
 /**
- * Class ComponentLoader
+ * Class AbstractComponentLoader
  *
  * @since 1.0.0
  */
-abstract class ComponentLoader {
+abstract class AbstractComponentLoader {
 	use AssetLoaderTrait {
 		register_script as private register_asset_loader_script;
 		register_style as private register_asset_loader_style;
 	}
-
-	/**
-	 * Shared loader instances, keyed by concrete class.
-	 *
-	 * @var array<class-string, static>
-	 */
-	private static array $instances = [];
 
 	/**
 	 * Default component path configuration for this instance.
@@ -65,28 +58,13 @@ abstract class ComponentLoader {
 	/**
 	 * Constructor.
 	 */
-	final protected function __construct() {}
-
-	/**
-	 * Get the shared loader instance.
-	 *
-	 * @return static Shared loader instance.
-	 */
-	private static function get_instance(): static {
-		$class_name = static::class;
-
-		if ( ! isset( self::$instances[ $class_name ] ) ) {
-			self::$instances[ $class_name ] = new static();
-		}
-
-		return self::$instances[ $class_name ];
-	}
+	public function __construct() {}
 
 	/**
 	 * Clear request-level lookup caches.
 	 */
-	public static function clear_cache(): void {
-		static::get_instance()->component_data_cache = [];
+	public function clear_cache(): void {
+		$this->component_data_cache = [];
 	}
 
 	/**
@@ -106,8 +84,8 @@ abstract class ComponentLoader {
 	 *
 	 * @return void
 	 */
-	public static function render( string $name, array $args = [], array $options = [] ): void {
-		static::get_instance()->render_component( $name, $args, $options, static::class . '::render' );
+	public function render( string $name, array $args = [], array $options = [] ): void {
+		$this->render_component( $name, $args, $options, static::class . '::render' );
 	}
 
 	/**
@@ -169,10 +147,6 @@ abstract class ComponentLoader {
 	private function get_render_options( array $options ): array {
 		$enqueue = $this->get_enqueue_settings();
 
-		if ( ! is_array( $enqueue ) ) {
-			$enqueue = [];
-		}
-
 		$enqueue = wp_parse_args(
 			$options,
 			$enqueue
@@ -201,9 +175,9 @@ abstract class ComponentLoader {
 	 *
 	 * @return string Rendered component HTML, or empty string if not found.
 	 */
-	public static function get( string $name, array $args = [], array $options = [] ): string {
+	public function get( string $name, array $args = [], array $options = [] ): string {
 		ob_start();
-		static::get_instance()->render_component( $name, $args, $options, static::class . '::get' );
+		$this->render_component( $name, $args, $options, static::class . '::get' );
 
 		return (string) ob_get_clean();
 	}
@@ -230,7 +204,7 @@ abstract class ComponentLoader {
 
 		$paths = $this->get_component_paths( $component_name, $options );
 
-		if ( empty( $paths ) || ! is_array( $paths ) ) {
+		if ( empty( $paths ) ) {
 			return false;
 		}
 
@@ -247,7 +221,7 @@ abstract class ComponentLoader {
 			return $this->component_data_cache[ $cache_key ];
 		}
 
-		if ( ! empty( $paths['theme'] ) && is_array( $paths['theme'] ) ) {
+		if ( ! empty( $paths['theme'] ) ) {
 			$component = $this->get_theme_component_data( $component_name, $paths['theme'], $paths, $options );
 
 			if ( false !== $component ) {
@@ -257,7 +231,7 @@ abstract class ComponentLoader {
 			}
 		}
 
-		if ( ! empty( $paths['plugin'] ) && is_array( $paths['plugin'] ) ) {
+		if ( ! empty( $paths['plugin'] ) ) {
 			$component = $this->get_plugin_component_data( $component_name, $paths['plugin'], $paths, $options );
 
 			if ( false !== $component ) {
@@ -285,9 +259,11 @@ abstract class ComponentLoader {
 			return false;
 		}
 
+		$component_slug = strtolower( $component_name );
 		$component_root = trim( $paths['php'], '/\\' );
 		$file           = locate_template(
 			[
+				$component_root . '/' . $component_slug . '/' . $component_slug . '.php',
 				$component_root . '/' . $component_name . '/' . $component_name . '.php',
 			],
 			false,
@@ -588,6 +564,8 @@ abstract class ComponentLoader {
 	 * @return array<string, array<string, mixed>> Associative array of source => path config.
 	 */
 	protected function get_component_paths( string $component_name, array $options ): array {
+		unset( $component_name, $options );
+
 		return $this->default_paths;
 	}
 

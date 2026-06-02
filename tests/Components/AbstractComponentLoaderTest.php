@@ -12,11 +12,13 @@ namespace rtCamp\WPFramework\Tests\Components;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use rtCamp\WPFramework\Components\ComponentLoader;
+use rtCamp\WPFramework\Components\AbstractComponentLoader;
 
-final class ComponentLoaderTest extends TestCase {
+final class AbstractComponentLoaderTest extends TestCase {
 
 	private string $temp_dir;
+
+	private TestComponentLoader $loader;
 
 	protected function setUp(): void {
 		$this->temp_dir = sys_get_temp_dir() . '/wp-framework-component-loader-' . str_replace( '.', '', uniqid( '', true ) );
@@ -38,11 +40,12 @@ final class ComponentLoaderTest extends TestCase {
 		mkdir( $GLOBALS['wp_framework_test_template_directory'], 0777, true );
 
 		TestComponentLoader::$test_paths = [];
-		TestComponentLoader::clear_cache();
+		$this->loader                  = new TestComponentLoader();
+		$this->loader->clear_cache();
 	}
 
 	protected function tearDown(): void {
-		TestComponentLoader::clear_cache();
+		$this->loader->clear_cache();
 
 		if ( is_dir( $this->temp_dir ) ) {
 			$iterator = new RecursiveIteratorIterator(
@@ -77,7 +80,7 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->assertSame(
 			'<p>Hello world</p>',
-			TestComponentLoader::get( 'Alert', [ 'message' => 'Hello world' ], [ 'script' => false, 'style' => false ] )
+			$this->loader->get( 'Alert', [ 'message' => 'Hello world' ], [ 'script' => false, 'style' => false ] )
 		);
 
 		$this->assertSame( 'wp_framework_before_get_component', $GLOBALS['wp_framework_test_actions'][0]['hook'] );
@@ -103,7 +106,7 @@ final class ComponentLoaderTest extends TestCase {
 		);
 
 		ob_start();
-		TestComponentLoader::render( 'Banner', [ 'title' => 'Featured' ], [ 'script' => false, 'style' => false ] );
+		$this->loader->render( 'Banner', [ 'title' => 'Featured' ], [ 'script' => false, 'style' => false ] );
 
 		$this->assertSame( '<h2>Featured</h2>', (string) ob_get_clean() );
 		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
@@ -129,7 +132,7 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->assertSame(
 			'theme',
-			TestComponentLoader::get( 'Card', [], [ 'script' => false, 'style' => false ] )
+			$this->loader->get( 'Card', [], [ 'script' => false, 'style' => false ] )
 		);
 	}
 
@@ -144,8 +147,19 @@ final class ComponentLoaderTest extends TestCase {
 			'<?php return ["version" => "style-version"];'
 		);
 
-		$this->assertSame( 'theme default', TestComponentLoader::get( 'Alert', [], [ 'script' => false ] ) );
+		$this->assertSame( 'theme default', $this->loader->get( 'Alert', [], [ 'script' => false ] ) );
 		$this->assertArrayHasKey( 'wp-framework-component-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
+	}
+
+	public function test_loader_resolves_lowercase_theme_component_paths(): void {
+		$theme_components = $GLOBALS['wp_framework_test_stylesheet_directory'] . '/src/components';
+
+		$this->write_file( $theme_components . '/alert/alert.php', '<?php echo "lowercase theme";' );
+
+		$this->assertSame(
+			'lowercase theme',
+			$this->loader->get( 'Alert', [], [ 'script' => false, 'style' => false ] )
+		);
 	}
 
 	public function test_component_assets_are_registered_and_enqueued_with_asset_metadata(): void {
@@ -181,7 +195,7 @@ final class ComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', TestComponentLoader::get( 'Alert' ) );
+		$this->assertSame( 'alert', $this->loader->get( 'Alert' ) );
 
 		$this->assertSame(
 			[
@@ -239,7 +253,7 @@ final class ComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', TestComponentLoader::get( 'Alert' ) );
+		$this->assertSame( 'alert', $this->loader->get( 'Alert' ) );
 
 		wp_dequeue_style( 'wp-framework-component-alert-style' );
 		wp_dequeue_script( 'wp-framework-component-alert-script' );
@@ -247,7 +261,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->assertFalse( wp_style_is( 'wp-framework-component-alert-style', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'wp-framework-component-alert-script', 'enqueued' ) );
 
-		$this->assertSame( 'alert', TestComponentLoader::get( 'Alert' ) );
+		$this->assertSame( 'alert', $this->loader->get( 'Alert' ) );
 
 		$this->assertTrue( wp_style_is( 'wp-framework-component-alert-style', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'wp-framework-component-alert-script', 'enqueued' ) );
@@ -286,7 +300,7 @@ final class ComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', TestComponentLoader::get( 'Alert', [], [ 'style' => false ] ) );
+		$this->assertSame( 'alert', $this->loader->get( 'Alert', [], [ 'style' => false ] ) );
 
 		$this->assertSame( [], $GLOBALS['wp_framework_test_registered_styles'] );
 		$this->assertArrayHasKey( 'wp-framework-component-alert-script', $GLOBALS['wp_framework_test_registered_scripts'] );
@@ -311,7 +325,7 @@ final class ComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', TestComponentLoader::get( 'Alert', [], [ 'script' => false ] ) );
+		$this->assertSame( 'alert', $this->loader->get( 'Alert', [], [ 'script' => false ] ) );
 
 		$this->assertSame( [], $GLOBALS['wp_framework_test_registered_styles'] );
 		$this->assertSame( [], $GLOBALS['wp_framework_test_enqueued_styles'] );
@@ -334,7 +348,7 @@ final class ComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( '', TestComponentLoader::get( '../Alert' ) );
+		$this->assertSame( '', $this->loader->get( '../Alert' ) );
 		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 		$this->assertSame( 'Component "../Alert" could not be resolved.', $GLOBALS['wp_framework_test_doing_it_wrong'][0]['message'] );
 	}
@@ -365,7 +379,7 @@ final class ComponentLoaderTest extends TestCase {
 	}
 }
 
-class TestComponentLoader extends ComponentLoader {
+class TestComponentLoader extends AbstractComponentLoader {
 	public static array $test_paths = [];
 
 	protected function get_component_paths( string $component_name, array $options ): array {
