@@ -112,6 +112,24 @@ final class AssetLoaderTest extends TestCase {
 		);
 	}
 
+	public function test_register_script_module_accepts_string_and_array_dependencies(): void {
+		$this->write_asset( 'assets/build/js/module.js', 'export default 1;' );
+
+		$this->loader->register_script_module(
+			'@my/module',
+			'js/module',
+			[ '@wordpress/interactivity', [ 'id' => '@wordpress/blocks', 'import' => 'dynamic' ] ]
+		);
+
+		$this->assertSame(
+			[
+				[ 'id' => '@wordpress/interactivity' ],
+				[ 'id' => '@wordpress/blocks', 'import' => 'dynamic' ],
+			],
+			$GLOBALS['wp_framework_test_registered_modules']['@my/module']['deps']
+		);
+	}
+
 	public function test_explicit_deps_and_version_override_manifest(): void {
 		$this->write_asset( 'assets/build/js/app.js', 'console.log(1);' );
 		$this->write_asset(
@@ -142,6 +160,19 @@ final class AssetLoaderTest extends TestCase {
 		$this->assertIsString( $registered['ver'] );
 		$this->assertNotSame( '', $registered['ver'] );
 		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
+	}
+
+	public function test_invalid_manifest_is_ignored_and_falls_back_to_filemtime(): void {
+		$this->write_asset( 'assets/build/css/app.css', '.a{}' );
+		$this->write_asset( 'assets/build/css/app.asset.php', '<?php return "not-an-array";' );
+
+		$this->assertTrue( $this->loader->register_style( 'app', 'css/app' ) );
+
+		$registered = $GLOBALS['wp_framework_test_registered_styles']['app'];
+		$this->assertSame( [], $registered['deps'] );
+		$this->assertIsString( $registered['ver'] );
+		$this->assertNotSame( '', $registered['ver'] );
+		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_register_block_manifest_registers_collection(): void {

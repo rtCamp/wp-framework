@@ -27,6 +27,7 @@ if ( ! defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) ) {
 
 if ( ! function_exists( '_doing_it_wrong' ) ) {
 	function _doing_it_wrong( string $function_name, string $message, string $version ): void { // phpcs:ignore
+		$GLOBALS['wp_framework_test_doing_it_wrong']   ??= [];
 		$GLOBALS['wp_framework_test_doing_it_wrong'][] = [
 			'function_name' => $function_name,
 			'message'       => $message,
@@ -143,6 +144,7 @@ if ( ! function_exists( 'wp_register_script_module' ) ) {
 
 if ( ! function_exists( 'wp_register_block_types_from_metadata_collection' ) ) {
 	function wp_register_block_types_from_metadata_collection( string $path, string $manifest ): void {
+		$GLOBALS['wp_framework_test_registered_block_collections']   ??= [];
 		$GLOBALS['wp_framework_test_registered_block_collections'][] = compact( 'path', 'manifest' );
 	}
 }

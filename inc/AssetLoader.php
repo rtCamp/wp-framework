@@ -55,7 +55,7 @@ class AssetLoader {
 	 * @param string $base_url   Base URL (plugin or theme root URL).
 	 * @param string $assets_dir Built assets directory, relative to the base directory.
 	 */
-	public function __construct( string $base_dir = '', string $base_url = '', string $assets_dir = '' ) {
+	public function __construct( string $base_dir, string $base_url, string $assets_dir ) {
 		$this->base_dir   = '' !== $base_dir ? trailingslashit( $base_dir ) : '';
 		$this->base_url   = '' !== $base_url ? trailingslashit( $base_url ) : '';
 		$this->assets_dir = $assets_dir;
@@ -179,10 +179,10 @@ class AssetLoader {
 	/**
 	 * Register a script module.
 	 *
-	 * @param string        $handle   Name of the script module. Should be unique.
-	 * @param string        $filename Path of the module relative to the assets directory, excluding the .js extension.
-	 * @param array<string> $deps     Optional. Module dependency IDs. Inherited from the asset file if empty.
-	 * @param ?string       $ver      Optional. Version string. Inherited from the asset file (or filemtime) if null.
+	 * @param string                                                $handle   Name of the script module. Should be unique.
+	 * @param string                                                $filename Path of the module relative to the assets directory, excluding the .js extension.
+	 * @param array<int, string|array{id: string, import?: string}> $deps     Optional. Module dependencies — each a module-ID string or an [id, import] array. Inherited from the asset file if empty.
+	 * @param ?string                                               $ver      Optional. Version string. Inherited from the asset file (or filemtime) if null.
 	 *
 	 * @return bool False if the asset file is missing; otherwise true. (wp_register_script_module()
 	 *              returns void, so success past the file check cannot be reported.)
@@ -194,15 +194,23 @@ class AssetLoader {
 			return false;
 		}
 
-		[ $deps, $version ] = $this->resolve_deps_and_version( $meta, $deps, $ver );
+		$module_deps = empty( $deps ) ? ( $meta['dependencies'] ?? [] ) : $deps;
 
-		// wp_register_script_module() expects each dependency in id/import form.
+		// wp_register_script_module() expects each dependency in id/import form;
+		// normalise plain module-ID strings while leaving array entries intact.
 		$module_deps = array_map(
-			static fn ( string $dep ): array => [ 'id' => $dep ],
-			$deps
+			static fn ( string|array $dep ): array => is_array( $dep ) ? $dep : [ 'id' => $dep ],
+			$module_deps
 		);
 
-		wp_register_script_module( $handle, $this->asset_src( $filename, 'js' ), $module_deps, $version );
+		$version = $ver ?? $meta['version'];
+
+		wp_register_script_module(
+			$handle,
+			$this->asset_src( $filename, 'js' ),
+			$module_deps,
+			empty( $version ) ? false : $version
+		);
 
 		return true;
 	}
@@ -210,13 +218,14 @@ class AssetLoader {
 	/**
 	 * Resolve asset metadata for an asset by name (relative path + extension).
 	 *
-	 * Warns and returns null if the asset file is missing; the `.asset.php`
-	 * manifest is optional (see read_asset_manifest()).
+	 * Warns and returns null only if the asset file itself is missing; the
+	 * `.asset.php` manifest is optional, and an invalid one is ignored with a
+	 * warning (see read_asset_manifest()).
 	 *
 	 * @param string $filename  Asset path relative to the assets directory, excluding the extension.
 	 * @param string $extension Asset file extension (e.g. 'js', 'css').
 	 *
-	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the asset file is missing or the manifest is invalid.
+	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the asset file is missing.
 	 */
 	private function get_asset_meta( string $filename, string $extension ): ?array {
 		$base          = trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir );
@@ -247,9 +256,9 @@ class AssetLoader {
 	 * @param string $manifest_file Absolute path to the `.asset.php` manifest.
 	 * @param string $asset_file    Absolute path to the asset file the version falls back to.
 	 *
-	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the manifest is present but invalid.
+	 * @return array{version: string, dependencies?: array<int, string>} Metadata (dependencies + version).
 	 */
-	private function read_asset_manifest( string $manifest_file, string $asset_file ): ?array {
+	private function read_asset_manifest( string $manifest_file, string $asset_file ): array {
 		if ( file_exists( $manifest_file ) ) {
 			// phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Existence checked above.
 			$meta = require $manifest_file;
@@ -259,12 +268,12 @@ class AssetLoader {
 					self::class,
 					sprintf(
 						/* translators: %s: The asset manifest path. */
-						esc_html__( 'Asset manifest "%s" is invalid.', 'wp-framework' ),
+						esc_html__( 'Asset manifest "%s" is invalid; the file modification time will be used as the version.', 'wp-framework' ),
 						esc_html( $manifest_file )
 					),
 					'0.0.1'
 				);
-				return null;
+				$meta = [ 'dependencies' => [] ];
 			}
 		} else {
 			$meta = [ 'dependencies' => [] ];
