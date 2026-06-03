@@ -72,7 +72,7 @@ class AssetLoader {
 	private function asset_src( string $filename, string $extension ): string {
 		return sprintf(
 			'%s/%s.%s',
-			trailingslashit( $this->base_url ) . untrailingslashit( $this->assets_dir ),
+			$this->base_url . untrailingslashit( $this->assets_dir ),
 			$filename,
 			$extension
 		);
@@ -108,7 +108,7 @@ class AssetLoader {
 	 * @param string $manifest_file Path to the manifest file, relative to the base directory. E.g. `build/blocks-manifest.php`.
 	 */
 	public function register_block_manifest( string $block_path, string $manifest_file ): void {
-		$base          = trailingslashit( $this->base_dir );
+		$base          = $this->base_dir;
 		$manifest_path = $base . $manifest_file;
 		if ( ! file_exists( $manifest_path ) ) {
 			_doing_it_wrong(
@@ -228,7 +228,7 @@ class AssetLoader {
 	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the asset file is missing.
 	 */
 	private function get_asset_meta( string $filename, string $extension ): ?array {
-		$base          = trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir );
+		$base          = $this->base_dir . untrailingslashit( $this->assets_dir );
 		$manifest_file = sprintf( '%s/%s.asset.php', $base, $filename );
 		$asset_file    = sprintf( '%s/%s.%s', $base, $filename, $extension );
 
