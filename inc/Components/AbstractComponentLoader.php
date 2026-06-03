@@ -17,7 +17,7 @@ use rtCamp\WPFramework\Contracts\Traits\AssetLoaderTrait;
 /**
  * Class AbstractComponentLoader
  *
- * @since 1.0.0
+ * @since 0.0.1
  */
 abstract class AbstractComponentLoader {
 	use AssetLoaderTrait {
@@ -111,7 +111,7 @@ abstract class AbstractComponentLoader {
 					esc_html__( 'Component "%s" could not be resolved.', 'wp-framework' ),
 					esc_html( $name )
 				),
-				'1.0.0'
+				'0.0.1'
 			);
 
 			return;
@@ -121,7 +121,9 @@ abstract class AbstractComponentLoader {
 
 		$this->before_get_component( $name, $args, $options );
 
-		require (string) $component['file']; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable, WordPressVIPMinimum.Files.IncludingFile.NotAbsolutePath -- Component file path is resolved and readability-checked before inclusion.
+		// Delegate to a private static method to ensure the component file
+		// is loaded in an isolated scope without access to $this.
+		self::load_template( (string) $component['file'], $args, $name );
 
 		$this->enqueue_component_assets( $component, $options );
 
@@ -259,12 +261,11 @@ abstract class AbstractComponentLoader {
 			return false;
 		}
 
-		$component_slug = strtolower( $component_name );
+		$component_slug = $component_name;
 		$component_root = trim( $paths['php'], '/\\' );
 		$file           = locate_template(
 			[
 				$component_root . '/' . $component_slug . '/' . $component_slug . '.php',
-				$component_root . '/' . $component_name . '/' . $component_name . '.php',
 			],
 			false,
 			false
@@ -299,7 +300,7 @@ abstract class AbstractComponentLoader {
 			return false;
 		}
 
-		$component_slug = strtolower( $component_name );
+		$component_slug = $component_name;
 		$file           = trailingslashit( $paths['php'] ) . $component_slug . '/' . $component_slug . '.php';
 
 		if ( ! is_readable( $file ) ) {
@@ -346,7 +347,7 @@ abstract class AbstractComponentLoader {
 				continue;
 			}
 
-			$asset_file_name = strtolower( $component_name ) . '.' . $extension;
+			$asset_file_name = $component_name . '.' . $extension;
 
 			if ( ! empty( $paths['theme'][ $asset_type ] ) && is_string( $paths['theme'][ $asset_type ] ) ) {
 				$relative_asset_dir = trim( $paths['theme'][ $asset_type ], '/\\' );
@@ -373,7 +374,12 @@ abstract class AbstractComponentLoader {
 				}
 			}
 
-			if ( ! empty( $paths['plugin'][ $asset_type ]['dir'] ) && ! empty( $paths['plugin'][ $asset_type ]['url'] ) ) {
+			if (
+				! empty( $paths['plugin'][ $asset_type ] ) &&
+				is_array( $paths['plugin'][ $asset_type ] ) &&
+				! empty( $paths['plugin'][ $asset_type ]['dir'] ) &&
+				! empty( $paths['plugin'][ $asset_type ]['url'] )
+			) {
 				$plugin_asset_file = trailingslashit( (string) $paths['plugin'][ $asset_type ]['dir'] ) . $asset_file_name;
 
 				if ( is_readable( $plugin_asset_file ) ) {
@@ -590,4 +596,17 @@ abstract class AbstractComponentLoader {
 	 * @return void
 	 */
 	protected function after_get_component( string $name, array $args, array $options ): void {}
+
+	/**
+	 * Isolate the scope for the required component file.
+	 *
+	 * @param string               $__file Component file path.
+	 * @param array<string, mixed> $args   Component arguments.
+	 * @param string               $name   Component name.
+	 *
+	 * @return void
+	 */
+	private static function load_template( string $__file, array $args, string $name ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $name is available to templates.
+		require $__file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable, WordPressVIPMinimum.Files.IncludingFile.NotAbsolutePath -- Component file path is resolved and readability-checked before inclusion.
+	}
 }

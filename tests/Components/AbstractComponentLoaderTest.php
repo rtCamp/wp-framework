@@ -66,7 +66,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 
 		$this->write_component(
 			$plugin_components,
-			'Alert',
+			'alert',
 			'<?php echo "<p>" . esc_html( (string) $args["message"] ) . "</p>";'
 		);
 
@@ -80,7 +80,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 
 		$this->assertSame(
 			'<p>Hello world</p>',
-			$this->loader->get( 'Alert', [ 'message' => 'Hello world' ], [ 'script' => false, 'style' => false ] )
+			$this->loader->get( 'alert', [ 'message' => 'Hello world' ], [ 'script' => false, 'style' => false ] )
 		);
 
 		$this->assertSame( 'wp_framework_before_get_component', $GLOBALS['wp_framework_test_actions'][0]['hook'] );
@@ -93,7 +93,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 
 		$this->write_component(
 			$plugin_components,
-			'Banner',
+			'banner',
 			'<?php echo "<h2>" . esc_html( (string) $args["title"] ) . "</h2>";'
 		);
 
@@ -106,7 +106,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 		);
 
 		ob_start();
-		$this->loader->render( 'Banner', [ 'title' => 'Featured' ], [ 'script' => false, 'style' => false ] );
+		$this->loader->render( 'banner', [ 'title' => 'Featured' ], [ 'script' => false, 'style' => false ] );
 
 		$this->assertSame( '<h2>Featured</h2>', (string) ob_get_clean() );
 		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
@@ -116,8 +116,8 @@ final class AbstractComponentLoaderTest extends TestCase {
 		$plugin_components = $this->temp_dir . '/plugin/components';
 		$child_components  = $GLOBALS['wp_framework_test_stylesheet_directory'] . '/components';
 
-		$this->write_component( $plugin_components, 'Card', '<?php echo "plugin";' );
-		$this->write_component( $child_components, 'Card', '<?php echo "theme";' );
+		$this->write_component( $plugin_components, 'card', '<?php echo "plugin";' );
+		$this->write_component( $child_components, 'card', '<?php echo "theme";' );
 
 		$this->use_component_paths(
 			[
@@ -132,7 +132,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 
 		$this->assertSame(
 			'theme',
-			$this->loader->get( 'Card', [], [ 'script' => false, 'style' => false ] )
+			$this->loader->get( 'card', [], [ 'script' => false, 'style' => false ] )
 		);
 	}
 
@@ -140,25 +140,25 @@ final class AbstractComponentLoaderTest extends TestCase {
 		$theme_components = $GLOBALS['wp_framework_test_stylesheet_directory'] . '/src/components';
 		$style_dir        = $GLOBALS['wp_framework_test_stylesheet_directory'] . '/assets/build/css/components';
 
-		$this->write_component( $theme_components, 'Alert', '<?php echo "theme default";' );
+		$this->write_component( $theme_components, 'alert', '<?php echo "theme default";' );
 		$this->write_file( $style_dir . '/alert.css', '.alert { color: red; }' );
 		$this->write_file(
 			$style_dir . '/alert.asset.php',
 			'<?php return ["version" => "style-version"];'
 		);
 
-		$this->assertSame( 'theme default', $this->loader->get( 'Alert', [], [ 'script' => false ] ) );
+		$this->assertSame( 'theme default', $this->loader->get( 'alert', [], [ 'script' => false ] ) );
 		$this->assertArrayHasKey( 'wp-framework-component-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
 	}
 
-	public function test_loader_resolves_lowercase_theme_component_paths(): void {
+	public function test_loader_resolves_theme_component_by_exact_name(): void {
 		$theme_components = $GLOBALS['wp_framework_test_stylesheet_directory'] . '/src/components';
 
-		$this->write_file( $theme_components . '/alert/alert.php', '<?php echo "lowercase theme";' );
+		$this->write_file( $theme_components . '/alert/alert.php', '<?php echo "exact name theme";' );
 
 		$this->assertSame(
-			'lowercase theme',
-			$this->loader->get( 'Alert', [], [ 'script' => false, 'style' => false ] )
+			'exact name theme',
+			$this->loader->get( 'alert', [], [ 'script' => false, 'style' => false ] )
 		);
 	}
 
@@ -167,7 +167,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 		$style_dir         = $this->temp_dir . '/plugin/assets/css';
 		$script_dir        = $this->temp_dir . '/plugin/assets/js';
 
-		$this->write_component( $plugin_components, 'Alert', '<?php echo "alert";' );
+		$this->write_component( $plugin_components, 'alert', '<?php echo "alert";' );
 		$this->write_file( $style_dir . '/alert.css', '.alert { color: red; }' );
 		$this->write_file(
 			$style_dir . '/alert.asset.php',
@@ -195,7 +195,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', $this->loader->get( 'Alert' ) );
+		$this->assertSame( 'alert', $this->loader->get( 'alert' ) );
 
 		$this->assertSame(
 			[
@@ -225,7 +225,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 		$style_dir         = $this->temp_dir . '/plugin/assets/css';
 		$script_dir        = $this->temp_dir . '/plugin/assets/js';
 
-		$this->write_component( $plugin_components, 'Alert', '<?php echo "alert";' );
+		$this->write_component( $plugin_components, 'alert', '<?php echo "alert";' );
 		$this->write_file( $style_dir . '/alert.css', '.alert { color: red; }' );
 		$this->write_file(
 			$style_dir . '/alert.asset.php',
@@ -253,7 +253,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', $this->loader->get( 'Alert' ) );
+		$this->assertSame( 'alert', $this->loader->get( 'alert' ) );
 
 		wp_dequeue_style( 'wp-framework-component-alert-style' );
 		wp_dequeue_script( 'wp-framework-component-alert-script' );
@@ -261,7 +261,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 		$this->assertFalse( wp_style_is( 'wp-framework-component-alert-style', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'wp-framework-component-alert-script', 'enqueued' ) );
 
-		$this->assertSame( 'alert', $this->loader->get( 'Alert' ) );
+		$this->assertSame( 'alert', $this->loader->get( 'alert' ) );
 
 		$this->assertTrue( wp_style_is( 'wp-framework-component-alert-style', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'wp-framework-component-alert-script', 'enqueued' ) );
@@ -272,7 +272,7 @@ final class AbstractComponentLoaderTest extends TestCase {
 		$style_dir         = $this->temp_dir . '/plugin/assets/css';
 		$script_dir        = $this->temp_dir . '/plugin/assets/js';
 
-		$this->write_component( $plugin_components, 'Alert', '<?php echo "alert";' );
+		$this->write_component( $plugin_components, 'alert', '<?php echo "alert";' );
 		$this->write_file( $style_dir . '/alert.css', '.alert { color: red; }' );
 		$this->write_file(
 			$style_dir . '/alert.asset.php',
@@ -300,17 +300,17 @@ final class AbstractComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', $this->loader->get( 'Alert', [], [ 'style' => false ] ) );
+		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'style' => false ] ) );
 
 		$this->assertSame( [], $GLOBALS['wp_framework_test_registered_styles'] );
 		$this->assertArrayHasKey( 'wp-framework-component-alert-script', $GLOBALS['wp_framework_test_registered_scripts'] );
 	}
 
-	public function test_component_asset_is_not_registered_without_asset_metadata_file(): void {
+	public function test_component_asset_is_registered_without_manifest_fallback(): void {
 		$plugin_components = $this->temp_dir . '/plugin/components';
 		$style_dir         = $this->temp_dir . '/plugin/assets/css';
 
-		$this->write_component( $plugin_components, 'Alert', '<?php echo "alert";' );
+		$this->write_component( $plugin_components, 'alert', '<?php echo "alert";' );
 		$this->write_file( $style_dir . '/alert.css', '.alert { color: red; }' );
 
 		$this->use_component_paths(
@@ -325,21 +325,19 @@ final class AbstractComponentLoaderTest extends TestCase {
 			]
 		);
 
-		$this->assertSame( 'alert', $this->loader->get( 'Alert', [], [ 'script' => false ] ) );
+		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'script' => false ] ) );
 
-		$this->assertSame( [], $GLOBALS['wp_framework_test_registered_styles'] );
-		$this->assertSame( [], $GLOBALS['wp_framework_test_enqueued_styles'] );
-		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
-		$this->assertSame(
-			'Asset file for "alert" is missing. The script will not be registered.',
-			$GLOBALS['wp_framework_test_doing_it_wrong'][0]['message']
-		);
+		// AssetLoaderTrait treats the .asset.php manifest as optional and falls
+		// back to filemtime(), so the style should still be registered.
+		$this->assertArrayHasKey( 'wp-framework-component-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
+		$this->assertSame( [ 'wp-framework-component-alert-style' ], $GLOBALS['wp_framework_test_enqueued_styles'] );
+		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_invalid_component_name_returns_empty_string_and_records_incorrect_usage(): void {
 		$plugin_components = $this->temp_dir . '/plugin/components';
 
-		$this->write_component( $plugin_components, 'Alert', '<?php echo "alert";' );
+		$this->write_component( $plugin_components, 'alert', '<?php echo "alert";' );
 		$this->use_component_paths(
 			[
 				'plugin' => [
@@ -354,8 +352,6 @@ final class AbstractComponentLoaderTest extends TestCase {
 	}
 
 	private function write_component( string $base_dir, string $name, string $contents ): void {
-		$slug = strtolower( $name );
-
 		$this->write_file( $base_dir . '/' . $name . '/' . $name . '.php', $contents );
 	}
 

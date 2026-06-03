@@ -104,7 +104,20 @@ if ( ! function_exists( 'do_action' ) ) {
 			'args' => $args,
 		];
 
-		apply_filters( $hook, null, ...$args );
+		if ( empty( $GLOBALS['wp_framework_test_filters'][ $hook ] ) ) {
+			return;
+		}
+
+		ksort( $GLOBALS['wp_framework_test_filters'][ $hook ] );
+
+		foreach ( $GLOBALS['wp_framework_test_filters'][ $hook ] as $callbacks ) {
+			foreach ( $callbacks as $callback ) {
+				call_user_func_array(
+					$callback['callback'],
+					array_slice( $args, 0, $callback['accepted_args'] )
+				);
+			}
+		}
 	}
 }
 
