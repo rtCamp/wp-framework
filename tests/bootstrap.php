@@ -26,7 +26,13 @@ if ( ! defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) ) {
 // fixtures (see tests/Fixtures/LoaderFixtures.php).
 
 if ( ! function_exists( '_doing_it_wrong' ) ) {
-	function _doing_it_wrong( string $function_name, string $message, string $version ): void {} // phpcs:ignore
+	function _doing_it_wrong( string $function_name, string $message, string $version ): void { // phpcs:ignore
+		$GLOBALS['wp_framework_test_doing_it_wrong'][] = [
+			'function_name' => $function_name,
+			'message'       => $message,
+			'version'       => $version,
+		];
+	}
 }
 
 if ( ! function_exists( '__' ) ) {
@@ -90,6 +96,54 @@ if ( ! function_exists( 'register_taxonomy' ) ) {
 if ( ! function_exists( 'register_taxonomy_for_object_type' ) ) {
 	function register_taxonomy_for_object_type( string $taxonomy, string $object_type ): bool {
 		return true;
+	}
+}
+
+if ( ! function_exists( 'trailingslashit' ) ) {
+	function trailingslashit( string $value ): string {
+		return rtrim( $value, '/\\' ) . '/';
+	}
+}
+
+if ( ! function_exists( 'untrailingslashit' ) ) {
+	function untrailingslashit( string $value ): string {
+		return rtrim( $value, '/\\' );
+	}
+}
+
+if ( ! function_exists( 'wp_register_style' ) ) {
+	function wp_register_style( string $handle, string $src, array $deps = [], string|bool|null $ver = false, string $media = 'all' ): bool {
+		if ( isset( $GLOBALS['wp_framework_test_registered_styles'][ $handle ] ) ) {
+			return false;
+		}
+
+		$GLOBALS['wp_framework_test_registered_styles'][ $handle ] = compact( 'src', 'deps', 'ver', 'media' );
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_register_script' ) ) {
+	function wp_register_script( string $handle, string $src, array $deps = [], string|bool|null $ver = false, bool $in_footer = false ): bool {
+		if ( isset( $GLOBALS['wp_framework_test_registered_scripts'][ $handle ] ) ) {
+			return false;
+		}
+
+		$GLOBALS['wp_framework_test_registered_scripts'][ $handle ] = compact( 'src', 'deps', 'ver', 'in_footer' );
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_register_script_module' ) ) {
+	function wp_register_script_module( string $handle, string $src, array $deps = [], string|bool|null $ver = false ): void {
+		$GLOBALS['wp_framework_test_registered_modules'][ $handle ] = compact( 'src', 'deps', 'ver' );
+	}
+}
+
+if ( ! function_exists( 'wp_register_block_types_from_metadata_collection' ) ) {
+	function wp_register_block_types_from_metadata_collection( string $path, string $manifest ): void {
+		$GLOBALS['wp_framework_test_registered_block_collections'][] = compact( 'path', 'manifest' );
 	}
 }
 

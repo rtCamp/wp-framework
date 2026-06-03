@@ -1,0 +1,279 @@
+<?php
+/**
+ * Asset loader.
+ *
+ * Concrete, injectable asset loader for WordPress scripts, styles, script
+ * modules and block manifests. A plain class (not a trait) so the loading
+ * behaviour has an instance identity that can be passed around and shared —
+ * consumers either extend it or, when their base-class slot is taken, hold one.
+ *
+ * Registers an asset by name relative to the instance's assets directory, set at
+ * construction: the source URL is built from the base URL and the dependency +
+ * version metadata is read from the sibling `*.asset.php` manifest on disk.
+ *
+ * @package rtCamp\WPFramework
+ *
+ * @since 0.0.1
+ */
+
+declare( strict_types = 1 );
+
+namespace rtCamp\WPFramework;
+
+/**
+ * Class AssetLoader
+ *
+ * @since 0.0.1
+ */
+class AssetLoader {
+	/**
+	 * Base directory path (plugin or theme root). Readable by subclasses that
+	 * need to resolve their own paths (e.g. a block build directory).
+	 *
+	 * @var string
+	 */
+	protected string $base_dir;
+
+	/**
+	 * Base URL (plugin or theme root URL).
+	 *
+	 * @var string
+	 */
+	protected string $base_url;
+
+	/**
+	 * Built assets directory, relative to the base directory. No surrounding slashes.
+	 *
+	 * @var string
+	 */
+	protected string $assets_dir;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param string $base_dir   Base directory path (plugin or theme root).
+	 * @param string $base_url   Base URL (plugin or theme root URL).
+	 * @param string $assets_dir Built assets directory, relative to the base directory.
+	 */
+	public function __construct( string $base_dir = '', string $base_url = '', string $assets_dir = '' ) {
+		$this->base_dir   = '' !== $base_dir ? trailingslashit( $base_dir ) : '';
+		$this->base_url   = '' !== $base_url ? trailingslashit( $base_url ) : '';
+		$this->assets_dir = $assets_dir;
+	}
+
+	/**
+	 * Build the public URL for an asset from the base URL and assets directory.
+	 *
+	 * @param string $filename  Path of the asset relative to the assets directory, excluding the extension.
+	 * @param string $extension Asset extension (e.g. 'js', 'css').
+	 *
+	 * @return string Absolute asset URL.
+	 */
+	private function asset_src( string $filename, string $extension ): string {
+		return sprintf(
+			'%s/%s.%s',
+			trailingslashit( $this->base_url ) . untrailingslashit( $this->assets_dir ),
+			$filename,
+			$extension
+		);
+	}
+
+	/**
+	 * Resolve the effective dependencies and version for a registration.
+	 *
+	 * Explicit arguments win; otherwise values are inherited from $meta. The
+	 * version is normalised to `string|false` so it passes straight to the
+	 * wp_register_* functions (which read `false` as "no version").
+	 *
+	 * @param array{version: string, dependencies?: array<int, string>} $meta Resolved asset metadata.
+	 * @param array<string>                                             $deps Caller dependencies (empty to inherit).
+	 * @param ?string                                                   $ver  Caller version (null to inherit).
+	 *
+	 * @return array{0: array<string>, 1: string|false} Tuple of [ dependencies, version ].
+	 */
+	private function resolve_deps_and_version( array $meta, array $deps, ?string $ver ): array {
+		$resolved_deps    = empty( $deps ) ? ( $meta['dependencies'] ?? [] ) : $deps;
+		$resolved_version = $ver ?? $meta['version'];
+
+		return [
+			$resolved_deps,
+			empty( $resolved_version ) ? false : $resolved_version,
+		];
+	}
+
+	/**
+	 * Register data from the block manifest file.
+	 *
+	 * @param string $block_path    Relative path to the block collection. E.g. `build/blocks`.
+	 * @param string $manifest_file Path to the manifest file, relative to the base directory. E.g. `build/blocks-manifest.php`.
+	 */
+	public function register_block_manifest( string $block_path, string $manifest_file ): void {
+		$base          = trailingslashit( $this->base_dir );
+		$manifest_path = $base . $manifest_file;
+		if ( ! file_exists( $manifest_path ) ) {
+			_doing_it_wrong(
+				self::class,
+				esc_html__( 'Block manifest file is missing. Blocks will not be registered.', 'wp-framework' ),
+				'0.0.1'
+			);
+			return;
+		}
+
+		wp_register_block_types_from_metadata_collection( $base . $block_path, $manifest_path );
+	}
+
+	/**
+	 * Register a script.
+	 *
+	 * @param string   $handle    Name of the script. Should be unique.
+	 * @param string   $filename  Path of the script relative to the assets directory, excluding the .js extension.
+	 * @param string[] $deps      Optional. Registered script handles this depends on. Inherited from the asset file if empty.
+	 * @param ?string  $ver       Optional. Version string. Inherited from the asset file (or filemtime) if null.
+	 * @param bool     $in_footer Optional. Whether to enqueue the script before </body> instead of in the <head>.
+	 */
+	public function register_script( string $handle, string $filename, array $deps = [], ?string $ver = null, bool $in_footer = true ): bool {
+		$meta = $this->get_asset_meta( $filename, 'js' );
+
+		if ( null === $meta ) {
+			return false;
+		}
+
+		[ $deps, $version ] = $this->resolve_deps_and_version( $meta, $deps, $ver );
+
+		return wp_register_script(
+			$handle,
+			$this->asset_src( $filename, 'js' ),
+			$deps,
+			$version,
+			$in_footer
+		);
+	}
+
+	/**
+	 * Register a CSS stylesheet.
+	 *
+	 * @param string   $handle   Name of the stylesheet. Should be unique.
+	 * @param string   $filename Path of the stylesheet relative to the assets directory, excluding the .css extension.
+	 * @param string[] $deps     Optional. Registered stylesheet handles this depends on. Inherited from the asset file if empty.
+	 * @param ?string  $ver      Optional. Version string. Inherited from the asset file (or filemtime) if null.
+	 * @param string   $media    Optional. The media for which this stylesheet has been defined.
+	 */
+	public function register_style( string $handle, string $filename, array $deps = [], ?string $ver = null, string $media = 'all' ): bool {
+		$meta = $this->get_asset_meta( $filename, 'css' );
+
+		if ( null === $meta ) {
+			return false;
+		}
+
+		[ $deps, $version ] = $this->resolve_deps_and_version( $meta, $deps, $ver );
+
+		return wp_register_style(
+			$handle,
+			$this->asset_src( $filename, 'css' ),
+			$deps,
+			$version,
+			$media
+		);
+	}
+
+	/**
+	 * Register a script module.
+	 *
+	 * @param string        $handle   Name of the script module. Should be unique.
+	 * @param string        $filename Path of the module relative to the assets directory, excluding the .js extension.
+	 * @param array<string> $deps     Optional. Module dependency IDs. Inherited from the asset file if empty.
+	 * @param ?string       $ver      Optional. Version string. Inherited from the asset file (or filemtime) if null.
+	 *
+	 * @return bool False if the asset file is missing; otherwise true. (wp_register_script_module()
+	 *              returns void, so success past the file check cannot be reported.)
+	 */
+	public function register_script_module( string $handle, string $filename, array $deps = [], ?string $ver = null ): bool {
+		$meta = $this->get_asset_meta( $filename, 'js' );
+
+		if ( null === $meta ) {
+			return false;
+		}
+
+		[ $deps, $version ] = $this->resolve_deps_and_version( $meta, $deps, $ver );
+
+		// wp_register_script_module() expects each dependency in id/import form.
+		$module_deps = array_map(
+			static fn ( string $dep ): array => [ 'id' => $dep ],
+			$deps
+		);
+
+		wp_register_script_module( $handle, $this->asset_src( $filename, 'js' ), $module_deps, $version );
+
+		return true;
+	}
+
+	/**
+	 * Resolve asset metadata for an asset by name (relative path + extension).
+	 *
+	 * Warns and returns null if the asset file is missing; the `.asset.php`
+	 * manifest is optional (see read_asset_manifest()).
+	 *
+	 * @param string $filename  Asset path relative to the assets directory, excluding the extension.
+	 * @param string $extension Asset file extension (e.g. 'js', 'css').
+	 *
+	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the asset file is missing or the manifest is invalid.
+	 */
+	private function get_asset_meta( string $filename, string $extension ): ?array {
+		$base          = trailingslashit( $this->base_dir ) . untrailingslashit( $this->assets_dir );
+		$manifest_file = sprintf( '%s/%s.asset.php', $base, $filename );
+		$asset_file    = sprintf( '%s/%s.%s', $base, $filename, $extension );
+
+		// The actual asset file is required — if it's missing, there is nothing to register.
+		if ( ! file_exists( $asset_file ) ) {
+			_doing_it_wrong(
+				self::class,
+				sprintf(
+					/* translators: 1: The asset filename. 2: The asset extension. */
+					esc_html__( 'Asset file "%1$s.%2$s" is missing. The asset will not be registered.', 'wp-framework' ),
+					esc_html( $filename ),
+					esc_html( $extension )
+				),
+				'0.0.1'
+			);
+			return null;
+		}
+
+		return $this->read_asset_manifest( $manifest_file, $asset_file );
+	}
+
+	/**
+	 * Read an optional `.asset.php` manifest, falling back to the asset's filemtime.
+	 *
+	 * @param string $manifest_file Absolute path to the `.asset.php` manifest.
+	 * @param string $asset_file    Absolute path to the asset file the version falls back to.
+	 *
+	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the manifest is present but invalid.
+	 */
+	private function read_asset_manifest( string $manifest_file, string $asset_file ): ?array {
+		if ( file_exists( $manifest_file ) ) {
+			// phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Existence checked above.
+			$meta = require $manifest_file;
+
+			if ( ! is_array( $meta ) ) {
+				_doing_it_wrong(
+					self::class,
+					sprintf(
+						/* translators: %s: The asset manifest path. */
+						esc_html__( 'Asset manifest "%s" is invalid.', 'wp-framework' ),
+						esc_html( $manifest_file )
+					),
+					'0.0.1'
+				);
+				return null;
+			}
+		} else {
+			$meta = [ 'dependencies' => [] ];
+		}
+
+		if ( ! isset( $meta['version'] ) ) {
+			$meta['version'] = (string) filemtime( $asset_file );
+		}
+
+		return $meta;
+	}
+}
