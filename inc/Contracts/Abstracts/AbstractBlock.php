@@ -3,8 +3,8 @@
  * Abstract Block class.
  *
  * Provides a clean interface for registering dynamic WordPress blocks.
- * For static blocks (JSON-only, no server-side render), use the AssetLoaderTrait
- * with `register_block_manifest()` directly.
+ * For static blocks (JSON-only, no server-side render), use the AssetLoader
+ * class with `register_block_manifest()` directly.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
  */
