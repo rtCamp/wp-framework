@@ -62,6 +62,38 @@ class AssetLoader {
 	}
 
 	/**
+	 * Get the built assets directory (relative to the base directory).
+	 *
+	 * @return string Assets directory.
+	 */
+	public function get_assets_dir(): string {
+		return $this->assets_dir;
+	}
+
+	/**
+	 * Get the base directory path (trailing-slashed, or '' if unset).
+	 *
+	 * @return string Base directory.
+	 */
+	public function get_base_dir(): string {
+		return $this->base_dir;
+	}
+
+	/**
+	 * Whether an asset file exists under this loader's base + assets directory.
+	 *
+	 * @param string $filename  Asset path relative to the assets directory, excluding the extension.
+	 * @param string $extension Asset file extension (e.g. 'js', 'css').
+	 *
+	 * @return bool True if the asset file exists.
+	 */
+	public function has_asset( string $filename, string $extension ): bool {
+		$base = $this->base_dir . untrailingslashit( $this->assets_dir );
+
+		return file_exists( sprintf( '%s/%s.%s', $base, $filename, $extension ) );
+	}
+
+	/**
 	 * Build the public URL for an asset from the base URL and assets directory.
 	 *
 	 * @param string $filename  Path of the asset relative to the assets directory, excluding the extension.
