@@ -171,30 +171,6 @@ if ( ! function_exists( 'wp_register_block_types_from_metadata_collection' ) ) {
 	}
 }
 
-if ( ! function_exists( 'locate_template' ) ) {
-	function locate_template( array $template_names, bool $load = false, bool $load_once = true ): string { // phpcs:ignore
-		$directories = array_filter(
-			[
-				$GLOBALS['wp_framework_test_stylesheet_directory'] ?? '',
-				$GLOBALS['wp_framework_test_template_directory'] ?? '',
-			],
-			'is_string'
-		);
-
-		foreach ( $template_names as $template_name ) {
-			foreach ( $directories as $directory ) {
-				$file = trailingslashit( $directory ) . ltrim( $template_name, '/\\' );
-
-				if ( is_readable( $file ) ) {
-					return $file;
-				}
-			}
-		}
-
-		return '';
-	}
-}
-
 if ( ! function_exists( 'get_stylesheet_directory' ) ) {
 	function get_stylesheet_directory(): string {
 		return (string) ( $GLOBALS['wp_framework_test_stylesheet_directory'] ?? '' );
