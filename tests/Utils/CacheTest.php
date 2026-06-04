@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Utils;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use rtCamp\WPFramework\Utils\Cache;
 
@@ -106,19 +107,33 @@ final class CacheTest extends TestCase {
 		$this->assertSame( 0, $calls );
 	}
 
-	public function test_remember_caches_false_callback_results(): void {
+	#[DataProvider( 'falsy_values_provider' )]
+	public function test_remember_caches_falsy_callback_results( string $key, mixed $falsy ): void {
 		$calls = 0;
-		$make  = function () use ( &$calls ): bool {
+		$make  = function () use ( &$calls, $falsy ): mixed {
 			++$calls;
-			return false;
+			return $falsy;
 		};
 
-		$first  = Cache::remember( 'r5', $make, 'demo', 300 );
-		$second = Cache::remember( 'r5', $make, 'demo', 300 );
+		$first  = Cache::remember( $key, $make, 'demo', 300 );
+		$second = Cache::remember( $key, $make, 'demo', 300 );
 
-		$this->assertFalse( $first );
-		$this->assertFalse( $second );
-		$this->assertSame( 1, $calls ); // stored false is a hit — no regeneration
+		$this->assertSame( $falsy, $first );
+		$this->assertSame( $falsy, $second );
+		$this->assertSame( 1, $calls ); // stored falsy value is a hit, not a miss — no regeneration
+	}
+
+	/**
+	 * Falsy return values that must be cached rather than treated as a miss.
+	 *
+	 * @return array<string, array{string, mixed}>
+	 */
+	public static function falsy_values_provider(): array {
+		return [
+			'false'        => [ 'r5_false', false ],
+			'zero int'     => [ 'r5_zero', 0 ],
+			'empty string' => [ 'r5_empty', '' ],
+		];
 	}
 
 	// --- remember(): cold start (both fresh and stale absent) ----------------

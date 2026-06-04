@@ -127,9 +127,12 @@ final class Cache {
 	 * `function_exists()` check: `wp_cache_flush_group()` exists on every WP 6.1+
 	 * core, but the active object-cache drop-in may not implement group flushing
 	 * (e.g. some Memcached or Redis configurations). Calling it there would
-	 * report success while flushing nothing. The `function_exists()` guard on
-	 * `wp_cache_supports` itself keeps this safe on pre-6.1 cores, where neither
-	 * function exists.
+	 * report success while flushing nothing.
+	 *
+	 * Both functions are guarded with `function_exists()`: `wp_cache_supports`
+	 * keeps this safe on pre-6.1 cores (where neither exists), and the explicit
+	 * `wp_cache_flush_group` guard protects against an inconsistent drop-in that
+	 * advertises support without defining the function.
 	 *
 	 * @param string $group Cache group to flush.
 	 *
@@ -137,7 +140,11 @@ final class Cache {
 	 *              backend does not support group flushing.
 	 */
 	public static function flush_group( string $group ): bool {
-		if ( ! function_exists( 'wp_cache_supports' ) || ! wp_cache_supports( 'flush_group' ) ) {
+		if (
+			! function_exists( 'wp_cache_flush_group' )
+			|| ! function_exists( 'wp_cache_supports' )
+			|| ! wp_cache_supports( 'flush_group' )
+		) {
 			return false;
 		}
 
