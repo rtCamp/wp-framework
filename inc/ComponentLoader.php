@@ -160,12 +160,12 @@ class ComponentLoader {
 
 		// Child theme override layer: a distinct child theme exists and self isn't it.
 		if ( $has_child && $self_dir !== $stylesheet ) {
-			$loaders[] = new AssetLoader( get_stylesheet_directory(), get_stylesheet_directory_uri(), $assets_dir );
+			$loaders[] = new AssetLoader( $stylesheet, get_stylesheet_directory_uri(), $assets_dir );
 		}
 
 		// Parent theme override layer: self is neither the parent nor the child theme.
 		if ( $self_dir !== $template && $self_dir !== $stylesheet ) {
-			$loaders[] = new AssetLoader( get_template_directory(), get_template_directory_uri(), $assets_dir );
+			$loaders[] = new AssetLoader( $template, get_template_directory_uri(), $assets_dir );
 		}
 
 		// The package's own loader is lowest precedence — overrides above win.
