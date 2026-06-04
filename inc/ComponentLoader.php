@@ -68,7 +68,7 @@ class ComponentLoader {
 	private array $component_data_cache = [];
 
 	/**
-	 * Asset loader for the package's own theme (parent/template) base.
+	 * Asset loader for the package's own base — the owning theme or plugin root.
 	 *
 	 * @var AssetLoader|null
 	 */
@@ -85,8 +85,9 @@ class ComponentLoader {
 	 * Constructor.
 	 *
 	 * @param AssetLoader|null $asset_loader Asset loader for the package's own
-	 *                                       theme base — typically the shared
-	 *                                       instance. Optional: a subclass loaded
+	 *                                       base (its theme or plugin root) —
+	 *                                       typically the shared instance.
+	 *                                       Optional: a subclass loaded
 	 *                                       via the framework Loader instead
 	 *                                       overrides get_asset_loader() to resolve
 	 *                                       a shared instance lazily.
@@ -109,7 +110,7 @@ class ComponentLoader {
 	}
 
 	/**
-	 * Get the package's own (parent/template) theme asset loader.
+	 * Get the package's own asset loader — the owning theme or plugin.
 	 *
 	 * Returns the injected loader. A subclass loaded without constructor
 	 * injection must override this to supply one (e.g. a shared instance).
@@ -396,7 +397,7 @@ class ComponentLoader {
 	/**
 	 * Loaders to search when resolving a component, in override precedence.
 	 *
-	 * The full theme hierarchy when overrides are allowed, otherwise only the
+	 * The full override hierarchy when overrides are allowed, otherwise only the
 	 * package's own loader — so the component resolves from its own directory.
 	 *
 	 * @param bool $allow_override Whether theme/child overrides may win.
