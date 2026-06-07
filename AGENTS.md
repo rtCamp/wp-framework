@@ -13,7 +13,7 @@ Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Cod
 - **Zero runtime deps**: `composer.json` `require` holds only `php`; everything else is `require-dev`.
 - **TDD**: failing PHPUnit test first (`tests/` mirrors `inc/`), then code.
 - `declare( strict_types = 1 );`, full types, `@package`/`@since`, `static::` not `self::`, PSR-4 (`rtCamp\WPFramework\` → `inc/`).
-- **When you change a contract, update `ai/framework-php.instructions.md`**: the rules file shipped to consumers and installed into their `.github/` by `bin/install-ai-instructions.php`.
+- **When you change a contract, update `ai/framework-php.instructions.md`**: the rules file shipped to consumers and synced into their `.github/` by `bin/sync-ai-instructions.js` (`npm run sync-ai`).
 
 ## Structure
 

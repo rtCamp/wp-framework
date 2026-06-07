@@ -9,7 +9,7 @@ description: "Framework-development rules for rtcamp/wp-framework PHP."
 
 - `inc/Contracts/Interfaces/`: `Registrable`, `ConditionallyRegistrable`, `Shareable`, `CLICommand`.
 - `inc/Contracts/Abstracts/`: `AbstractModule`, `AbstractPostType`, `AbstractTaxonomy`, `AbstractBlock`, `AbstractShortcode`, `AbstractRESTController`, `AbstractSettingsPage`, `AbstractAdminPage`, `AbstractUserRole`.
-- `inc/Contracts/Traits/`: `Loader`, `Singleton`, `TemplateLoaderTrait`, `AssetLoaderTrait`.
+- `inc/Contracts/Traits/`: `Loader`, `Singleton`, `TemplateLoaderTrait`.
 - `inc/` root: `Container`, `AssetLoader`, `ComponentLoader`; `inc/Utils/`: utilities (e.g. `Encryptor`).
 
 Everything under `inc/Contracts/` is a **consumed contract**. New abstracts/interfaces must follow the existing shape (e.g. an `Abstract*` `implements Registrable` and exposes `abstract` methods for the bits that vary).
