@@ -17,10 +17,9 @@ Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Cod
 
 ## Structure
 
-`inc/Contracts/{Interfaces,Abstracts,Traits}/` (the consumed contract surface), `inc/` root (`Container`, `AssetLoader`, `ComponentLoader`), `inc/Utils/`. `ai/` holds the canonical consumer instruction doc; `bin/` holds the installer (framework → package) and sync (package → wp-content root) tools.
+`inc/Contracts/{Interfaces,Abstracts,Traits}/` (the consumed contract surface), `inc/` root (`Container`, `AssetLoader`, `ComponentLoader`), `inc/Utils/`. `ai/` holds the canonical consumer instruction doc; `bin/` holds the sync tool.
 
 ## This repo also ships tooling for consumers
 
 - `ai/framework-php.instructions.md`: the canonical framework+WordPress review rules.
-- `bin/install-ai-instructions.php`: run from a consumer's Composer `post-install`/`post-update`; copies the rules into the consumer's `.github/instructions/`.
-- `bin/sync-ai-instructions.js`: run from a consumer (`npm run sync-ai`); projects every package's instructions up to the `wp-content` repo root for Copilot review.
+- `bin/sync-ai-instructions.js`: run from a consumer via `npm run sync-ai` (chained from `npm run init`). Refreshes each package's `framework-php.instructions.md` from its vendored copy of this doc, then projects every package's instructions up to the `wp-content` repo root for Copilot review. Standalone packages get the refresh only. `--check` for CI.
