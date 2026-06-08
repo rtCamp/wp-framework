@@ -285,30 +285,38 @@ class TemplateLoader {
 	/**
 	 * Get the ordered, trailing-slashed search paths (child > parent > package).
 	 *
-	 * Works for both plugin and theme packages. When the package's own templates
-	 * already sit inside the parent (or child) theme — i.e. the consumer is the
-	 * theme itself — that layer collapses into the theme override layer rather
-	 * than being searched twice, mirroring ComponentLoader's hierarchy.
+	 * Works for both plugin and theme packages. Only the theme layers that sit
+	 * ABOVE the package can override it: a package inside the parent theme is
+	 * overridden only by the child theme, and a package inside the child theme
+	 * has no override layer at all. Mirrors ComponentLoader's hierarchy.
 	 *
 	 * @return array<int, string> Paths in resolution order, most specific first.
 	 */
 	private function get_template_paths(): array {
 		$stylesheet = trailingslashit( get_stylesheet_directory() );
 		$template   = trailingslashit( get_template_directory() );
+		$package    = trailingslashit( $this->template_dir );
 		$has_child  = $stylesheet !== $template;
+
+		// Where the package's own templates live decides which theme layers sit
+		// above it (and can therefore override it).
+		$in_child  = str_starts_with( $package, $stylesheet );
+		$in_parent = str_starts_with( $package, $template );
 
 		$paths = [];
 
-		// Child theme override layer (only when a distinct child theme is active).
-		if ( $has_child ) {
+		// Child theme override layer: a distinct child theme exists and the
+		// package isn't itself in it.
+		if ( $has_child && ! $in_child ) {
 			$paths[1] = $stylesheet . $this->template_theme_dir;
 		}
 
-		// Parent theme override layer.
-		$paths[10] = $template . $this->template_theme_dir;
+		// Parent theme override layer: the package is in neither theme.
+		if ( ! $in_parent && ! $in_child ) {
+			$paths[10] = $template . $this->template_theme_dir;
+		}
 
-		// The package's own templates — lowest precedence. For a theme package
-		// this resolves to a theme override path above and is de-duplicated.
+		// The package's own templates — lowest precedence.
 		$paths[100] = $this->template_dir;
 
 		/**
@@ -320,7 +328,7 @@ class TemplateLoader {
 
 		ksort( $paths, SORT_NUMERIC );
 
-		// Normalise and drop redundant layers (e.g. when the package templates already sit in the theme).
+		// Normalise; array_unique guards against a filter re-adding an existing path.
 		return array_values( array_unique( array_map( 'trailingslashit', $paths ) ) );
 	}
 

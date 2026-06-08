@@ -165,6 +165,18 @@ final class TemplateLoaderTest extends TestCase {
 		);
 	}
 
+	public function test_child_theme_package_has_no_parent_fallback(): void {
+		// A loader owned by the child theme: nothing sits above it, so the parent
+		// theme is NOT searched as a fallback (mirrors ComponentLoader).
+		$this->set_child_theme( true );
+		$child_loader = new TemplateLoader( 'ct', $this->tmp . '/child/templates', 'templates' );
+
+		$method = new \ReflectionMethod( $child_loader, 'get_template_paths' );
+		$method->setAccessible( true );
+
+		$this->assertSame( [ $this->tmp . '/child/templates/' ], $method->invoke( $child_loader ) );
+	}
+
 	public function test_name_variant_is_preferred_over_base_slug(): void {
 		$this->set_child_theme( false );
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
