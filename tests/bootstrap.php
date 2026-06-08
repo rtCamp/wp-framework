@@ -201,6 +201,28 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 	}
 }
 
+if ( ! function_exists( 'sanitize_file_name' ) ) {
+	function sanitize_file_name( string $filename ): string {
+		return preg_replace( '/[^A-Za-z0-9_.\- ]/', '', $filename ) ?? '';
+	}
+}
+
+if ( ! function_exists( 'load_template' ) ) {
+	function load_template( string $template_file, bool $load_once = true, array $args = [] ): void { // phpcs:ignore
+		$GLOBALS['wp_framework_test_loaded_templates']   ??= [];
+		$GLOBALS['wp_framework_test_loaded_templates'][] = [
+			'file' => $template_file,
+			'args' => $args,
+		];
+
+		// Execute the template so its output can be captured, mirroring core's
+		// load_template(); $args is available to the template.
+		if ( is_file( $template_file ) ) {
+			require $template_file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable, WordPressVIPMinimum.Files.IncludingFile.NotAbsolutePath
+		}
+	}
+}
+
 if ( ! function_exists( 'wp_parse_args' ) ) {
 	function wp_parse_args( array $args, array $defaults = [] ): array {
 		return array_merge( $defaults, $args );
