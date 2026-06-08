@@ -223,6 +223,18 @@ class Cache {
 	/**
 	 * Return a cached value, generating and storing it if absent.
 	 *
+	 * `$callback` takes no arguments: to regenerate with specific parameters,
+	 * capture them in a closure and encode the same parameters in `$key` so each
+	 * variant caches under its own entry:
+	 *
+	 *     $id    = 42;
+	 *     $posts = Cache::remember(
+	 *         "user_posts_{$id}",
+	 *         fn() => fetch_user_posts( $id ),
+	 *         'posts',
+	 *         300
+	 *     );
+	 *
 	 * Implements stale-while-revalidate (SWR) stampede prevention. On expiry,
 	 * stale data (stored at `{key}_stale` with a 2× TTL) is returned immediately
 	 * while one process regenerates in the foreground. No workers are blocked
@@ -266,8 +278,9 @@ class Cache {
 	 * (mirrors WordPress's own `wp_cache_get()` return type).
 	 *
 	 * @param string   $key        Cache key (avoid endings `_stale` / `_lock`).
-	 * @param callable $callback   Invoked when the fresh entry is absent; its
-	 *                             return value is stored and returned.
+	 * @param callable $callback   Invoked (with no arguments) when the fresh
+	 *                             entry is absent; its return value is stored and
+	 *                             returned. Capture any inputs via a closure.
 	 * @param string   $group      Cache group. Defaults to the global group.
 	 * @param int      $expiration TTL in seconds for the fresh entry. `0` means
 	 *                             no expiry (stale-while-revalidate has no effect).
