@@ -25,11 +25,13 @@ final class CacheTest extends TestCase {
 	protected function setUp(): void {
 		$GLOBALS['_wp_cache']                      = [];
 		$GLOBALS['_wp_cache_supports_flush_group'] = true;
+		Cache::flush_runtime();
 	}
 
 	protected function tearDown(): void {
 		$GLOBALS['_wp_cache']                      = [];
 		$GLOBALS['_wp_cache_supports_flush_group'] = true;
+		Cache::flush_runtime();
 	}
 
 	// --- get / set / delete / flush_group ------------------------------------
@@ -85,6 +87,67 @@ final class CacheTest extends TestCase {
 
 		$this->assertFalse( $result );                            // capability gate trips
 		$this->assertSame( 'value', Cache::get( 'k5', 'demo' ) ); // group left intact
+	}
+
+	// --- request-level (runtime) cache ---------------------------------------
+
+	public function test_get_prefers_runtime_over_object_cache(): void {
+		Cache::set( 'rk', 'runtime-val', 'demo' );
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'oc-val'; // diverge the backend behind the runtime layer
+
+		$this->assertSame( 'runtime-val', Cache::get( 'rk', 'demo' ) );
+	}
+
+	public function test_force_bypasses_runtime_cache(): void {
+		Cache::set( 'rk', 'runtime-val', 'demo' );
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'oc-val';
+
+		$this->assertSame( 'oc-val', Cache::get( 'rk', 'demo', true ) );
+	}
+
+	public function test_object_cache_hit_promotes_into_runtime(): void {
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'oc-val'; // present in the backend, not yet in the runtime layer
+
+		$this->assertSame( 'oc-val', Cache::get( 'rk', 'demo' ) ); // first read promotes it
+
+		unset( $GLOBALS['_wp_cache']['demo']['rk'] );               // backend loses it
+
+		$this->assertSame( 'oc-val', Cache::get( 'rk', 'demo' ) );  // still served from the runtime layer
+	}
+
+	public function test_flush_runtime_drops_request_layer(): void {
+		Cache::set( 'rk', 'runtime-val', 'demo' );
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'oc-val';
+
+		Cache::flush_runtime();
+
+		$this->assertSame( 'oc-val', Cache::get( 'rk', 'demo' ) ); // falls through to the backend now
+	}
+
+	public function test_delete_clears_runtime_layer(): void {
+		Cache::set( 'rk', 'A', 'demo' );
+		Cache::delete( 'rk', 'demo' );
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'B'; // backend repopulated by another process
+
+		// 'A' would be returned if delete() had left the runtime entry behind.
+		$this->assertSame( 'B', Cache::get( 'rk', 'demo' ) );
+	}
+
+	public function test_flush_group_clears_runtime_layer(): void {
+		Cache::set( 'rk', 'A', 'demo' );
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'A'; // ensure backend matches before the flush
+
+		Cache::flush_group( 'demo' );
+		$GLOBALS['_wp_cache']['demo']['rk'] = 'B'; // backend repopulated after the flush
+
+		// 'A' would be returned if flush_group() had left the runtime group behind.
+		$this->assertSame( 'B', Cache::get( 'rk', 'demo' ) );
+	}
+
+	public function test_class_is_extendable(): void {
+		// Cache is deliberately non-final so downstream packages can extend it
+		// (e.g. to override the lock/stale constants). Guard that invariant.
+		$this->assertFalse( ( new \ReflectionClass( Cache::class ) )->isFinal() );
 	}
 
 	// --- remember(): hot path ------------------------------------------------
