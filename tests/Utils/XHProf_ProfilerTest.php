@@ -133,7 +133,7 @@ final class XHProf_ProfilerTest extends TestCase {
 		$this->assertFalse( $profiler->is_running() );
 	}
 
-	public function test_profile_returns_empty_array_and_skips_callable_when_no_backend(): void {
+	public function test_profile_still_runs_callable_but_returns_empty_array_when_no_backend(): void {
 		if ( self::backend_loaded() ) {
 			$this->markTestSkipped( 'An XHProf backend is loaded; the no-backend guard is environment-dependent.' );
 		}
@@ -145,7 +145,7 @@ final class XHProf_ProfilerTest extends TestCase {
 			}
 		);
 
-		$this->assertSame( [], $result );
-		$this->assertSame( 0, $calls ); // start() failed, so the callable never ran.
+		$this->assertSame( [], $result ); // No backend, so no profiling data.
+		$this->assertSame( 1, $calls );   // ...but the work always runs — profiling must not change behavior.
 	}
 }

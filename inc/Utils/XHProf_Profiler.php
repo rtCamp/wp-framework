@@ -131,9 +131,12 @@ class XHProf_Profiler {
 	/**
 	 * Convenience: profile a callable and return the top-N summary.
 	 *
-	 * Returns an empty array when no backend is available (the callable is then not
-	 * invoked). `stop()` always runs via `finally`, so a throwing callable cannot leave
-	 * the profiler stuck in the running state; the exception then propagates to the caller.
+	 * The callback is **always** invoked — profiling never changes whether the wrapped
+	 * code runs. When profiling cannot start (no backend available, or a session is
+	 * already running) the callback still runs and an empty array is returned, so it is
+	 * safe to leave a `profile()` call in production or CI. When profiling does start,
+	 * `stop()` runs via `finally`, so a throwing callable cannot leave the profiler stuck
+	 * in the running state; either way the exception propagates to the caller.
 	 *
 	 * @param callable $callback The code to profile.
 	 * @param int      $limit    Maximum number of functions to return.
@@ -143,6 +146,7 @@ class XHProf_Profiler {
 	 */
 	public function profile( callable $callback, int $limit = 10, string $label = '' ): array {
 		if ( ! $this->start() ) {
+			$callback(); // Profiling unavailable — still run the work, just don't profile it.
 			return [];
 		}
 
