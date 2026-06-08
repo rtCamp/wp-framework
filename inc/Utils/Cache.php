@@ -228,6 +228,10 @@ class Cache {
 	 * while one process regenerates in the foreground. No workers are blocked
 	 * waiting for fresh data in the normal case.
 	 *
+	 * Reserved suffixes: companion entries are stored at `{key}_stale` and
+	 * `{key}_lock`. Avoid passing a `$key` that already ends in `_stale` or
+	 * `_lock`, as it would collide with another remembered value's companions.
+	 *
 	 * Reads and writes flow through {@see get()} / {@see set()}, so a remembered
 	 * value is served from the request-level cache on repeat calls within the
 	 * same request. The regeneration lock uses `wp_cache_add()` directly — it is
@@ -261,7 +265,7 @@ class Cache {
 	 * Returns `mixed` because the stored value can be any serialisable type
 	 * (mirrors WordPress's own `wp_cache_get()` return type).
 	 *
-	 * @param string   $key        Cache key.
+	 * @param string   $key        Cache key (avoid endings `_stale` / `_lock`).
 	 * @param callable $callback   Invoked when the fresh entry is absent; its
 	 *                             return value is stored and returned.
 	 * @param string   $group      Cache group. Defaults to the global group.
