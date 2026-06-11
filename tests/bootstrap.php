@@ -20,6 +20,13 @@ if ( ! defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) ) {
 	define( 'RT_FRAMEWORK_ENCRYPTION_KEY', str_repeat( 'k', 32 ) );
 }
 
+// Dev mode on so Telemetry gating is testable along its other axes
+// (environment type + filter); the constant-off path is a one-line
+// defined() check that cannot be toggled within a PHP process.
+if ( ! defined( 'RT_FRAMEWORK_DEV_MODE' ) ) {
+	define( 'RT_FRAMEWORK_DEV_MODE', true );
+}
+
 // --- WordPress function stubs ------------------------------------------------
 // Only no-op stubs sufficient for the framework's runtime calls. No assertions
 // hang off these — tests that need to verify hook side-effects use their own
@@ -288,6 +295,18 @@ if ( ! function_exists( 'wp_script_is' ) ) {
 		}
 
 		return isset( $GLOBALS['wp_framework_test_registered_scripts'][ $handle ] );
+	}
+}
+
+if ( ! function_exists( 'wp_get_environment_type' ) ) {
+	function wp_get_environment_type(): string {
+		return (string) ( $GLOBALS['wp_framework_test_environment_type'] ?? 'production' );
+	}
+}
+
+if ( ! function_exists( 'home_url' ) ) {
+	function home_url( string $path = '', ?string $scheme = null ): string { // phpcs:ignore
+		return ( $GLOBALS['wp_framework_test_home_url'] ?? 'https://example.test' ) . $path;
 	}
 }
 
