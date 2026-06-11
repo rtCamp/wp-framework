@@ -15,11 +15,6 @@ declare( strict_types = 1 );
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// A deterministic 32-byte key so Encryptor tests are reproducible.
-if ( ! defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) ) {
-	define( 'RT_FRAMEWORK_ENCRYPTION_KEY', str_repeat( 'k', 32 ) );
-}
-
 // --- WordPress function stubs ------------------------------------------------
 // Only no-op stubs sufficient for the framework's runtime calls. No assertions
 // hang off these — tests that need to verify hook side-effects use their own
