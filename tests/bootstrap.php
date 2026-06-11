@@ -310,6 +310,97 @@ if ( ! function_exists( 'home_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( string $str ): string {
+		return trim( (string) preg_replace( '/[\r\n\t ]+/', ' ', wp_strip_all_tags_for_tests( $str ) ) );
+	}
+}
+
+if ( ! function_exists( 'wp_strip_all_tags_for_tests' ) ) {
+	function wp_strip_all_tags_for_tests( string $str ): string {
+		return strip_tags( $str ); // phpcs:ignore
+	}
+}
+
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( mixed $value ): mixed {
+		return is_string( $value ) ? stripslashes( $value ) : $value;
+	}
+}
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( string $url, int $component = -1 ): mixed {
+		return parse_url( $url, $component ); // phpcs:ignore
+	}
+}
+
+if ( ! function_exists( 'wp_generate_uuid4' ) ) {
+	function wp_generate_uuid4(): string {
+		return sprintf(
+			'%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+			mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0x0fff ) | 0x4000,
+			mt_rand( 0, 0x3fff ) | 0x8000,
+			mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0xffff )
+		);
+	}
+}
+
+if ( ! function_exists( 'is_ssl' ) ) {
+	function is_ssl(): bool {
+		return (bool) ( $GLOBALS['wp_framework_test_is_ssl'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'wp_doing_cron' ) ) {
+	function wp_doing_cron(): bool {
+		return (bool) ( $GLOBALS['wp_framework_test_doing_cron'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'wp_doing_ajax' ) ) {
+	function wp_doing_ajax(): bool {
+		return (bool) ( $GLOBALS['wp_framework_test_doing_ajax'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'is_admin' ) ) {
+	function is_admin(): bool {
+		return (bool) ( $GLOBALS['wp_framework_test_is_admin'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( mixed $thing ): bool {
+		return $thing instanceof WP_Error;
+	}
+}
+
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( string $capability, mixed ...$args ): bool { // phpcs:ignore
+		return (bool) ( $GLOBALS['wp_framework_test_user_can'][ $capability ] ?? false );
+	}
+}
+
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( string $option, mixed $default_value = false ): mixed {
+		return $GLOBALS['wp_framework_test_options'][ $option ] ?? $default_value;
+	}
+}
+
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( string $option, mixed $value, bool|null $autoload = null ): bool { // phpcs:ignore
+		$GLOBALS['wp_framework_test_options'][ $option ] = $value;
+
+		return true;
+	}
+}
+
 // Load fixtures that contain multiple classes per file (PSR-4 only autoloads
 // single-class files matching the class name).
 require_once __DIR__ . '/Fixtures/LoaderFixtures.php';
+require_once __DIR__ . '/Fixtures/WpError.php';
