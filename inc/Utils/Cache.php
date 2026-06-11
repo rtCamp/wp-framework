@@ -11,54 +11,51 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Utils;
 
 /**
- * Typed wrapper over WordPress's object-cache functions with a request-level
- * cache layer and stale-while-revalidate (SWR) stampede prevention.
+ * Class - Cache
  *
- * Static helper (like {@see Encryptor}) — callable from anywhere, no wiring
- * required:
+ * Typed wrapper over WordPress's object-cache functions with per-consumer
+ * group namespacing and optional stale-while-revalidate (SWR) stampede
+ * prevention.
  *
- *     $nav = Cache::remember( 'nav_items', fn() => build_nav(), 'theme', 300 );
+ * Instance-based, configured with a context slug at construction — so each
+ * consumer's cache groups are namespaced and cannot collide with another
+ * plugin or theme using the same group name through a shared object cache:
+ *
+ *     $cache = new Cache( 'my-plugin' );
+ *     $nav   = $cache->remember( 'nav_items', fn() => build_nav(), 'theme', 300 );
+ *
+ * Designed to be a service: construct it with the package's slug, register an
+ * instance as Shareable in a consumer's container, or extend it to change the
+ * namespacing by overriding the {@see Cache::resolve_group()} seam (the same
+ * pattern as {@see \rtCamp\WPFramework\ComponentLoader::get_context()}).
  *
  * Centralises calls to `wp_cache_get`, `wp_cache_set`, `wp_cache_delete`, and
  * `wp_cache_flush_group` so consumers have a single typed API and one place to
- * layer cross-cutting behaviour (logging, telemetry, fallbacks).
+ * layer cross-cutting behaviour (logging, telemetry, fallbacks). It adds no
+ * cache layer of its own: WordPress's object cache already keeps an
+ * in-process, per-request store (and persistent drop-ins keep a local cache in
+ * front of the network), so every read and write goes straight through.
  *
- * **Request-level cache.** `set()`/`get()`/`delete()` maintain an in-process
- * copy keyed by `[group][key]`, sitting in front of the object cache. Repeated
- * reads of the same key within a single request are served from this layer
- * without a further object-cache round-trip (which, for persistent backends
- * such as Redis or Memcached, is a network call). The layer lives for the
- * duration of the PHP request — in PHP-FPM/mod_php it resets naturally between
- * requests; in long-running processes (WP-CLI, queue workers) clear it
- * explicitly with {@see flush_runtime()}. Pass `$force = true` to `get()` to
- * bypass it and re-read from the backend. Because it is request-scoped it has
- * no TTL — a value is served for the rest of the request regardless of its
- * `$expiration`, matching WordPress's own runtime cache.
+ * Miss detection uses `wp_cache_get()`'s `$found` out-parameter, so falsy
+ * values such as `false` or `0` are cached and served like any other value —
+ * a callback returning `false` is not regenerated on every call.
  *
- * Miss detection uses `wp_cache_get()`'s `$found` out-parameter (and
- * `array_key_exists()` for the runtime layer), so falsy values such as `false`
- * or `0` are cached and served like any other value — a callback returning
- * `false` is not regenerated on every call.
- *
- * `remember()` adds SWR stampede prevention: on expiry, stale data is served
- * immediately while one process regenerates — no workers block waiting for
- * fresh data.
+ * Two get-or-set flavours:
+ * - {@see Cache::remember()} — plain get-or-set; one key, no extra writes.
+ * - {@see Cache::remember_swr()} — adds stale-while-revalidate stampede
+ *   prevention for expensive regenerations: on expiry, stale data is served
+ *   immediately while one process regenerates.
  *
  * `wp_cache_flush_group()` was added in WordPress 6.1; `flush_group()` checks
  * `wp_cache_supports( 'flush_group' )` so it gracefully returns `false` when
  * the persistent cache backend does not support group flushing.
  *
- * Not `final`: downstream packages may extend it (e.g. to tune the constants
- * or wrap a method). Internal references use late static binding (`static::`)
- * so overrides take effect.
- *
- * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since 0.0.1
  */
 class Cache {
 
 	/**
-	 * TTL (seconds) for the regeneration lock key.
+	 * TTL (seconds) for the SWR regeneration lock key.
 	 *
 	 * Dead-man switch: if the regenerating process crashes before releasing the
 	 * lock, it auto-expires so subsequent requests are not permanently blocked.
@@ -83,99 +80,91 @@ class Cache {
 	protected const STALE_MULTIPLIER = 2;
 
 	/**
-	 * Request-level (runtime) cache, keyed by `[group][key]`.
+	 * Constructor.
 	 *
-	 * Lives for the duration of the PHP request. Sits in front of the object
-	 * cache so repeated reads within one request avoid the backend round-trip.
-	 *
-	 * @var array<string, array<string, mixed>>
+	 * @param string $context Context slug identifying the package that owns this
+	 *                        instance (e.g. a theme/plugin slug). Prefixed onto
+	 *                        every cache group so consumers sharing an object
+	 *                        cache cannot collide. Empty string means no
+	 *                        namespacing — groups are passed through verbatim.
 	 */
-	protected static array $runtime = [];
+	public function __construct(
+		protected string $context = '',
+	) {}
 
 	/**
-	 * Static helper — not instantiable.
+	 * Resolve a caller-supplied group to the namespaced group used in the
+	 * object cache.
+	 *
+	 * With a context of `my-plugin`, group `posts` resolves to
+	 * `my-plugin:posts` and the default (empty) group resolves to `my-plugin`.
+	 * Without a context, groups pass through verbatim. Override this seam to
+	 * change the namespacing scheme.
+	 *
+	 * @param string $group Caller-supplied cache group.
+	 *
+	 * @return string Namespaced cache group.
 	 */
-	protected function __construct() {}
+	protected function resolve_group( string $group ): string {
+		if ( '' === $this->context ) {
+			return $group;
+		}
+
+		return '' === $group ? $this->context : $this->context . ':' . $group;
+	}
 
 	/**
 	 * Get a value from cache.
-	 *
-	 * Checks the request-level cache first; on a miss it falls through to the
-	 * object cache and, on a hit there, promotes the value into the request
-	 * layer. Pass `$force = true` to skip the request layer and re-read from the
-	 * backend (the fresh value is promoted back into the request layer).
 	 *
 	 * Returns `mixed` because object-cache entries can hold any serialisable
 	 * value (mirrors WordPress's own `wp_cache_get()` signature).
 	 *
 	 * @param string    $key   Cache key.
 	 * @param string    $group Cache group. Defaults to the global group.
-	 * @param bool      $force Bypass the request-level cache and re-read from the
-	 *                         object cache (relevant for persistent backends).
+	 * @param bool      $force Re-fetch from the persistent backend, bypassing the
+	 *                         drop-in's local in-process cache.
 	 * @param bool|null $found Set to `true` if the key was found, `false` if not.
 	 *                         Disambiguates a stored falsy value from a miss.
 	 *
 	 * @return mixed Stored value, or `false` if missing or expired.
 	 */
-	public static function get( string $key, string $group = '', bool $force = false, ?bool &$found = null ): mixed {
-		if ( ! $force && isset( static::$runtime[ $group ] ) && array_key_exists( $key, static::$runtime[ $group ] ) ) {
-			$found = true;
-			return static::$runtime[ $group ][ $key ];
-		}
-
-		$value = wp_cache_get( $key, $group, $force, $found );
-		if ( $found ) {
-			static::$runtime[ $group ][ $key ] = $value;
-		}
-
-		return $value;
+	public function get( string $key, string $group = '', bool $force = false, ?bool &$found = null ): mixed {
+		return wp_cache_get( $key, $this->resolve_group( $group ), $force, $found );
 	}
 
 	/**
 	 * Set a value in cache.
 	 *
-	 * Writes through both layers: the request-level cache and the object cache.
-	 *
 	 * @param string $key        Cache key.
 	 * @param mixed  $value      Value to store. Must be serialisable.
 	 * @param string $group      Cache group. Defaults to the global group.
-	 * @param int    $expiration TTL in seconds. `0` means no expiry. Applies to
-	 *                           the object cache only — the request layer is
-	 *                           request-scoped and has no TTL.
+	 * @param int    $expiration TTL in seconds. `0` means no expiry.
 	 *
 	 * @return bool True on success, false on failure.
 	 */
-	public static function set( string $key, mixed $value, string $group = '', int $expiration = 0 ): bool {
-		static::$runtime[ $group ][ $key ] = $value;
-
+	public function set( string $key, mixed $value, string $group = '', int $expiration = 0 ): bool {
 		// phpcs:ignore WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined -- expiry originates with the caller; enforced at call sites, not inside the wrapper.
-		return wp_cache_set( $key, $value, $group, $expiration );
+		return wp_cache_set( $key, $value, $this->resolve_group( $group ), $expiration );
 	}
 
 	/**
 	 * Delete a single key from cache.
 	 *
-	 * Removes the key from both the request-level cache and the object cache.
 	 * Deletes only `$key`. It does not remove the companion `{key}_stale` /
-	 * `{key}_lock` entries written by {@see remember()} — to fully invalidate a
-	 * remembered value, flush its group instead.
+	 * `{key}_lock` entries written by {@see Cache::remember_swr()} — to fully
+	 * invalidate an SWR-remembered value, flush its group instead.
 	 *
 	 * @param string $key   Cache key.
 	 * @param string $group Cache group. Defaults to the global group.
 	 *
 	 * @return bool True if the entry was deleted, false otherwise.
 	 */
-	public static function delete( string $key, string $group = '' ): bool {
-		unset( static::$runtime[ $group ][ $key ] );
-
-		return wp_cache_delete( $key, $group );
+	public function delete( string $key, string $group = '' ): bool {
+		return wp_cache_delete( $key, $this->resolve_group( $group ) );
 	}
 
 	/**
 	 * Flush an entire cache group. Requires WordPress 6.1+.
-	 *
-	 * Also drops the group's request-level entries so a subsequent read does not
-	 * serve a value the object cache has just discarded.
 	 *
 	 * Gates on `wp_cache_supports( 'flush_group' )` rather than a bare
 	 * `function_exists()` check: `wp_cache_flush_group()` exists on every WP 6.1+
@@ -193,7 +182,7 @@ class Cache {
 	 * @return bool True on success; false if the WordPress version or cache
 	 *              backend does not support group flushing.
 	 */
-	public static function flush_group( string $group ): bool {
+	public function flush_group( string $group ): bool {
 		if (
 			! function_exists( 'wp_cache_flush_group' )
 			|| ! function_exists( 'wp_cache_supports' )
@@ -202,40 +191,66 @@ class Cache {
 			return false;
 		}
 
-		unset( static::$runtime[ $group ] );
-
-		return wp_cache_flush_group( $group );
-	}
-
-	/**
-	 * Clear the request-level (runtime) cache.
-	 *
-	 * Only drops the in-process layer; the object cache is left untouched.
-	 * Useful in long-running processes (WP-CLI, queue workers) and tests, where
-	 * a single PHP process spans what would otherwise be many requests.
-	 *
-	 * @return void
-	 */
-	public static function flush_runtime(): void {
-		static::$runtime = [];
+		return wp_cache_flush_group( $this->resolve_group( $group ) );
 	}
 
 	/**
 	 * Return a cached value, generating and storing it if absent.
+	 *
+	 * Plain get-or-set: one key, no companion entries, no locking. For
+	 * expensive regenerations that need stampede protection, use
+	 * {@see Cache::remember_swr()} instead.
 	 *
 	 * `$callback` takes no arguments: to regenerate with specific parameters,
 	 * capture them in a closure and encode the same parameters in `$key` so each
 	 * variant caches under its own entry:
 	 *
 	 *     $id    = 42;
-	 *     $posts = Cache::remember(
+	 *     $posts = $cache->remember(
 	 *         "user_posts_{$id}",
 	 *         fn() => fetch_user_posts( $id ),
 	 *         'posts',
 	 *         300
 	 *     );
 	 *
-	 * Implements stale-while-revalidate (SWR) stampede prevention. On expiry,
+	 * Hits are detected via `wp_cache_get()`'s `$found` out-parameter, so a
+	 * callback that returns a falsy value (`false`, `0`, `''`) is cached
+	 * normally and not re-invoked on every call.
+	 *
+	 * If `$callback` throws, the exception propagates to the caller and nothing
+	 * is cached.
+	 *
+	 * Returns `mixed` because the stored value can be any serialisable type
+	 * (mirrors WordPress's own `wp_cache_get()` return type).
+	 *
+	 * @param string   $key        Cache key.
+	 * @param callable $callback   Invoked (with no arguments) when the entry is
+	 *                             absent; its return value is stored and
+	 *                             returned. Capture any inputs via a closure.
+	 * @param string   $group      Cache group. Defaults to the global group.
+	 * @param int      $expiration TTL in seconds. `0` means no expiry.
+	 *
+	 * @return mixed The cached or freshly-generated value.
+	 */
+	public function remember( string $key, callable $callback, string $group = '', int $expiration = 0 ): mixed {
+		$found  = false;
+		$cached = $this->get( $key, $group, false, $found );
+		if ( $found ) {
+			return $cached;
+		}
+
+		$value = $callback();
+		$this->set( $key, $value, $group, $expiration );
+
+		return $value;
+	}
+
+	/**
+	 * Return a cached value with stale-while-revalidate stampede prevention,
+	 * generating and storing it if absent.
+	 *
+	 * Use this instead of {@see Cache::remember()} when regeneration is
+	 * expensive enough that a thundering herd on expiry matters. On expiry,
 	 * stale data (stored at `{key}_stale` with a 2× TTL) is returned immediately
 	 * while one process regenerates in the foreground. No workers are blocked
 	 * waiting for fresh data in the normal case.
@@ -244,29 +259,24 @@ class Cache {
 	 * `{key}_lock`. Avoid passing a `$key` that already ends in `_stale` or
 	 * `_lock`, as it would collide with another remembered value's companions.
 	 *
-	 * Reads and writes flow through {@see get()} / {@see set()}, so a remembered
-	 * value is served from the request-level cache on repeat calls within the
-	 * same request. The regeneration lock uses `wp_cache_add()` directly — it is
-	 * a cross-process coordination primitive and must not be request-cached.
-	 *
 	 * Flow:
 	 * - Fresh hit          → return immediately.
 	 * - Fresh miss + stale → serve stale now; if lock acquired, regenerate and
 	 *                        write both keys; release lock; return stale.
 	 * - Both absent        → cold start (first-ever load or full flush); acquire
 	 *                        lock, regenerate, write both keys; if lock not
-	 *                        acquired, spin-wait up to {@see LOCK_RETRIES} ×
-	 *                        {@see LOCK_WAIT_US} µs, then call `$callback`
+	 *                        acquired, spin-wait up to {@see Cache::LOCK_RETRIES} ×
+	 *                        {@see Cache::LOCK_WAIT_US} µs, then call `$callback`
 	 *                        directly as a last resort without releasing the
 	 *                        other process's lock.
 	 *
-	 * Hits are detected via the `$found` out-parameter, so a callback that
-	 * returns a falsy value (`false`, `0`, `''`) is cached normally and not
-	 * re-invoked on every call.
+	 * As with {@see Cache::remember()}, hits are detected via the `$found`
+	 * out-parameter (falsy values cache normally) and `$callback` takes no
+	 * arguments — capture inputs via a closure and encode them in `$key`.
 	 *
 	 * If `$callback` throws, the exception propagates to the caller and the
 	 * regeneration lock is released immediately (no value is cached), so the
-	 * next request can retry without waiting out {@see LOCK_TTL}.
+	 * next request can retry without waiting out {@see Cache::LOCK_TTL}.
 	 *
 	 * **Requires a persistent object cache (Redis, Memcached) for effective
 	 * cross-process stampede prevention.** On the default WordPress in-memory
@@ -287,9 +297,9 @@ class Cache {
 	 *
 	 * @return mixed The cached or freshly-generated value.
 	 */
-	public static function remember( string $key, callable $callback, string $group = '', int $expiration = 0 ): mixed {
+	public function remember_swr( string $key, callable $callback, string $group = '', int $expiration = 0 ): mixed {
 		$found  = false;
-		$cached = static::get( $key, $group, false, $found );
+		$cached = $this->get( $key, $group, false, $found );
 		if ( $found ) {
 			return $cached;
 		}
@@ -297,37 +307,53 @@ class Cache {
 		$stale_key   = $key . '_stale';
 		$lock_key    = $key . '_lock';
 		$stale_found = false;
-		$stale       = static::get( $stale_key, $group, false, $stale_found );
+		$stale       = $this->get( $stale_key, $group, false, $stale_found );
 
 		if ( $stale_found ) {
-			// phpcs:ignore WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined -- LOCK_TTL is a dead-man-switch for the lock entry, not a data TTL.
-			if ( wp_cache_add( $lock_key, 1, $group, static::LOCK_TTL ) ) {
-				static::store_with_stale( $key, $stale_key, $callback, $group, $expiration, $lock_key );
+			if ( $this->acquire_lock( $lock_key, $group ) ) {
+				$this->store_with_stale( $key, $stale_key, $callback, $group, $expiration, $lock_key );
 			}
 			return $stale;
 		}
 
-		// phpcs:ignore WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined -- LOCK_TTL is a dead-man-switch for the lock entry, not a data TTL.
-		if ( wp_cache_add( $lock_key, 1, $group, static::LOCK_TTL ) ) {
-			return static::store_with_stale( $key, $stale_key, $callback, $group, $expiration, $lock_key );
+		if ( $this->acquire_lock( $lock_key, $group ) ) {
+			return $this->store_with_stale( $key, $stale_key, $callback, $group, $expiration, $lock_key );
 		}
 
 		for ( $i = 0; $i < static::LOCK_RETRIES; $i++ ) {
 			usleep( static::LOCK_WAIT_US );
-			$cached = static::get( $key, $group, false, $found );
+			$cached = $this->get( $key, $group, false, $found );
 			if ( $found ) {
 				return $cached;
 			}
 		}
 
-		return static::store_with_stale( $key, $stale_key, $callback, $group, $expiration );
+		return $this->store_with_stale( $key, $stale_key, $callback, $group, $expiration );
+	}
+
+	/**
+	 * Atomically acquire the SWR regeneration lock.
+	 *
+	 * Relies on `wp_cache_add()` failing when the key already exists, so only
+	 * one process wins the lock. The {@see Cache::LOCK_TTL} expiry is a
+	 * dead-man switch in case the winner crashes before releasing it.
+	 *
+	 * @param string $lock_key Lock cache key.
+	 * @param string $group    Caller-supplied cache group.
+	 *
+	 * @return bool True if this process acquired the lock.
+	 */
+	protected function acquire_lock( string $lock_key, string $group ): bool {
+		// phpcs:ignore WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined -- LOCK_TTL is a dead-man-switch for the lock entry, not a data TTL.
+		return wp_cache_add( $lock_key, 1, $this->resolve_group( $group ), static::LOCK_TTL );
 	}
 
 	/**
 	 * Invoke `$callback`, write both cache entries, optionally release the lock, and return the value.
 	 *
 	 * When this process acquired the lock, it is released in a `finally` block so
-	 * a throwing callback cannot leave it held for the remainder of {@see LOCK_TTL}.
+	 * a throwing callback cannot leave it held for the remainder of
+	 * {@see Cache::LOCK_TTL}.
 	 *
 	 * Returns `mixed` because the callback can return any serialisable type.
 	 *
@@ -335,21 +361,21 @@ class Cache {
 	 * @param string   $stale_key  Stale cache key (grace-period copy).
 	 * @param callable $callback   Invoked to produce the fresh value.
 	 * @param string   $group      Cache group.
-	 * @param int      $expiration TTL for the fresh entry; stale TTL = expiration × {@see STALE_MULTIPLIER}.
+	 * @param int      $expiration TTL for the fresh entry; stale TTL = expiration × {@see Cache::STALE_MULTIPLIER}.
 	 * @param string   $lock_key   Optional lock key to delete after regeneration.
 	 *
 	 * @return mixed The freshly-generated value.
 	 */
-	protected static function store_with_stale( string $key, string $stale_key, callable $callback, string $group, int $expiration, string $lock_key = '' ): mixed {
+	protected function store_with_stale( string $key, string $stale_key, callable $callback, string $group, int $expiration, string $lock_key = '' ): mixed {
 		try {
 			$value            = $callback();
 			$stale_expiration = $expiration > 0 ? $expiration * static::STALE_MULTIPLIER : 0;
-			static::set( $key, $value, $group, $expiration );
-			static::set( $stale_key, $value, $group, $stale_expiration );
+			$this->set( $key, $value, $group, $expiration );
+			$this->set( $stale_key, $value, $group, $stale_expiration );
 			return $value;
 		} finally {
 			if ( '' !== $lock_key ) {
-				wp_cache_delete( $lock_key, $group );
+				$this->delete( $lock_key, $group );
 			}
 		}
 	}
