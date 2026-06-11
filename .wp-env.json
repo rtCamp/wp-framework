@@ -1,0 +1,14 @@
+{
+	"core": null,
+	"phpVersion": "8.2",
+	"mappings": {
+		"wp-content/wp-framework-rt": "."
+	},
+	"env": {
+		"tests": {
+			"config": {
+				"WP_DEBUG": true
+			}
+		}
+	}
+}

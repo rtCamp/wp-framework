@@ -2,6 +2,11 @@
 /**
  * Tests for the TemplateLoader class.
  *
+ * Runs against a real WordPress instance (wp-env): the theme hierarchy is
+ * pointed at fixture directories via the template_directory/stylesheet_directory
+ * filters (TestCase::set_theme_dirs), and rendering is asserted through real
+ * load_template() output rather than a stub call log.
+ *
  * @package rtCamp\WPFramework\Tests
  */
 
@@ -9,7 +14,6 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests;
 
-use PHPUnit\Framework\TestCase;
 use rtCamp\WPFramework\TemplateLoader;
 
 /**
@@ -25,37 +29,25 @@ final class TemplateLoaderTest extends TestCase {
 	private string $tmp;
 
 	/**
-	 * Set up theme/package fixture directories and reset the hook registry.
+	 * Set up theme/package fixture directories.
 	 */
-	protected function setUp(): void {
-		parent::setUp();
+	public function set_up(): void {
+		parent::set_up();
 
 		$this->tmp = sys_get_temp_dir() . '/wpf-tpl-' . uniqid( '', true );
-
-		$GLOBALS['wp_framework_test_stylesheet_directory'] = $this->tmp . '/child';
-		$GLOBALS['wp_framework_test_template_directory']   = $this->tmp . '/parent';
 
 		mkdir( $this->tmp . '/child/my-plugin', 0777, true );
 		mkdir( $this->tmp . '/parent/my-plugin', 0777, true );
 		mkdir( $this->tmp . '/plugin/templates', 0777, true );
-
-		$GLOBALS['wp_framework_test_filters']          = [];
-		$GLOBALS['wp_framework_test_loaded_templates'] = [];
 	}
 
 	/**
 	 * Remove the fixture tree.
 	 */
-	protected function tearDown(): void {
+	public function tear_down(): void {
 		$this->rrmdir( $this->tmp );
-		unset(
-			$GLOBALS['wp_framework_test_stylesheet_directory'],
-			$GLOBALS['wp_framework_test_template_directory'],
-			$GLOBALS['wp_framework_test_filters'],
-			$GLOBALS['wp_framework_test_loaded_templates']
-		);
 
-		parent::tearDown();
+		parent::tear_down();
 	}
 
 	/**
@@ -66,12 +58,22 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	/**
-	 * Make this a child-theme setup (child != parent) or single-theme (child == parent).
+	 * Single-theme setup: stylesheet directory equals template directory.
 	 */
-	private function set_child_theme( bool $enabled ): void {
-		$GLOBALS['wp_framework_test_stylesheet_directory'] = $enabled
-			? $this->tmp . '/child'
-			: $this->tmp . '/parent';
+	private function use_single_theme(): void {
+		$this->set_theme_dirs( $this->tmp . '/parent', 'https://example.test/parent' );
+	}
+
+	/**
+	 * Child-theme setup: distinct child (stylesheet) and parent (template) dirs.
+	 */
+	private function use_child_theme(): void {
+		$this->set_theme_dirs(
+			$this->tmp . '/parent',
+			'https://example.test/parent',
+			$this->tmp . '/child',
+			'https://example.test/child'
+		);
 	}
 
 	private function write( string $abs, string $body = '' ): void {
@@ -102,7 +104,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_resolves_from_package_when_no_theme_override(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 
 		$this->assertSame(
@@ -112,7 +114,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_parent_theme_overrides_package(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 		$this->write( $this->tmp . '/parent/my-plugin/card.php' );
 
@@ -123,7 +125,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_child_theme_overrides_parent(): void {
-		$this->set_child_theme( true );
+		$this->use_child_theme();
 		$this->write( $this->tmp . '/parent/my-plugin/card.php' );
 		$this->write( $this->tmp . '/child/my-plugin/card.php' );
 
@@ -136,19 +138,18 @@ final class TemplateLoaderTest extends TestCase {
 	public function test_theme_package_layer_is_deduplicated(): void {
 		// Theme consumer: its own templates ARE the parent-theme override path,
 		// so the package layer must collapse rather than be searched twice.
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$theme_loader = new TemplateLoader( 'thm', $this->tmp . '/parent/templates', 'templates' );
 
 		$method = new \ReflectionMethod( $theme_loader, 'get_template_paths' );
-		$method->setAccessible( true );
-		$paths = $method->invoke( $theme_loader );
+		$paths  = $method->invoke( $theme_loader );
 
 		$this->assertSame( [ $this->tmp . '/parent/templates/' ], $paths );
 	}
 
 	public function test_theme_child_overrides_the_theme_package(): void {
 		// Theme ships card.php; a child theme overrides it. Same loader, no plugin layer.
-		$this->set_child_theme( true );
+		$this->use_child_theme();
 		$theme_loader = new TemplateLoader( 'thm', $this->tmp . '/parent/templates', 'templates' );
 
 		$this->write( $this->tmp . '/parent/templates/card.php' );
@@ -168,17 +169,16 @@ final class TemplateLoaderTest extends TestCase {
 	public function test_child_theme_package_has_no_parent_fallback(): void {
 		// A loader owned by the child theme: nothing sits above it, so the parent
 		// theme is NOT searched as a fallback (mirrors ComponentLoader).
-		$this->set_child_theme( true );
+		$this->use_child_theme();
 		$child_loader = new TemplateLoader( 'ct', $this->tmp . '/child/templates', 'templates' );
 
 		$method = new \ReflectionMethod( $child_loader, 'get_template_paths' );
-		$method->setAccessible( true );
 
 		$this->assertSame( [ $this->tmp . '/child/templates/' ], $method->invoke( $child_loader ) );
 	}
 
 	public function test_name_variant_is_preferred_over_base_slug(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 		$this->write( $this->tmp . '/plugin/templates/card-featured.php' );
 
@@ -191,7 +191,7 @@ final class TemplateLoaderTest extends TestCase {
 	public function test_name_variant_wins_across_layers_over_base_slug(): void {
 		// WP locate_template precedence: a more specific name dominates location.
 		// The parent's card-featured.php must beat the child's card.php.
-		$this->set_child_theme( true );
+		$this->use_child_theme();
 		$this->write( $this->tmp . '/child/my-plugin/card.php' );
 		$this->write( $this->tmp . '/parent/my-plugin/card-featured.php' );
 
@@ -202,7 +202,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_falls_back_to_base_slug_when_variant_missing(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 
 		$this->assertSame(
@@ -212,14 +212,14 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_locate_returns_false_when_not_found(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 
 		$this->assertFalse( $this->loader()->locate( 'missing' ) );
 	}
 
 	public function test_render_loads_with_filtered_args(): void {
-		$this->set_child_theme( false );
-		$this->write( $this->tmp . '/plugin/templates/card.php' );
+		$this->use_single_theme();
+		$this->write( $this->tmp . '/plugin/templates/card.php', '<?php echo wp_json_encode( $args );' );
 
 		add_filter(
 			'my_plugin/template_args',
@@ -229,25 +229,28 @@ final class TemplateLoaderTest extends TestCase {
 			}
 		);
 
-		$this->loader()->render( 'card', null, [ 'title' => 'Hi' ] );
+		$output = $this->loader()->get( 'card', null, [ 'title' => 'Hi' ] );
 
-		$loaded = $GLOBALS['wp_framework_test_loaded_templates'];
-		$this->assertCount( 1, $loaded );
-		$this->assertSame( $this->tmp . '/plugin/templates/card.php', $loaded[0]['file'] );
-		$this->assertSame( [ 'title' => 'Hi', 'injected' => true ], $loaded[0]['args'] );
+		$this->assertSame(
+			[ 'title' => 'Hi', 'injected' => true ],
+			json_decode( $output, true )
+		);
 	}
 
 	public function test_locate_does_not_render(): void {
-		$this->set_child_theme( false );
-		$this->write( $this->tmp . '/plugin/templates/card.php' );
+		$this->use_single_theme();
+		$this->write( $this->tmp . '/plugin/templates/card.php', '<?php echo "RENDERED";' );
 
-		$this->loader()->locate( 'card' );
+		ob_start();
+		$located = $this->loader()->locate( 'card' );
+		$output  = (string) ob_get_clean();
 
-		$this->assertSame( [], $GLOBALS['wp_framework_test_loaded_templates'] );
+		$this->assertSame( $this->tmp . '/plugin/templates/card.php', $located );
+		$this->assertSame( '', $output );
 	}
 
 	public function test_get_returns_rendered_output(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/greeting.php', '<?php echo "Hi " . $args["who"]; ?>' );
 
 		$this->assertSame(
@@ -257,13 +260,13 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_get_returns_empty_when_not_found(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 
 		$this->assertSame( '', $this->loader()->get( 'missing' ) );
 	}
 
 	public function test_located_template_filter_can_override_result(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 
 		add_filter( 'my_plugin/located_template', static fn(): string => '/forced/path.php' );
@@ -272,7 +275,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_template_paths_filter_can_add_a_source(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$extra = $this->tmp . '/extra';
 		$this->write( $extra . '/card.php' );
 
@@ -288,7 +291,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_result_is_cached_until_cleared(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 
 		$loader = $this->loader();
@@ -304,7 +307,7 @@ final class TemplateLoaderTest extends TestCase {
 	}
 
 	public function test_traversal_segments_are_stripped(): void {
-		$this->set_child_theme( false );
+		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );
 
 		// '../' segments are removed, so this cannot escape the search roots.

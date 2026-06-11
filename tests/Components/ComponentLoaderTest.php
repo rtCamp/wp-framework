@@ -2,6 +2,12 @@
 /**
  * Component loader tests.
  *
+ * Runs against a real WordPress instance (wp-env): the theme hierarchy is
+ * pointed at fixture directories via TestCase::set_theme_dirs, assets are
+ * asserted by reading the real wp_scripts()/wp_styles() registries, render
+ * hooks are captured with a real add_action() recorder, and incorrect usage
+ * via WP_UnitTestCase::setExpectedIncorrectUsage().
+ *
  * @package rtCamp\WPFramework\Tests\Components
  */
 
@@ -9,46 +15,64 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Components;
 
-use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use rtCamp\WPFramework\AssetLoader;
 use rtCamp\WPFramework\ComponentLoader;
+use rtCamp\WPFramework\Tests\TestCase;
 
 final class ComponentLoaderTest extends TestCase {
 
+	private const STYLE_HANDLE  = 'wp-framework-component-alert-style';
+	private const SCRIPT_HANDLE = 'wp-framework-component-alert-script';
+
 	private string $temp_dir;
+
+	private string $parent_dir;
+
+	private string $child_dir;
+
+	private string $parent_uri = 'https://example.test/parent-theme';
+
+	private string $child_uri = 'https://example.test/child-theme';
 
 	private TestComponentLoader $loader;
 
-	protected function setUp(): void {
-		$this->temp_dir = sys_get_temp_dir() . '/wp-framework-component-loader-' . str_replace( '.', '', uniqid( '', true ) );
-		mkdir( $this->temp_dir, 0777, true );
+	/**
+	 * Render hooks fired during a test, in order.
+	 *
+	 * @var array<int, string>
+	 */
+	private array $rendered_hooks = [];
 
-		$GLOBALS['wp_framework_test_actions']                  = [];
-		$GLOBALS['wp_framework_test_doing_it_wrong']           = [];
-		$GLOBALS['wp_framework_test_enqueued_scripts']         = [];
-		$GLOBALS['wp_framework_test_enqueued_styles']          = [];
-		$GLOBALS['wp_framework_test_filters']                  = [];
-		$GLOBALS['wp_framework_test_registered_scripts']       = [];
-		$GLOBALS['wp_framework_test_registered_styles']        = [];
-		$GLOBALS['wp_framework_test_stylesheet_directory']     = $this->temp_dir . '/child-theme';
-		$GLOBALS['wp_framework_test_stylesheet_directory_uri'] = 'https://example.test/child-theme';
-		$GLOBALS['wp_framework_test_template_directory']       = $this->temp_dir . '/parent-theme';
-		$GLOBALS['wp_framework_test_template_directory_uri']   = 'https://example.test/parent-theme';
+	public function set_up(): void {
+		parent::set_up();
 
-		mkdir( $GLOBALS['wp_framework_test_stylesheet_directory'], 0777, true );
-		mkdir( $GLOBALS['wp_framework_test_template_directory'], 0777, true );
+		$this->temp_dir   = sys_get_temp_dir() . '/wp-framework-component-loader-' . str_replace( '.', '', uniqid( '', true ) );
+		$this->parent_dir = $this->temp_dir . '/parent-theme';
+		$this->child_dir  = $this->temp_dir . '/child-theme';
+
+		mkdir( $this->parent_dir, 0777, true );
+		mkdir( $this->child_dir, 0777, true );
+
+		// A distinct child theme is active by default.
+		$this->set_theme_dirs( $this->parent_dir, $this->parent_uri, $this->child_dir, $this->child_uri );
+
+		// Start each test from clean dependency registries (WP_UnitTestCase does
+		// not reset these between tests).
+		$GLOBALS['wp_scripts'] = null;
+		$GLOBALS['wp_styles']  = null;
 
 		TestComponentLoader::$test_context = 'wp-framework';
 
 		// Record the render actions so tests can assert they fired.
+		$this->rendered_hooks = [];
 		foreach ( [ 'before', 'after' ] as $phase ) {
 			$hook = "wp_framework_component_{$phase}_render";
 			add_action(
 				$hook,
-				static function () use ( $hook ): void {
-					$GLOBALS['wp_framework_test_actions'][] = [ 'hook' => $hook ];
+				function () use ( $hook ): void {
+					$this->rendered_hooks[] = $hook;
 				}
 			);
 		}
@@ -58,9 +82,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->loader->clear_cache();
 	}
 
-	protected function tearDown(): void {
-		$this->loader->clear_cache();
-
+	public function tear_down(): void {
 		if ( is_dir( $this->temp_dir ) ) {
 			$iterator = new RecursiveIteratorIterator(
 				new RecursiveDirectoryIterator( $this->temp_dir, RecursiveDirectoryIterator::SKIP_DOTS ),
@@ -73,6 +95,15 @@ final class ComponentLoaderTest extends TestCase {
 
 			rmdir( $this->temp_dir );
 		}
+
+		parent::tear_down();
+	}
+
+	/**
+	 * Single-theme setup: stylesheet directory equals template directory.
+	 */
+	private function use_single_theme(): void {
+		$this->set_theme_dirs( $this->parent_dir, $this->parent_uri );
 	}
 
 	public function test_renders_component_with_arguments(): void {
@@ -83,9 +114,10 @@ final class ComponentLoaderTest extends TestCase {
 			$this->loader->get( 'alert', [ 'message' => 'Hello world' ], [ 'script' => false, 'style' => false ] )
 		);
 
-		$this->assertSame( 'wp_framework_component_before_render', $GLOBALS['wp_framework_test_actions'][0]['hook'] );
-		$this->assertSame( 'wp_framework_component_after_render', $GLOBALS['wp_framework_test_actions'][1]['hook'] );
-		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
+		$this->assertSame(
+			[ 'wp_framework_component_before_render', 'wp_framework_component_after_render' ],
+			$this->rendered_hooks
+		);
 	}
 
 	public function test_render_outputs_component_with_arguments(): void {
@@ -95,7 +127,6 @@ final class ComponentLoaderTest extends TestCase {
 		$this->loader->render( 'banner', [ 'title' => 'Featured' ], [ 'script' => false, 'style' => false ] );
 
 		$this->assertSame( '<h2>Featured</h2>', (string) ob_get_clean() );
-		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_resolves_component_by_exact_name(): void {
@@ -126,7 +157,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->write_parent_asset( 'css/components/alert.asset.php', '<?php return ["version" => "v1"];' );
 
 		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'script' => false ] ) );
-		$this->assertArrayHasKey( 'wp-framework-component-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
+		$this->assertTrue( wp_style_is( self::STYLE_HANDLE, 'registered' ) );
 	}
 
 	public function test_parent_theme_component_assets_are_registered_with_metadata(): void {
@@ -144,27 +175,21 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->assertSame( 'alert', $this->loader->get( 'alert' ) );
 
-		$this->assertSame(
-			[
-				'src'   => 'https://example.test/parent-theme/assets/build/css/components/alert.css',
-				'deps'  => [ 'wp-components' ],
-				'ver'   => 'style-version',
-				'media' => 'all',
-			],
-			$GLOBALS['wp_framework_test_registered_styles']['wp-framework-component-alert-style']
-		);
-		$this->assertSame( [ 'wp-framework-component-alert-style' ], $GLOBALS['wp_framework_test_enqueued_styles'] );
+		$style = $this->registered_style( self::STYLE_HANDLE );
+		$this->assertNotNull( $style );
+		$this->assertSame( 'https://example.test/parent-theme/assets/build/css/components/alert.css', $style->src );
+		$this->assertSame( [ 'wp-components' ], $style->deps );
+		$this->assertSame( 'style-version', $style->ver );
+		$this->assertSame( 'all', $style->args );
+		$this->assertTrue( wp_style_is( self::STYLE_HANDLE, 'enqueued' ) );
 
-		$this->assertSame(
-			[
-				'src'       => 'https://example.test/parent-theme/assets/build/js/components/alert.js',
-				'deps'      => [ 'wp-element' ],
-				'ver'       => 'script-version',
-				'in_footer' => true,
-			],
-			$GLOBALS['wp_framework_test_registered_scripts']['wp-framework-component-alert-script']
-		);
-		$this->assertSame( [ 'wp-framework-component-alert-script' ], $GLOBALS['wp_framework_test_enqueued_scripts'] );
+		$script = $this->registered_script( self::SCRIPT_HANDLE );
+		$this->assertNotNull( $script );
+		$this->assertSame( 'https://example.test/parent-theme/assets/build/js/components/alert.js', $script->src );
+		$this->assertSame( [ 'wp-element' ], $script->deps );
+		$this->assertSame( 'script-version', $script->ver );
+		$this->assertSame( 1, $script->extra['group'] ?? null );
+		$this->assertTrue( wp_script_is( self::SCRIPT_HANDLE, 'enqueued' ) );
 	}
 
 	public function test_child_theme_overrides_a_parent_component_asset(): void {
@@ -174,26 +199,23 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->loader->get( 'alert', [], [ 'script' => false ] );
 
-		$this->assertSame(
-			'https://example.test/child-theme/assets/build/css/components/alert.css',
-			$GLOBALS['wp_framework_test_registered_styles']['wp-framework-component-alert-style']['src']
-		);
+		$style = $this->registered_style( self::STYLE_HANDLE );
+		$this->assertNotNull( $style );
+		$this->assertSame( 'https://example.test/child-theme/assets/build/css/components/alert.css', $style->src );
 	}
 
 	public function test_resolves_asset_when_no_child_theme_is_active(): void {
 		// No child theme: stylesheet directory equals template directory.
-		$GLOBALS['wp_framework_test_stylesheet_directory']     = $GLOBALS['wp_framework_test_template_directory'];
-		$GLOBALS['wp_framework_test_stylesheet_directory_uri'] = $GLOBALS['wp_framework_test_template_directory_uri'];
+		$this->use_single_theme();
 
 		$this->write_parent_component( 'alert', '<?php echo "alert";' );
 		$this->write_parent_asset( 'css/components/alert.css', '.alert{}' );
 
 		$this->loader->get( 'alert', [], [ 'script' => false ] );
 
-		$this->assertSame(
-			'https://example.test/parent-theme/assets/build/css/components/alert.css',
-			$GLOBALS['wp_framework_test_registered_styles']['wp-framework-component-alert-style']['src']
-		);
+		$style = $this->registered_style( self::STYLE_HANDLE );
+		$this->assertNotNull( $style );
+		$this->assertSame( 'https://example.test/parent-theme/assets/build/css/components/alert.css', $style->src );
 	}
 
 	public function test_parent_theme_overrides_a_plugin_component_asset(): void {
@@ -207,10 +229,9 @@ final class ComponentLoaderTest extends TestCase {
 
 		$loader->get( 'alert', [], [ 'script' => false ] );
 
-		$this->assertSame(
-			'https://example.test/parent-theme/assets/build/css/components/alert.css',
-			$GLOBALS['wp_framework_test_registered_styles']['wp-framework-component-alert-style']['src']
-		);
+		$style = $this->registered_style( self::STYLE_HANDLE );
+		$this->assertNotNull( $style );
+		$this->assertSame( 'https://example.test/parent-theme/assets/build/css/components/alert.css', $style->src );
 	}
 
 	public function test_allow_override_false_resolves_from_the_package_only(): void {
@@ -227,10 +248,10 @@ final class ComponentLoaderTest extends TestCase {
 		$html = $loader->get( 'alert', [], [ 'allow_override' => false, 'script' => false ] );
 
 		$this->assertSame( 'plugin', $html );
-		$this->assertSame(
-			'https://example.test/plugin/assets/build/css/components/alert.css',
-			$GLOBALS['wp_framework_test_registered_styles']['wp-framework-component-alert-style']['src']
-		);
+
+		$style = $this->registered_style( self::STYLE_HANDLE );
+		$this->assertNotNull( $style );
+		$this->assertSame( 'https://example.test/plugin/assets/build/css/components/alert.css', $style->src );
 	}
 
 	public function test_each_asset_type_resolves_independently_across_the_hierarchy(): void {
@@ -246,14 +267,13 @@ final class ComponentLoaderTest extends TestCase {
 
 		$loader->get( 'alert' );
 
-		$this->assertSame(
-			'https://example.test/parent-theme/assets/build/css/components/alert.css',
-			$GLOBALS['wp_framework_test_registered_styles']['wp-framework-component-alert-style']['src']
-		);
-		$this->assertSame(
-			'https://example.test/child-theme/assets/build/js/components/alert.js',
-			$GLOBALS['wp_framework_test_registered_scripts']['wp-framework-component-alert-script']['src']
-		);
+		$style = $this->registered_style( self::STYLE_HANDLE );
+		$this->assertNotNull( $style );
+		$this->assertSame( 'https://example.test/parent-theme/assets/build/css/components/alert.css', $style->src );
+
+		$script = $this->registered_script( self::SCRIPT_HANDLE );
+		$this->assertNotNull( $script );
+		$this->assertSame( 'https://example.test/child-theme/assets/build/js/components/alert.js', $script->src );
 	}
 
 	public function test_context_namespaces_the_asset_handle(): void {
@@ -264,8 +284,8 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->loader->get( 'alert', [], [ 'script' => false ] );
 
-		$this->assertArrayHasKey( 'elementary-component-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
-		$this->assertSame( [ 'elementary-component-alert-style' ], $GLOBALS['wp_framework_test_enqueued_styles'] );
+		$this->assertTrue( wp_style_is( 'elementary-component-alert-style', 'registered' ) );
+		$this->assertTrue( wp_style_is( 'elementary-component-alert-style', 'enqueued' ) );
 	}
 
 	public function test_should_enqueue_filter_can_suppress_a_component_asset(): void {
@@ -274,13 +294,15 @@ final class ComponentLoaderTest extends TestCase {
 
 		add_filter(
 			'wp_framework_component_should_enqueue',
-			static fn ( bool $enqueue, string $name, string $type ): bool => 'style' === $type ? false : $enqueue
+			static fn ( bool $enqueue, string $name, string $type ): bool => 'style' === $type ? false : $enqueue,
+			10,
+			3
 		);
 
 		$this->loader->get( 'alert', [], [ 'script' => false ] );
 
-		$this->assertSame( [], $GLOBALS['wp_framework_test_registered_styles'] );
-		$this->assertSame( [], $GLOBALS['wp_framework_test_enqueued_styles'] );
+		$this->assertFalse( wp_style_is( self::STYLE_HANDLE, 'registered' ) );
+		$this->assertFalse( wp_style_is( self::STYLE_HANDLE, 'enqueued' ) );
 	}
 
 	public function test_asset_handle_filter_overrides_the_handle(): void {
@@ -289,13 +311,15 @@ final class ComponentLoaderTest extends TestCase {
 
 		add_filter(
 			'wp_framework_component_asset_handle',
-			static fn ( string $handle, string $name, string $type ): string => "custom-{$name}-{$type}"
+			static fn ( string $handle, string $name, string $type ): string => "custom-{$name}-{$type}",
+			10,
+			3
 		);
 
 		$this->loader->get( 'alert', [], [ 'script' => false ] );
 
-		$this->assertArrayHasKey( 'custom-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
-		$this->assertSame( [ 'custom-alert-style' ], $GLOBALS['wp_framework_test_enqueued_styles'] );
+		$this->assertTrue( wp_style_is( 'custom-alert-style', 'registered' ) );
+		$this->assertTrue( wp_style_is( 'custom-alert-style', 'enqueued' ) );
 	}
 
 	public function test_registered_component_assets_are_enqueued_again_after_dequeue(): void {
@@ -304,11 +328,11 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'script' => false ] ) );
 
-		wp_dequeue_style( 'wp-framework-component-alert-style' );
-		$this->assertFalse( wp_style_is( 'wp-framework-component-alert-style', 'enqueued' ) );
+		wp_dequeue_style( self::STYLE_HANDLE );
+		$this->assertFalse( wp_style_is( self::STYLE_HANDLE, 'enqueued' ) );
 
 		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'script' => false ] ) );
-		$this->assertTrue( wp_style_is( 'wp-framework-component-alert-style', 'enqueued' ) );
+		$this->assertTrue( wp_style_is( self::STYLE_HANDLE, 'enqueued' ) );
 	}
 
 	public function test_render_options_can_disable_individual_asset_types(): void {
@@ -318,8 +342,8 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'style' => false ] ) );
 
-		$this->assertSame( [], $GLOBALS['wp_framework_test_registered_styles'] );
-		$this->assertArrayHasKey( 'wp-framework-component-alert-script', $GLOBALS['wp_framework_test_registered_scripts'] );
+		$this->assertFalse( wp_style_is( self::STYLE_HANDLE, 'registered' ) );
+		$this->assertTrue( wp_script_is( self::SCRIPT_HANDLE, 'registered' ) );
 	}
 
 	public function test_component_asset_is_registered_without_manifest_fallback(): void {
@@ -328,9 +352,8 @@ final class ComponentLoaderTest extends TestCase {
 
 		$this->assertSame( 'alert', $this->loader->get( 'alert', [], [ 'script' => false ] ) );
 
-		$this->assertArrayHasKey( 'wp-framework-component-alert-style', $GLOBALS['wp_framework_test_registered_styles'] );
-		$this->assertSame( [ 'wp-framework-component-alert-style' ], $GLOBALS['wp_framework_test_enqueued_styles'] );
-		$this->assertSame( [], $GLOBALS['wp_framework_test_doing_it_wrong'] );
+		$this->assertTrue( wp_style_is( self::STYLE_HANDLE, 'registered' ) );
+		$this->assertTrue( wp_style_is( self::STYLE_HANDLE, 'enqueued' ) );
 	}
 
 	public function test_render_without_an_asset_loader_throws(): void {
@@ -343,17 +366,13 @@ final class ComponentLoaderTest extends TestCase {
 	}
 
 	public function test_invalid_component_name_returns_empty_string_and_records_incorrect_usage(): void {
+		$this->setExpectedIncorrectUsage( TestComponentLoader::class . '::get' );
+
 		$this->assertSame( '', $this->loader->get( '../Alert' ) );
-		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
-		$this->assertSame( 'Component "../Alert" could not be resolved.', $GLOBALS['wp_framework_test_doing_it_wrong'][0]['message'] );
 	}
 
 	private function theme_asset_loader(): AssetLoader {
-		return new AssetLoader(
-			$GLOBALS['wp_framework_test_template_directory'],
-			$GLOBALS['wp_framework_test_template_directory_uri'],
-			'assets/build'
-		);
+		return new AssetLoader( $this->parent_dir, $this->parent_uri, 'assets/build' );
 	}
 
 	private function plugin_asset_loader( string $plugin_dir ): AssetLoader {
@@ -361,7 +380,7 @@ final class ComponentLoaderTest extends TestCase {
 	}
 
 	private function write_parent_component( string $name, string $contents ): void {
-		$this->write_component( $GLOBALS['wp_framework_test_template_directory'] . '/src/components', $name, $contents );
+		$this->write_component( $this->parent_dir . '/src/components', $name, $contents );
 	}
 
 	private function write_plugin_component( string $plugin_dir, string $name, string $contents ): void {
@@ -373,11 +392,11 @@ final class ComponentLoaderTest extends TestCase {
 	}
 
 	private function write_parent_asset( string $relative_path, string $contents ): void {
-		$this->write_file( $GLOBALS['wp_framework_test_template_directory'] . '/assets/build/' . $relative_path, $contents );
+		$this->write_file( $this->parent_dir . '/assets/build/' . $relative_path, $contents );
 	}
 
 	private function write_child_asset( string $relative_path, string $contents ): void {
-		$this->write_file( $GLOBALS['wp_framework_test_stylesheet_directory'] . '/assets/build/' . $relative_path, $contents );
+		$this->write_file( $this->child_dir . '/assets/build/' . $relative_path, $contents );
 	}
 
 	private function write_plugin_asset( string $plugin_dir, string $relative_path, string $contents ): void {
