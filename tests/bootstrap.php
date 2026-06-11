@@ -407,6 +407,22 @@ require_once __DIR__ . '/Fixtures/WpError.php';
 require_once __DIR__ . '/Fixtures/WpdbStub.php';
 require_once __DIR__ . '/Fixtures/QmCollectorsStub.php';
 
+if ( ! function_exists( 'wp_register_ability_category' ) ) {
+	function wp_register_ability_category( string $slug, array $args ): bool {
+		$GLOBALS['wp_framework_test_ability_categories'][ $slug ] = $args;
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_register_ability' ) ) {
+	function wp_register_ability( string $name, array $args ): ?object {
+		$GLOBALS['wp_framework_test_abilities'][ $name ] = $args;
+
+		return null;
+	}
+}
+
 if ( ! function_exists( 'dbDelta' ) ) {
 	function dbDelta( string $queries ): array { // phpcs:ignore
 		$GLOBALS['wp_framework_test_dbdelta']   ??= [];

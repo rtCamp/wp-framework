@@ -20,6 +20,7 @@ namespace rtCamp\WPFramework\Telemetry;
 
 use rtCamp\WPFramework\Contracts\Abstracts\AbstractModule;
 use rtCamp\WPFramework\Contracts\Interfaces\ConditionallyRegistrable;
+use rtCamp\WPFramework\Telemetry\Ability\AbilityRegistrar;
 use rtCamp\WPFramework\Telemetry\Capture\CaptureService;
 
 /**
@@ -42,6 +43,7 @@ final class TelemetryModule extends AbstractModule implements ConditionallyRegis
 	protected function get_classes(): array {
 		return [
 			CaptureService::class,
+			AbilityRegistrar::class,
 		];
 	}
 }
