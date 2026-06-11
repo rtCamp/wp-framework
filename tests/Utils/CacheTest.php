@@ -405,6 +405,19 @@ final class CacheTest extends TestCase {
 		$this->assertFalse( $this->cache->get( 's_cold_throw_stale', 'demo' ) );
 	}
 
+	// --- remember_swr(): no-expiry entries skip the stale companion ------------
+
+	public function test_swr_with_zero_expiration_writes_no_stale_companion(): void {
+		$result = $this->cache->remember_swr( 's_forever', fn(): string => 'permanent', 'demo', 0 );
+
+		$this->assertSame( 'permanent', $result );
+		$this->assertSame( 'permanent', $this->cache->get( 's_forever', 'demo' ) );
+
+		// A never-expiring entry has nothing to revalidate: only the fresh key
+		// is written (and the cold-start lock has been released).
+		$this->assertSame( [ 's_forever' ], array_keys( $GLOBALS['_wp_cache']['demo'] ) );
+	}
+
 	// --- remember_swr(): context namespacing covers companions -----------------
 
 	public function test_swr_companion_keys_live_in_the_namespaced_group(): void {

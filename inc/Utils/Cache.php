@@ -43,8 +43,8 @@ namespace rtCamp\WPFramework\Utils;
  * Two get-or-set flavours:
  * - {@see Cache::remember()} — plain get-or-set; one key, no extra writes.
  * - {@see Cache::remember_swr()} — adds stale-while-revalidate stampede
- *   prevention for expensive regenerations: on expiry, stale data is served
- *   immediately while one process regenerates.
+ *   prevention for expensive regenerations: on expiry, one caller regenerates
+ *   in the foreground while the rest are served the stale copy.
  *
  * `wp_cache_flush_group()` was added in WordPress 6.1; `flush_group()` checks
  * `wp_cache_supports( 'flush_group' )` so it gracefully returns `false` when
@@ -251,9 +251,12 @@ class Cache {
 	 *
 	 * Use this instead of {@see Cache::remember()} when regeneration is
 	 * expensive enough that a thundering herd on expiry matters. On expiry,
-	 * stale data (stored at `{key}_stale` with a 2× TTL) is returned immediately
-	 * while one process regenerates in the foreground. No workers are blocked
-	 * waiting for fresh data in the normal case.
+	 * exactly one caller wins the regeneration lock and runs `$callback`
+	 * synchronously, paying the regeneration cost in the foreground; every
+	 * other caller returns the stale copy (stored at `{key}_stale` with a 2×
+	 * TTL) without waiting. All callers — including the lock winner — are
+	 * served the stale value for the current request; the fresh value lands in
+	 * cache for subsequent requests.
 	 *
 	 * Reserved suffixes: companion entries are stored at `{key}_stale` and
 	 * `{key}_lock`. Avoid passing a `$key` that already ends in `_stale` or
@@ -261,8 +264,8 @@ class Cache {
 	 *
 	 * Flow:
 	 * - Fresh hit          → return immediately.
-	 * - Fresh miss + stale → serve stale now; if lock acquired, regenerate and
-	 *                        write both keys; release lock; return stale.
+	 * - Fresh miss + stale → if lock acquired, regenerate synchronously, write
+	 *                        both keys, release lock; return stale either way.
 	 * - Both absent        → cold start (first-ever load or full flush); acquire
 	 *                        lock, regenerate, write both keys; if lock not
 	 *                        acquired, spin-wait up to {@see Cache::LOCK_RETRIES} ×
@@ -293,7 +296,10 @@ class Cache {
 	 *                             returned. Capture any inputs via a closure.
 	 * @param string   $group      Cache group. Defaults to the global group.
 	 * @param int      $expiration TTL in seconds for the fresh entry. `0` means
-	 *                             no expiry (stale-while-revalidate has no effect).
+	 *                             no expiry: no stale companion is written (a
+	 *                             never-expiring entry has nothing to
+	 *                             revalidate), though cold-start lock
+	 *                             protection still applies.
 	 *
 	 * @return mixed The cached or freshly-generated value.
 	 */
@@ -349,7 +355,12 @@ class Cache {
 	}
 
 	/**
-	 * Invoke `$callback`, write both cache entries, optionally release the lock, and return the value.
+	 * Invoke `$callback`, write the cache entries, optionally release the lock, and return the value.
+	 *
+	 * The stale companion is only written for expiring entries
+	 * (`$expiration > 0`): a never-expiring fresh entry has nothing to
+	 * revalidate, so duplicating it at `{key}_stale` would only waste backend
+	 * memory.
 	 *
 	 * When this process acquired the lock, it is released in a `finally` block so
 	 * a throwing callback cannot leave it held for the remainder of
@@ -368,10 +379,11 @@ class Cache {
 	 */
 	protected function store_with_stale( string $key, string $stale_key, callable $callback, string $group, int $expiration, string $lock_key = '' ): mixed {
 		try {
-			$value            = $callback();
-			$stale_expiration = $expiration > 0 ? $expiration * static::STALE_MULTIPLIER : 0;
+			$value = $callback();
 			$this->set( $key, $value, $group, $expiration );
-			$this->set( $stale_key, $value, $group, $stale_expiration );
+			if ( $expiration > 0 ) {
+				$this->set( $stale_key, $value, $group, $expiration * static::STALE_MULTIPLIER );
+			}
 			return $value;
 		} finally {
 			if ( '' !== $lock_key ) {
