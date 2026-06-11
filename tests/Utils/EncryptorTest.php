@@ -2,7 +2,7 @@
 /**
  * Encryptor tests.
  *
- * @package rtCamp\WPFramework\Tests\Utils
+ * @package rtCamp\WPFramework\Tests
  */
 
 declare( strict_types = 1 );
