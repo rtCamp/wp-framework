@@ -2,9 +2,9 @@
 /**
  * AbstractPostType tests.
  *
- * Asserts the option-building contract: defaults, label assembly, and the
- * get_custom_options() override merge. WP integration (the actual
- * register_post_type() call) is out of scope — covered by stubs.
+ * Asserts the option-building contract (defaults, label assembly, the
+ * get_custom_options() override merge) and the real WordPress registration:
+ * register() actually registers the post type and associates its taxonomies.
  *
  * @package rtCamp\WPFramework\Tests\Contracts\Abstracts
  */
@@ -13,8 +13,8 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Contracts\Abstracts;
 
-use PHPUnit\Framework\TestCase;
 use rtCamp\WPFramework\Contracts\Abstracts\AbstractPostType;
+use rtCamp\WPFramework\Tests\TestCase;
 
 final class AbstractPostTypeTest extends TestCase {
 
@@ -128,5 +128,57 @@ final class AbstractPostTypeTest extends TestCase {
 		$this->assertContains( 'title', $supports );
 		$this->assertContains( 'editor', $supports );
 		$this->assertContains( 'thumbnail', $supports );
+	}
+
+	public function tear_down(): void {
+		if ( post_type_exists( 'book' ) ) {
+			unregister_post_type( 'book' );
+		}
+
+		parent::tear_down();
+	}
+
+	public function test_register_hooks_registers_post_type_on_init(): void {
+		$post_type = $this->basic_post_type();
+		$post_type->register_hooks();
+
+		$this->assertNotFalse( has_action( 'init', [ $post_type, 'register' ] ) );
+	}
+
+	public function test_register_actually_registers_the_post_type(): void {
+		$this->basic_post_type()->register();
+
+		$object = get_post_type_object( 'book' );
+		$this->assertNotNull( $object );
+		$this->assertTrue( $object->public );
+		$this->assertTrue( $object->show_in_rest );
+	}
+
+	public function test_supported_taxonomies_are_associated_with_the_post_type(): void {
+		register_taxonomy( 'wpf_genre', [], [ 'public' => true ] );
+
+		$post_type = new class() extends AbstractPostType {
+			public static function get_slug(): string {
+				return 'book';
+			}
+			public function get_singular_label(): string {
+				return 'Book';
+			}
+			public function get_plural_label(): string {
+				return 'Books';
+			}
+			public function get_menu_icon(): string {
+				return 'dashicons-book';
+			}
+			public function get_supported_taxonomies(): array {
+				return [ 'wpf_genre' ];
+			}
+		};
+
+		$post_type->register();
+
+		$this->assertContains( 'wpf_genre', get_object_taxonomies( 'book' ) );
+
+		unregister_taxonomy( 'wpf_genre' );
 	}
 }
