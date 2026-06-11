@@ -404,3 +404,13 @@ if ( ! function_exists( 'update_option' ) ) {
 // single-class files matching the class name).
 require_once __DIR__ . '/Fixtures/LoaderFixtures.php';
 require_once __DIR__ . '/Fixtures/WpError.php';
+require_once __DIR__ . '/Fixtures/WpdbStub.php';
+
+if ( ! function_exists( 'dbDelta' ) ) {
+	function dbDelta( string $queries ): array { // phpcs:ignore
+		$GLOBALS['wp_framework_test_dbdelta']   ??= [];
+		$GLOBALS['wp_framework_test_dbdelta'][] = $queries;
+
+		return [];
+	}
+}

@@ -11,6 +11,10 @@
 	"require": {
 		"php": ">=8.2"
 	},
+	"suggest": {
+		"wordpress/mcp-adapter": "Auto-exposes the framework's Telemetry abilities to MCP clients such as Claude Code (install as a plugin on local dev; not a Composer dependency)",
+		"wpackagist-plugin/query-monitor": "Required at runtime for Telemetry request capture (install/activate as a plugin on local dev)"
+	},
 	"require-dev": {
 		"phpunit/phpunit": "^11.0",
 		"yoast/phpunit-polyfills": "^4.0",
