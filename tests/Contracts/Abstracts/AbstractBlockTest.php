@@ -64,4 +64,11 @@ final class AbstractBlockTest extends TestCase {
 
 		$this->assertSame( [ $block, 'render' ], $type->render_callback );
 	}
+
+	public function test_render_returns_markup(): void {
+		$block  = $this->block();
+		$output = $block->render( [], '', new \WP_Block( [ 'blockName' => self::BLOCK_NAME ] ) );
+
+		$this->assertSame( '<div class="wpf-block">rendered</div>', $output );
+	}
 }

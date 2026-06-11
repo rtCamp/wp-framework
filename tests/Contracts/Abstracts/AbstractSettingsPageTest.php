@@ -28,8 +28,9 @@ final class AbstractSettingsPageTest extends TestCase {
 
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 
-		$GLOBALS['menu']    = [];
-		$GLOBALS['submenu'] = [];
+		$GLOBALS['menu']             = [];
+		$GLOBALS['submenu']          = [];
+		$GLOBALS['admin_page_hooks'] = [];
 	}
 
 	public function tear_down(): void {
@@ -88,4 +89,37 @@ final class AbstractSettingsPageTest extends TestCase {
 		$slugs = wp_list_pluck( $GLOBALS['submenu']['options-general.php'] ?? [], 2 );
 		$this->assertContains( self::SLUG, $slugs );
 	}
+
+	public function test_register_page_adds_a_top_level_menu_when_parent_is_null(): void {
+		$page = new class() extends AbstractSettingsPage {
+			public static function get_slug(): string {
+				return 'wpf-test-top-settings';
+			}
+			protected function get_page_title(): string {
+				return 'WPF Top';
+			}
+			protected function get_menu_title(): string {
+				return 'WPF Top';
+			}
+			protected function get_settings(): array {
+				return [];
+			}
+			public function render(): void {}
+			protected function get_parent_slug(): ?string {
+				return null;
+			}
+		};
+
+		$page->register_page();
+
+		$this->assertArrayHasKey( 'wpf-test-top-settings', $GLOBALS['admin_page_hooks'] );
+	}
+
+	public function test_render_outputs_page_markup(): void {
+		ob_start();
+		$this->settings_page()->render();
+
+		$this->assertSame( 'form', (string) ob_get_clean() );
+	}
 }
+

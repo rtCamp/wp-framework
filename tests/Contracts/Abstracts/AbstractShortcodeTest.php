@@ -66,4 +66,20 @@ final class AbstractShortcodeTest extends TestCase {
 
 		$this->assertSame( 'hi|baz', do_shortcode( '[wpf_test_sc foo="baz"]hi[/wpf_test_sc]' ) );
 	}
+
+	public function test_default_atts_are_empty_when_not_overridden(): void {
+		$shortcode = new class() extends AbstractShortcode {
+			public static function get_tag(): string {
+				return 'wpf_test_sc';
+			}
+
+			protected function render( array $atts, ?string $content ): string {
+				return wp_json_encode( $atts );
+			}
+		};
+
+		$shortcode->register_shortcode();
+
+		$this->assertSame( '[]', do_shortcode( '[wpf_test_sc]' ) );
+	}
 }
