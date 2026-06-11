@@ -306,6 +306,15 @@ final class TemplateLoaderTest extends TestCase {
 		$this->assertFalse( $loader->locate( 'card' ) );
 	}
 
+	public function test_locate_returns_false_when_no_candidate_names(): void {
+		$this->use_single_theme();
+
+		// A filter that empties the candidate list short-circuits to false.
+		add_filter( 'my_plugin/template_file_names', static fn (): array => [] );
+
+		$this->assertFalse( $this->loader()->locate( 'card' ) );
+	}
+
 	public function test_traversal_segments_are_stripped(): void {
 		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php' );

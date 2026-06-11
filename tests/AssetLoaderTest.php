@@ -214,6 +214,19 @@ final class AssetLoaderTest extends TestCase {
 		);
 	}
 
+	public function test_missing_style_file_warns_and_does_not_register(): void {
+		$this->setExpectedIncorrectUsage( AssetLoader::class );
+
+		$this->assertFalse( $this->loader->register_style( 'missing', 'css/missing' ) );
+		$this->assertNull( $this->registered_style( 'missing' ) );
+	}
+
+	public function test_missing_script_module_file_warns_and_returns_false(): void {
+		$this->setExpectedIncorrectUsage( AssetLoader::class );
+
+		$this->assertFalse( $this->loader->register_script_module( '@my/missing', 'js/missing' ) );
+	}
+
 	/**
 	 * Clear the script modules registry between tests.
 	 */

@@ -371,6 +371,23 @@ final class ComponentLoaderTest extends TestCase {
 		$this->assertSame( '', $this->loader->get( '../Alert' ) );
 	}
 
+	public function test_get_returns_empty_for_a_valid_name_with_no_file(): void {
+		$this->setExpectedIncorrectUsage( TestComponentLoader::class . '::get' );
+
+		// 'Ghost' is a valid name but no component file exists for it.
+		$this->assertSame( '', $this->loader->get( 'Ghost' ) );
+	}
+
+	public function test_component_without_asset_files_registers_nothing(): void {
+		// Component PHP exists; no css/js asset files on disk.
+		$this->write_parent_component( 'alert', '<?php echo "alert";' );
+
+		$this->loader->get( 'alert' );
+
+		$this->assertFalse( wp_style_is( self::STYLE_HANDLE, 'registered' ) );
+		$this->assertFalse( wp_script_is( self::SCRIPT_HANDLE, 'registered' ) );
+	}
+
 	private function theme_asset_loader(): AssetLoader {
 		return new AssetLoader( $this->parent_dir, $this->parent_uri, 'assets/build' );
 	}

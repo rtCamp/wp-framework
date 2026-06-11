@@ -71,4 +71,39 @@ final class AbstractBlockTest extends TestCase {
 
 		$this->assertSame( '<div class="wpf-block">rendered</div>', $output );
 	}
+
+	public function test_register_block_uses_block_dir_when_provided(): void {
+		$dir = sys_get_temp_dir() . '/wpf-block-' . str_replace( '.', '', uniqid( '', true ) );
+		mkdir( $dir, 0777, true );
+		file_put_contents(
+			$dir . '/block.json',
+			'{"$schema":"https://schemas.wp.org/trunk/block.json","apiVersion":3,"name":"wp-framework-test/dir-block","title":"Dir Block","category":"widgets"}'
+		);
+
+		$block = new class( $dir ) extends AbstractBlock {
+			public function __construct( private string $dir ) {}
+
+			public static function get_name(): string {
+				return 'wp-framework-test/dir-block';
+			}
+
+			public function render( array $attributes, string $content, \WP_Block $block ): string {
+				return '';
+			}
+
+			protected function get_block_dir(): ?string {
+				return $this->dir;
+			}
+		};
+
+		$block->register_block();
+
+		$this->assertTrue(
+			WP_Block_Type_Registry::get_instance()->is_registered( 'wp-framework-test/dir-block' )
+		);
+
+		unregister_block_type( 'wp-framework-test/dir-block' );
+		unlink( $dir . '/block.json' );
+		rmdir( $dir );
+	}
 }

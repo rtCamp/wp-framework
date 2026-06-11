@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests;
 
+use rtCamp\WPFramework\Tests\Fixtures\BareSingleton;
 use rtCamp\WPFramework\Tests\Fixtures\SingletonExample;
 use rtCamp\WPFramework\Tests\TestCase;
 
@@ -50,5 +51,9 @@ final class SingletonTest extends TestCase {
 
 		$instance = SingletonExample::get_instance();
 		unserialize( serialize( $instance ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize
+	}
+
+	public function test_default_constructor_is_used_when_not_overridden(): void {
+		$this->assertInstanceOf( BareSingleton::class, BareSingleton::get_instance() );
 	}
 }

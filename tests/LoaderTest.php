@@ -76,4 +76,11 @@ final class LoaderTest extends TestCase {
 		$this->expectException( RuntimeException::class );
 		$loader->get_shared( PlainRegistrable::class );
 	}
+
+	public function test_get_shared_throws_before_load_is_called(): void {
+		$loader = new LoaderRunner();
+
+		$this->expectException( RuntimeException::class );
+		$loader->get_shared( PlainRegistrable::class );
+	}
 }
