@@ -16,6 +16,10 @@ parameters:
         - node_modules (?)
         - tests
 
+    # Symbols provided at runtime by non-Composer plugins (e.g. Query Monitor).
+    scanFiles:
+        - phpstan/stubs/query-monitor.php
+
     # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
     reportUnmatchedIgnoredErrors: true
 

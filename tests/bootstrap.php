@@ -405,6 +405,7 @@ if ( ! function_exists( 'update_option' ) ) {
 require_once __DIR__ . '/Fixtures/LoaderFixtures.php';
 require_once __DIR__ . '/Fixtures/WpError.php';
 require_once __DIR__ . '/Fixtures/WpdbStub.php';
+require_once __DIR__ . '/Fixtures/QmCollectorsStub.php';
 
 if ( ! function_exists( 'dbDelta' ) ) {
 	function dbDelta( string $queries ): array { // phpcs:ignore
