@@ -118,3 +118,31 @@ jobs:
 
       - name: Run tests
         run: npm run test:php
+
+  coverage-php:
+    name: 'PHP Coverage'
+    runs-on: ubuntu-latest
+    env:
+      # Coverage is version-agnostic, so one representative cell is enough.
+      WP_ENV_PHP_VERSION: '8.3'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm install
+        env:
+          CI: true
+
+      - name: Start WP environment (Xdebug coverage)
+        run: npx wp-env start --xdebug=coverage
+
+      - name: Run tests with coverage
+        # With Xdebug enabled above, phpunit.xml.dist prints the coverage
+        # summary to the job log (php://stdout).
+        run: npm run test:php
