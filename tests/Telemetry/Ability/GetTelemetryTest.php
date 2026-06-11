@@ -82,6 +82,41 @@ final class GetTelemetryTest extends TestCase {
 		$this->assertSame( $target, $result['request']['id'] );
 	}
 
+	public function test_execute_translates_php_error_paths(): void {
+		$uuid    = wp_generate_uuid4();
+		$capture = $this->normalized_capture( [ 'uuid' => $uuid ] );
+
+		$capture['collectors']['php_errors'] = [
+			'count'  => 1,
+			'errors' => [
+				[
+					'level'      => 'notice',
+					'message'    => 'Something looked off',
+					'suppressed' => false,
+					'file'       => '/var/www/html/wp-content/plugins/my-plugin/inc/Demo.php',
+					'line'       => 9,
+					'count'      => 1,
+					'component'  => 'Plugin: my-plugin',
+					'stack'      => [
+						[
+							'display' => 'demo()',
+							'file'    => '/var/www/html/wp-content/plugins/my-plugin/inc/Demo.php',
+							'line'    => 9,
+						],
+					],
+				],
+			],
+		];
+		$this->repository->save( $capture );
+
+		$result = $this->ability->execute( [ 'request_id' => $uuid ] );
+
+		$this->assertIsArray( $result );
+		$error = $result['telemetry']['php_errors']['errors'][0];
+		$this->assertSame( '/Users/dev/my-plugin/inc/Demo.php', $error['host_file'] );
+		$this->assertSame( '/Users/dev/my-plugin/inc/Demo.php', $error['stack'][0]['host_file'] );
+	}
+
 	public function test_execute_with_no_captures_returns_wp_error(): void {
 		$result = $this->ability->execute( [] );
 

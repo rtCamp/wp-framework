@@ -105,7 +105,7 @@ final class GetTelemetry extends AbstractAbility {
 			'telemetry' => [
 				'db_queries' => $this->format_db_queries( (array) ( $collectors['db_queries'] ?? [] ), $paths ),
 				'http'       => $this->format_http( (array) ( $collectors['http'] ?? [] ), $paths ),
-				'php_errors' => $collectors['php_errors'] ?? [],
+				'php_errors' => $this->format_php_errors( (array) ( $collectors['php_errors'] ?? [] ), $paths ),
 				'assets'     => $collectors['assets'] ?? [],
 				'metrics'    => [
 					'total_time_ms'   => $request['total_time_ms'] ?? null,
@@ -149,6 +149,34 @@ final class GetTelemetry extends AbstractAbility {
 			'count'         => $db_queries['count'] ?? count( $queries ),
 			'total_time_ms' => $db_queries['total_time_ms'] ?? null,
 			'queries'       => $queries,
+		];
+	}
+
+	/**
+	 * Adds host paths to stored php_errors payloads.
+	 *
+	 * @param array<string, mixed> $php_errors Stored php_errors collector payload.
+	 * @param PathTranslator       $paths      Translator.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function format_php_errors( array $php_errors, PathTranslator $paths ): array {
+		$errors = [];
+		foreach ( (array) ( $php_errors['errors'] ?? [] ) as $error ) {
+			$file = $error['file'] ?? null;
+
+			$errors[] = array_merge(
+				(array) $error,
+				[
+					'host_file' => $file ? $paths->to_host( (string) $file ) : null,
+					'stack'     => $this->format_stack( (array) ( $error['stack'] ?? [] ), $paths ),
+				]
+			);
+		}
+
+		return [
+			'count'  => $php_errors['count'] ?? count( $errors ),
+			'errors' => $errors,
 		];
 	}
 
