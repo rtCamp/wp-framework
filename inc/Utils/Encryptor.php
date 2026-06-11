@@ -39,14 +39,25 @@ class Encryptor {
 	/**
 	 * Constructor.
 	 *
+	 * The payload layout (IV + auth tag + ciphertext) and the tag handling are
+	 * specific to GCM, so only GCM ciphers are accepted.
+	 *
 	 * @param string $key    Encryption key. May be left empty by a subclass that
 	 *                       overrides {@see Encryptor::key()} to source it elsewhere.
-	 * @param string $cipher OpenSSL cipher method. Default 'aes-256-gcm'.
+	 * @param string $cipher OpenSSL GCM cipher method. Default 'aes-256-gcm'.
+	 *
+	 * @throws \InvalidArgumentException If $cipher is not a GCM cipher.
 	 */
 	public function __construct(
 		protected string $key = '',
 		protected string $cipher = 'aes-256-gcm',
-	) {}
+	) {
+		if ( ! str_ends_with( strtolower( $cipher ), '-gcm' ) ) {
+			throw new \InvalidArgumentException(
+				'Encryptor only supports GCM ciphers (the payload layout is GCM-specific); got: ' . $cipher // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Not rendered to the browser.
+			);
+		}
+	}
 
 	/**
 	 * Encrypt a value using authenticated encryption (AES-256-GCM by default).

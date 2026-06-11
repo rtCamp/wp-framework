@@ -94,4 +94,20 @@ final class EncryptorTest extends TestCase {
 
 		( new Encryptor() )->encrypt( 'no key configured' );
 	}
+
+	public function test_non_gcm_cipher_is_rejected(): void {
+		// The payload layout (IV + tag + ciphertext) is GCM-specific, so a
+		// non-AEAD cipher must be rejected at construction.
+		$this->expectException( \InvalidArgumentException::class );
+
+		new Encryptor( self::KEY, 'aes-256-cbc' );
+	}
+
+	public function test_alternate_gcm_cipher_roundtrips(): void {
+		$encryptor = new Encryptor( self::KEY, 'aes-128-gcm' );
+
+		$encrypted = $encryptor->encrypt( 'gcm variant' );
+		$this->assertIsString( $encrypted );
+		$this->assertSame( 'gcm variant', $encryptor->decrypt( $encrypted ) );
+	}
 }
