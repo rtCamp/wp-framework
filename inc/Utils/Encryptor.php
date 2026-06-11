@@ -1,10 +1,11 @@
 <?php
 /**
- * WordPress-safe encryption utilities.
+ * WordPress-safe encryption utility.
  *
  * Useful for encrypting sensitive data before storing it in the database.
  *
- * @package rtCamp\WPFramework
+ * @package rtCamp\WPFramework\Utils
+ * @since   0.0.1
  */
 
 declare( strict_types = 1 );
@@ -13,31 +14,50 @@ namespace rtCamp\WPFramework\Utils;
 
 /**
  * Class - Encryptor
+ *
+ * Instance-based, configured with a key (and optional cipher) at construction —
+ * so different domains can use different keys, and it is trivially testable.
+ *
+ * Designed to be a service: construct it with a key, register an instance as
+ * Shareable in a consumer's container, or extend it to change the cipher or the
+ * key source (e.g. KMS) by overriding the {@see Encryptor::key()} seam.
+ *
+ * @since 0.0.1
  */
-final class Encryptor {
-	/**
-	 * The OpenSSL encryption method.
-	 */
-	private const METHOD = 'aes-256-gcm';
+class Encryptor {
 
 	/**
-	 * The GCM authentication tag length in bytes.
+	 * GCM authentication tag length in bytes.
 	 */
-	private const TAG_LENGTH = 16;
+	protected const TAG_LENGTH = 16;
 
 	/**
-	 * The IV length for GCM mode.
+	 * IV length for GCM mode in bytes.
 	 */
-	private const IV_LENGTH = 12;
+	protected const IV_LENGTH = 12;
 
 	/**
-	 * Encrypts a value using AES-256-GCM authenticated encryption.
+	 * Constructor.
+	 *
+	 * @param string $key    Encryption key. May be left empty by a subclass that
+	 *                       overrides {@see Encryptor::key()} to source it elsewhere.
+	 * @param string $cipher OpenSSL cipher method. Default 'aes-256-gcm'.
+	 */
+	public function __construct(
+		protected string $key = '',
+		protected string $cipher = 'aes-256-gcm',
+	) {}
+
+	/**
+	 * Encrypt a value using authenticated encryption (AES-256-GCM by default).
 	 *
 	 * @param string $raw_value The value to encrypt.
 	 *
 	 * @return string|false The encrypted value, or false on failure.
+	 *
+	 * @throws \RuntimeException If no encryption key is available.
 	 */
-	public static function encrypt( string $raw_value ): string|false {
+	public function encrypt( string $raw_value ): string|false {
 		if ( ! extension_loaded( 'openssl' ) ) {
 			_doing_it_wrong(
 				__METHOD__,
@@ -47,31 +67,33 @@ final class Encryptor {
 			return false;
 		}
 
-		$iv  = random_bytes( self::IV_LENGTH );
+		$iv  = random_bytes( static::IV_LENGTH );
 		$tag = '';
 
 		$value = openssl_encrypt(
 			$raw_value,
-			self::METHOD,
-			self::get_key(),
+			$this->cipher,
+			$this->key(),
 			OPENSSL_RAW_DATA,
 			$iv,
 			$tag,
 			'',
-			self::TAG_LENGTH
+			static::TAG_LENGTH
 		);
 
 		return false !== $value ? base64_encode( $iv . $tag . $value ) : false;
 	}
 
 	/**
-	 * Decrypts a value encrypted with AES-256-GCM.
+	 * Decrypt a value produced by {@see Encryptor::encrypt()}.
 	 *
 	 * @param string $raw_value The encrypted value.
 	 *
 	 * @return string|false The decrypted value, or false on failure/tampering.
+	 *
+	 * @throws \RuntimeException If no encryption key is available.
 	 */
-	public static function decrypt( string $raw_value ): string|false {
+	public function decrypt( string $raw_value ): string|false {
 		if ( ! extension_loaded( 'openssl' ) ) {
 			_doing_it_wrong(
 				__METHOD__,
@@ -92,15 +114,14 @@ final class Encryptor {
 			return false;
 		}
 
-		// Extract IV, tag, and ciphertext.
-		$iv         = substr( $decoded_value, 0, self::IV_LENGTH );
-		$tag        = substr( $decoded_value, self::IV_LENGTH, self::TAG_LENGTH );
-		$ciphertext = substr( $decoded_value, self::IV_LENGTH + self::TAG_LENGTH );
+		$iv         = substr( $decoded_value, 0, static::IV_LENGTH );
+		$tag        = substr( $decoded_value, static::IV_LENGTH, static::TAG_LENGTH );
+		$ciphertext = substr( $decoded_value, static::IV_LENGTH + static::TAG_LENGTH );
 
 		return openssl_decrypt(
 			$ciphertext,
-			self::METHOD,
-			self::get_key(),
+			$this->cipher,
+			$this->key(),
 			OPENSSL_RAW_DATA,
 			$iv,
 			$tag
@@ -108,24 +129,23 @@ final class Encryptor {
 	}
 
 	/**
-	 * Gets the encryption key.
+	 * Resolve the encryption key.
 	 *
-	 * Uses RT_FRAMEWORK_ENCRYPTION_KEY if defined, otherwise falls back to LOGGED_IN_KEY.
-	 * Throws if no usable key is available — encryption must not proceed with a weak key.
+	 * Override seam: a subclass can source the key from elsewhere (KMS, a rotated
+	 * secret, an env var) without touching the crypto. Must never return an empty
+	 * key — encryption must not proceed with a weak/missing key.
 	 *
-	 * @throws \RuntimeException If no encryption key is available.
+	 * @return string The encryption key.
+	 *
+	 * @throws \RuntimeException If no key is available.
 	 */
-	private static function get_key(): string {
-		if ( defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) && '' !== RT_FRAMEWORK_ENCRYPTION_KEY ) {
-			return RT_FRAMEWORK_ENCRYPTION_KEY;
+	protected function key(): string {
+		if ( '' === $this->key ) {
+			throw new \RuntimeException(
+				'No encryption key provided. Pass a key to the Encryptor constructor or override Encryptor::key().'
+			);
 		}
 
-		if ( defined( 'LOGGED_IN_KEY' ) && '' !== LOGGED_IN_KEY ) {
-			return LOGGED_IN_KEY;
-		}
-
-		throw new \RuntimeException(
-			'No encryption key available. Define RT_FRAMEWORK_ENCRYPTION_KEY or ensure LOGGED_IN_KEY is set in wp-config.php.'
-		);
+		return $this->key;
 	}
 }
