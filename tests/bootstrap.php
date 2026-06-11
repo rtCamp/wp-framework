@@ -407,6 +407,33 @@ require_once __DIR__ . '/Fixtures/WpError.php';
 require_once __DIR__ . '/Fixtures/WpdbStub.php';
 require_once __DIR__ . '/Fixtures/QmCollectorsStub.php';
 
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( string $url, array $args = [] ): mixed {
+		$GLOBALS['wp_framework_test_http_requests']   ??= [];
+		$GLOBALS['wp_framework_test_http_requests'][] = [
+			'url'  => $url,
+			'args' => $args,
+		];
+
+		$handler = $GLOBALS['wp_framework_test_http_handler'] ?? null;
+		if ( is_callable( $handler ) ) {
+			return $handler( $url, $args );
+		}
+
+		return [ 'response' => [ 'code' => 200 ] ];
+	}
+}
+
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	function wp_remote_retrieve_response_code( mixed $response ): int|string {
+		if ( is_array( $response ) && isset( $response['response']['code'] ) ) {
+			return (int) $response['response']['code'];
+		}
+
+		return '';
+	}
+}
+
 if ( ! function_exists( 'wp_register_ability_category' ) ) {
 	function wp_register_ability_category( string $slug, array $args ): bool {
 		$GLOBALS['wp_framework_test_ability_categories'][ $slug ] = $args;

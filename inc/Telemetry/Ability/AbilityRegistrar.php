@@ -72,6 +72,7 @@ final class AbilityRegistrar implements Registrable {
 			new ListRequests(),
 			new GetTelemetry(),
 			new CompareRequests(),
+			new ProfileUrl(),
 		];
 	}
 }

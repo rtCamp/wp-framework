@@ -7,6 +7,7 @@ Shared PHP utilities for rtCamp WordPress projects. Consumed as a Composer packa
 - `Singleton` trait — standard `get_instance()` pattern
 - Utility classes — `Logger`, `Cache`, `Transients`, `Performance` (timers)
 - Collector interfaces consumed by `rtcamp/wp-dev-monitor` — `Collector_Interface`, `Stoppable`, `Profilable`, `Renderable`, `Issue_Provider`, `AI_Context_Provider`, `Timeline_Event_Provider`
+- `Telemetry` module — local-dev-only Query Monitor capture exposed to AI coding agents (Claude Code, Opencode) via the Abilities API + MCP Adapter; see [`docs/telemetry.md`](./docs/telemetry.md)
 - Shared PHPCS and PHPStan baselines
 
 ## What's NOT here (intentional)
