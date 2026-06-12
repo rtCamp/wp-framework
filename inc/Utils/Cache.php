@@ -2,7 +2,7 @@
 /**
  * Cache utility.
  *
- * @package rtCamp\WPFramework\Utils
+ * @package rtCamp\WPFramework
  * @since   0.0.1
  */
 
