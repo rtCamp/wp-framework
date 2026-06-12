@@ -3,8 +3,9 @@
  * AbstractSettingsPage tests.
  *
  * Integration tests against real WordPress (wp-env): asserts the three hooks
- * are wired, settings register with the Settings API, and the page is added as
- * a submenu under its parent.
+ * are wired, settings register with the Settings API, the page is added as a
+ * submenu under its parent, and the get_menu_slug() seam redirects the slug
+ * registered with the admin menu.
  *
  * @package rtCamp\WPFramework\Tests\Contracts\Abstracts
  */
@@ -90,6 +91,34 @@ final class AbstractSettingsPageTest extends TestCase {
 		$this->assertContains( self::SLUG, $slugs );
 	}
 
+	public function test_register_page_uses_an_overridden_menu_slug(): void {
+		$page = new class() extends AbstractSettingsPage {
+			public static function get_slug(): string {
+				return 'wpf-test-settings';
+			}
+			protected function get_menu_slug(): string {
+				return 'wpf-test-overridden-slug';
+			}
+			protected function get_page_title(): string {
+				return 'WPF Settings';
+			}
+			protected function get_menu_title(): string {
+				return 'WPF Settings';
+			}
+			protected function get_settings(): array {
+				return [];
+			}
+			public function render(): void {}
+		};
+
+		$page->register_page();
+
+		// get_menu_slug() overrides the static get_slug() as the admin-menu slug.
+		$slugs = wp_list_pluck( $GLOBALS['submenu']['options-general.php'] ?? [], 2 );
+		$this->assertContains( 'wpf-test-overridden-slug', $slugs );
+		$this->assertNotContains( self::SLUG, $slugs );
+	}
+
 	public function test_register_page_adds_a_top_level_menu_when_parent_is_null(): void {
 		$page = new class() extends AbstractSettingsPage {
 			public static function get_slug(): string {
@@ -122,4 +151,3 @@ final class AbstractSettingsPageTest extends TestCase {
 		$this->assertSame( 'form', (string) ob_get_clean() );
 	}
 }
-
