@@ -14,12 +14,6 @@ declare( strict_types = 1 );
 
 define( 'TESTS_FRAMEWORK_DIR', dirname( __DIR__ ) );
 
-// A deterministic 32-byte key so Encryptor tests are reproducible. Defined
-// before WordPress loads so it is available to every test.
-if ( ! defined( 'RT_FRAMEWORK_ENCRYPTION_KEY' ) ) {
-	define( 'RT_FRAMEWORK_ENCRYPTION_KEY', str_repeat( 'k', 32 ) );
-}
-
 // Load Composer dependencies (the framework's PSR-4 classes + dev tooling).
 if ( file_exists( TESTS_FRAMEWORK_DIR . '/vendor/autoload.php' ) ) {
 	require_once TESTS_FRAMEWORK_DIR . '/vendor/autoload.php';
