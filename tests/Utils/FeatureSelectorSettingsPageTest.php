@@ -85,6 +85,14 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$this->assertSame( 'My Plugin Features', $pages[0]['page_title'] );
 	}
 
+	public function test_menu_slug_slugifies_a_non_slug_context(): void {
+		$page = new FeatureSelectorSettingsPage( new FeatureSelector( 'My Plugin v2.0' ) );
+
+		$page->register_page();
+
+		$this->assertSame( 'my-plugin-v2-0-features', $GLOBALS['wp_framework_test_admin_pages'][0]['menu_slug'] );
+	}
+
 	public function test_empty_context_page_slug_is_bare_features(): void {
 		$page = new FeatureSelectorSettingsPage( new FeatureSelector() );
 
