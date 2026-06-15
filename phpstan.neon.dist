@@ -18,3 +18,12 @@ parameters:
 
     # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
     reportUnmatchedIgnoredErrors: true
+
+    ignoreErrors:
+        # Traits (e.g. Singleton) are public API consumed by downstream
+        # plugins/themes. Whether inc/ itself uses a given trait varies, so
+        # trait.unused may legitimately match zero times — tolerate that here
+        # (per-entry) while still flagging other stale ignores globally.
+        -
+            identifier: trait.unused
+            reportUnmatched: false
