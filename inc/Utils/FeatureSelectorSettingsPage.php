@@ -84,13 +84,15 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	/**
 	 * {@inheritDoc}
 	 *
-	 * Prefixes the selector's context onto the base slug:
-	 * context `my-plugin` → `my-plugin-features`; empty context → `features`.
+	 * Slugifies the selector's context onto the base slug so the page slug
+	 * stays a clean, valid menu slug regardless of context casing/spacing:
+	 * `my-plugin` → `my-plugin-features`, `My Plugin v2.0` →
+	 * `my-plugin-v2-0-features`, empty context → `features`.
 	 *
 	 * @return non-empty-string
 	 */
 	protected function get_menu_slug(): string {
-		$context = $this->selector->get_context();
+		$context = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', strtolower( $this->selector->get_context() ) ), '-' );
 
 		return '' === $context ? static::get_slug() : $context . '-' . static::get_slug();
 	}
