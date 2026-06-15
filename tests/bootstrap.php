@@ -44,6 +44,18 @@ if ( false !== getenv( 'WP_TESTS_DIR' ) ) {
 	$_test_root = '/tmp/wordpress-tests-lib';
 }
 
+// Fail with an actionable message instead of a raw "failed to open stream" if
+// none of the resolution paths above found the WordPress test suite (e.g. when
+// phpunit is run directly without the wp-env environment up).
+if ( ! file_exists( $_test_root . '/includes/functions.php' ) ) {
+	fwrite(
+		STDERR,
+		"WordPress test suite not found at {$_test_root}.\n" .
+		"Start the environment with `npm run wp-env start`, or set WP_TESTS_DIR to a WordPress tests/phpunit directory.\n"
+	);
+	exit( 1 );
+}
+
 require_once $_test_root . '/includes/functions.php';
 
 // Load fixtures that contain multiple classes per file (PSR-4 only autoloads
