@@ -28,9 +28,12 @@ use rtCamp\WPFramework\Contracts\Abstracts\AbstractSettingsPage;
  *
  * When a flag is overridden by its constant (e.g. `MY_PLUGIN_FEATURE_DARK_MODE`
  * in `wp-config.php`), the checkbox is disabled and reflects the constant's
- * value, with a help message naming the constant. Note: a disabled checkbox is
- * not submitted, so saving the page while a constant is defined persists
- * `false` to the underlying option — the constant still wins at read time.
+ * value, with a help message naming the constant. A locked flag is also
+ * excluded from {@see FeatureSelectorSettingsPage::get_settings()}, so saving
+ * the page never writes its option: the stored value is left untouched and
+ * reappears unchanged if the constant is later removed (a disabled checkbox is
+ * not submitted, so registering it would let `options.php` overwrite the option
+ * with `false` on every save).
  *
  * Boot order: register flags on the selector before `admin_init` fires
  * (typically during `plugins_loaded` or `init`). The flag list is read lazily
@@ -120,9 +123,15 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	 */
 	protected function get_page_title(): string {
 		$context = $this->selector->get_context();
-		$package = '' === $context ? '' : ucwords( str_replace( [ '-', '_' ], ' ', $context ) ) . ' ';
 
-		return $package . __( 'Features', 'wp-framework' );
+		if ( '' === $context ) {
+			return __( 'Features', 'wp-framework' );
+		}
+
+		$package = ucwords( str_replace( [ '-', '_' ], ' ', $context ) );
+
+		/* translators: %s: package name derived from the selector's context. */
+		return sprintf( __( '%s Features', 'wp-framework' ), $package );
 	}
 
 	/**
@@ -142,10 +151,16 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 		$settings = [];
 
 		foreach ( $this->selector->get_registered() as $slug ) {
+			// Skip locked flags: their disabled checkbox isn't submitted, so
+			// registering would let options.php overwrite the stored option.
+			if ( defined( $this->selector->constant_name( $slug ) ) ) {
+				continue;
+			}
+
 			$settings[ $this->selector->option_key( $slug ) ] = [
 				'type'              => 'boolean',
 				'sanitize_callback' => static fn ( mixed $value ): bool => (bool) $value,
-				'default'           => false,
+				'default'           => true,
 			];
 		}
 

@@ -19,7 +19,8 @@ namespace rtCamp\WPFramework\Utils;
  *   1. PHP constant — instant override (e.g. for tests or emergency disables
  *      via wp-config.php),
  *   2. WP option — persisted toggle (e.g. from a settings page),
- *   3. default `false`.
+ *   3. default `true` — features ship on; the selector exists to turn things
+ *      off, not on.
  *
  * Instance-based, configured with a context slug at construction — so each
  * consumer's option keys and override constants are namespaced and cannot
@@ -80,15 +81,19 @@ class FeatureSelector {
 	}
 
 	/**
-	 * Register feature flags. Accepts a list of slug strings, a map of
-	 * slug => metadata, or any mix of the two. Re-registering an existing
-	 * slug overwrites its metadata. Missing `name` falls back to the slug;
-	 * malformed entries are skipped.
+	 * Register feature flags. Accepts a single slug string, a list of slug
+	 * strings, a map of slug => metadata, or any mix of the two. Missing
+	 * `name` falls back to the slug; malformed entries are skipped.
 	 *
-	 * @param array<int|string, string|array{name?: string, description?: string}> $features Features to register.
+	 * First registration wins: re-registering an already-registered slug is
+	 * ignored and flagged via `_doing_it_wrong()`, so two code paths fighting
+	 * over the same slug (or an accidental double-register) surface loudly
+	 * instead of silently clobbering each other's metadata.
+	 *
+	 * @param array<int|string, string|array{name?: string, description?: string}>|string $features Feature(s) to register.
 	 */
-	public function register( array $features ): void {
-		foreach ( $features as $key => $value ) {
+	public function register( array|string $features ): void {
+		foreach ( (array) $features as $key => $value ) {
 			if ( is_int( $key ) && is_string( $value ) ) {
 				$slug = $value;
 				$meta = [];
@@ -96,6 +101,19 @@ class FeatureSelector {
 				$slug = $key;
 				$meta = $value;
 			} else {
+				continue;
+			}
+
+			if ( isset( $this->registered[ $slug ] ) ) {
+				_doing_it_wrong(
+					__METHOD__,
+					sprintf(
+						/* translators: %s: feature-flag slug. */
+						esc_html__( 'Feature flag "%s" is already registered; keeping the first registration and ignoring the duplicate.', 'wp-framework' ),
+						esc_html( $slug )
+					),
+					'0.0.1'
+				);
 				continue;
 			}
 
@@ -110,7 +128,7 @@ class FeatureSelector {
 	/**
 	 * Check whether a feature flag is enabled.
 	 *
-	 * Precedence: PHP constant → WP option → default `false`.
+	 * Precedence: PHP constant → WP option → default `true`.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
@@ -123,7 +141,7 @@ class FeatureSelector {
 			return (bool) constant( $constant );
 		}
 
-		return (bool) get_option( $this->option_key( $flag ), false );
+		return (bool) get_option( $this->option_key( $flag ), true );
 	}
 
 	/**
