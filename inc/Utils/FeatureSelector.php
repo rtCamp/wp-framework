@@ -85,10 +85,11 @@ class FeatureSelector {
 	 * strings, a map of slug => metadata, or any mix of the two. Missing
 	 * `name` falls back to the slug; malformed entries are skipped.
 	 *
-	 * First registration wins: re-registering an already-registered slug is
-	 * ignored and flagged via `_doing_it_wrong()`, so two code paths fighting
-	 * over the same slug (or an accidental double-register) surface loudly
-	 * instead of silently clobbering each other's metadata.
+	 * First registration wins: a slug that resolves to an already-registered
+	 * option key — an exact duplicate, or a different slug that normalizes to
+	 * the same key (e.g. `beta-search` and `beta search`) — is ignored and
+	 * flagged via `_doing_it_wrong()`, since the two would otherwise silently
+	 * share storage.
 	 *
 	 * @param array<int|string, string|array{name?: string, description?: string}>|string $features Feature(s) to register.
 	 */
@@ -104,17 +105,26 @@ class FeatureSelector {
 				continue;
 			}
 
-			if ( isset( $this->registered[ $slug ] ) ) {
-				_doing_it_wrong(
-					__METHOD__,
-					sprintf(
-						/* translators: %s: feature-flag slug. */
-						esc_html__( 'Feature flag "%s" is already registered; keeping the first registration and ignoring the duplicate.', 'wp-framework' ),
-						esc_html( $slug )
-					),
-					'0.0.1'
-				);
-				continue;
+			// Collisions are detected on the option key, not the raw slug: two
+			// slugs that normalize to the same key (e.g. `beta-search` and
+			// `beta search`) would share storage, so the first registration wins.
+			$option_key = $this->option_key( $slug );
+
+			foreach ( array_keys( $this->registered ) as $registered_slug ) {
+				if ( $this->option_key( $registered_slug ) === $option_key ) {
+					_doing_it_wrong(
+						__METHOD__,
+						sprintf(
+							/* translators: 1: slug being registered. 2: already-registered slug it collides with. */
+							esc_html__( 'Feature flag "%1$s" collides with already-registered "%2$s"; keeping the first registration.', 'wp-framework' ),
+							esc_html( $slug ),
+							esc_html( $registered_slug )
+						),
+						'0.0.1'
+					);
+
+					continue 2;
+				}
 			}
 
 			$this->registered[ $slug ] = [

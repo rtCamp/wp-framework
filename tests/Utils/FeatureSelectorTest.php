@@ -91,6 +91,15 @@ final class FeatureSelectorTest extends TestCase {
 		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
+	public function test_register_warns_on_slugs_that_normalize_to_the_same_key(): void {
+		$this->selector->register( [ 'beta-search' ] );
+		$this->selector->register( [ 'beta search' ] ); // Normalizes to the same option key.
+
+		// First registration wins; the colliding slug is rejected and flagged.
+		$this->assertSame( [ 'beta-search' ], $this->selector->get_registered() );
+		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
+	}
+
 	public function test_register_skips_malformed_entries(): void {
 		// Malformed: int key with array value, string key with string value.
 		$this->selector->register(
