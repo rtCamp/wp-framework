@@ -30,13 +30,15 @@ final class FeatureSelectorTest extends TestCase {
 	private FeatureSelector $selector;
 
 	protected function setUp(): void {
-		$GLOBALS['_wp_options'] = [];
+		$GLOBALS['_wp_options']                      = [];
+		$GLOBALS['wp_framework_test_doing_it_wrong'] = [];
 
 		$this->selector = new FeatureSelector( 'my-plugin' );
 	}
 
 	protected function tearDown(): void {
-		$GLOBALS['_wp_options'] = [];
+		$GLOBALS['_wp_options']                      = [];
+		$GLOBALS['wp_framework_test_doing_it_wrong'] = [];
 	}
 
 	// --- register / registry ---------------------------------------------------
@@ -73,10 +75,23 @@ final class FeatureSelectorTest extends TestCase {
 		$this->assertSame( '', $features['bare-flag']['description'] );
 	}
 
-	public function test_register_overwrites_existing_slug_and_skips_malformed_entries(): void {
+	public function test_register_accepts_a_bare_slug_string(): void {
+		$this->selector->register( 'single-flag' );
+
+		$this->assertSame( [ 'single-flag' ], $this->selector->get_registered() );
+		$this->assertSame( 'single-flag', $this->selector->get_features()['single-flag']['name'] );
+	}
+
+	public function test_register_keeps_first_registration_and_warns_on_duplicate(): void {
 		$this->selector->register( [ 'my-flag' => [ 'name' => 'Original' ] ] );
 		$this->selector->register( [ 'my-flag' => [ 'name' => 'Updated' ] ] );
 
+		// First write wins; the duplicate is ignored and flagged loudly.
+		$this->assertSame( 'Original', $this->selector->get_features()['my-flag']['name'] );
+		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
+	}
+
+	public function test_register_skips_malformed_entries(): void {
 		// Malformed: int key with array value, string key with string value.
 		$this->selector->register(
 			[
@@ -85,18 +100,16 @@ final class FeatureSelectorTest extends TestCase {
 			]
 		);
 
-		$features = $this->selector->get_features();
-
-		$this->assertSame( 'Updated', $features['my-flag']['name'] );
-		$this->assertSame( [ 'my-flag' ], $this->selector->get_registered() );
+		$this->assertSame( [], $this->selector->get_registered() );
+		$this->assertEmpty( $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	// --- is_enabled / enable / disable ------------------------------------------
 
-	public function test_disabled_by_default(): void {
-		$this->selector->register( [ 'feature-default-off' ] );
+	public function test_enabled_by_default(): void {
+		$this->selector->register( [ 'feature-default-on' ] );
 
-		$this->assertFalse( $this->selector->is_enabled( 'feature-default-off' ) );
+		$this->assertTrue( $this->selector->is_enabled( 'feature-default-on' ) );
 	}
 
 	public function test_enable_and_disable_persist_to_option(): void {
@@ -162,7 +175,10 @@ final class FeatureSelectorTest extends TestCase {
 	public function test_same_flag_in_different_contexts_does_not_collide(): void {
 		$other = new FeatureSelector( 'other-plugin' );
 
+		// Same slug, opposite states: each context reads its own option key,
+		// so toggling one cannot affect the other.
 		$this->selector->enable( 'shared-flag' );
+		$other->disable( 'shared-flag' );
 
 		$this->assertTrue( $this->selector->is_enabled( 'shared-flag' ) );
 		$this->assertFalse( $other->is_enabled( 'shared-flag' ) );

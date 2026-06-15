@@ -112,9 +112,33 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$args = $settings['my_plugin_feature_dark_mode'];
 
 		$this->assertSame( 'boolean', $args['type'] );
-		$this->assertFalse( $args['default'] );
+		$this->assertTrue( $args['default'] );
 		$this->assertTrue( $args['sanitize_callback']( '1' ) );
 		$this->assertFalse( $args['sanitize_callback']( '' ) );
+	}
+
+	public function test_admin_init_skips_registering_constant_locked_flags(): void {
+		if ( ! defined( 'MY_PLUGIN_FEATURE_REG_LOCKED' ) ) {
+			define( 'MY_PLUGIN_FEATURE_REG_LOCKED', true );
+		}
+
+		$this->selector->register( [ 'reg-locked', 'free-flag' ] );
+		$this->page->register_hooks();
+
+		do_action( 'admin_init' );
+
+		$settings = $GLOBALS['wp_framework_test_registered_settings']['my_plugin_features'];
+
+		// The free flag is registered; the locked flag is not, so options.php
+		// never overwrites its stored option on save.
+		$this->assertArrayHasKey( 'my_plugin_feature_free_flag', $settings );
+		$this->assertArrayNotHasKey( 'my_plugin_feature_reg_locked', $settings );
+
+		// It still renders as a (disabled) field so the lock stays visible.
+		$this->assertArrayHasKey(
+			'reg-locked',
+			$GLOBALS['wp_framework_test_settings_fields']['my-plugin-features']['my_plugin_features_section']
+		);
 	}
 
 	public function test_flags_registered_after_hooks_still_appear(): void {
@@ -177,6 +201,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 	public function test_render_field_prints_description_when_present(): void {
 		$this->selector->register( [ 'dark-mode' => [ 'description' => 'Switch the UI to dark.' ] ] );
+		$this->selector->disable( 'dark-mode' ); // Default is on; force off so "unchecked" is meaningful.
 
 		$output = $this->render_field_output( 'dark-mode' );
 
