@@ -9,8 +9,9 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests;
 
-use PHPUnit\Framework\TestCase;
+use rtCamp\WPFramework\Tests\Fixtures\BareSingleton;
 use rtCamp\WPFramework\Tests\Fixtures\SingletonExample;
+use rtCamp\WPFramework\Tests\TestCase;
 
 final class SingletonTest extends TestCase {
 
@@ -36,5 +37,23 @@ final class SingletonTest extends TestCase {
 		SingletonExample::get_instance();
 
 		$this->assertSame( 1, SingletonExample::$construct_count );
+	}
+
+	public function test_cloning_is_disallowed(): void {
+		$this->setExpectedIncorrectUsage( '__clone' );
+
+		$instance = SingletonExample::get_instance();
+		clone $instance;
+	}
+
+	public function test_deserializing_is_disallowed(): void {
+		$this->setExpectedIncorrectUsage( '__wakeup' );
+
+		$instance = SingletonExample::get_instance();
+		unserialize( serialize( $instance ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize
+	}
+
+	public function test_default_constructor_is_used_when_not_overridden(): void {
+		$this->assertInstanceOf( BareSingleton::class, BareSingleton::get_instance() );
 	}
 }

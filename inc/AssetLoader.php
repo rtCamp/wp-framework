@@ -134,7 +134,13 @@ class AssetLoader {
 	}
 
 	/**
-	 * Register data from the block manifest file.
+	 * Register a block collection from its manifest file.
+	 *
+	 * Uses the block metadata-collection API (`wp_register_block_types_from_metadata_collection()`)
+	 * when available — WordPress 6.8+ — which registers every block from a single
+	 * manifest without reading each block.json. On the supported 6.5–6.7 range
+	 * that function does not exist, so each block is registered from its own
+	 * block.json on disk instead: slower, but functionally equivalent.
 	 *
 	 * @param string $block_path    Relative path to the block collection. E.g. `build/blocks`.
 	 * @param string $manifest_file Path to the manifest file, relative to the base directory. E.g. `build/blocks-manifest.php`.
@@ -151,7 +157,26 @@ class AssetLoader {
 			return;
 		}
 
-		wp_register_block_types_from_metadata_collection( $base . $block_path, $manifest_path );
+		$blocks_dir = $base . $block_path;
+
+		if ( function_exists( 'wp_register_block_types_from_metadata_collection' ) ) {
+			wp_register_block_types_from_metadata_collection( $blocks_dir, $manifest_path );
+			return;
+		}
+
+		// Fallback for WordPress 6.5–6.7: register each block from disk. The
+		// manifest is keyed by block directory name; the block.json lives in the
+		// built block directory under $blocks_dir.
+		// phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Existence checked above.
+		$manifest = require $manifest_path;
+
+		if ( ! is_array( $manifest ) ) {
+			return;
+		}
+
+		foreach ( array_keys( $manifest ) as $block_dir ) {
+			register_block_type( $blocks_dir . '/' . (string) $block_dir );
+		}
 	}
 
 	/**

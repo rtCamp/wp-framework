@@ -9,7 +9,7 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Utils;
 
-use PHPUnit\Framework\TestCase;
+use rtCamp\WPFramework\Tests\TestCase;
 use rtCamp\WPFramework\Utils\Encryptor;
 
 /**
@@ -59,6 +59,8 @@ final class EncryptorTest extends TestCase {
 	}
 
 	public function test_decrypt_returns_false_for_invalid_base64(): void {
+		$this->setExpectedIncorrectUsage( Encryptor::class . '::decrypt' );
+
 		$this->assertFalse( $this->encryptor()->decrypt( 'not!valid!base64' ) );
 	}
 

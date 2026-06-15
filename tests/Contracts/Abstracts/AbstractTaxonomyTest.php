@@ -9,8 +9,8 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Contracts\Abstracts;
 
-use PHPUnit\Framework\TestCase;
 use rtCamp\WPFramework\Contracts\Abstracts\AbstractTaxonomy;
+use rtCamp\WPFramework\Tests\TestCase;
 
 final class AbstractTaxonomyTest extends TestCase {
 
@@ -90,5 +90,30 @@ final class AbstractTaxonomyTest extends TestCase {
 
 		$this->assertSame( 'genre', $tax::get_slug() );
 		$this->assertSame( [ 'book' ], $tax::get_object_types() );
+	}
+
+	public function tear_down(): void {
+		if ( taxonomy_exists( 'genre' ) ) {
+			unregister_taxonomy( 'genre' );
+		}
+
+		parent::tear_down();
+	}
+
+	public function test_register_hooks_registers_taxonomy_on_init(): void {
+		$tax = $this->basic_taxonomy();
+		$tax->register_hooks();
+
+		$this->assertNotFalse( has_action( 'init', [ $tax, 'register' ] ) );
+	}
+
+	public function test_register_actually_registers_the_taxonomy(): void {
+		$this->basic_taxonomy()->register();
+
+		$this->assertTrue( taxonomy_exists( 'genre' ) );
+
+		$object = get_taxonomy( 'genre' );
+		$this->assertContains( 'book', $object->object_type );
+		$this->assertTrue( $object->show_in_rest );
 	}
 }
