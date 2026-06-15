@@ -109,7 +109,7 @@ jobs:
           node-version: '20'
 
       - name: Install Node dependencies
-        run: npm install
+        run: npm ci
         env:
           CI: true
 
@@ -135,7 +135,7 @@ jobs:
           node-version: '20'
 
       - name: Install Node dependencies
-        run: npm install
+        run: npm ci
         env:
           CI: true
 
