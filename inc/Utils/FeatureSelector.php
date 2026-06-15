@@ -159,15 +159,24 @@ class FeatureSelector {
 	/**
 	 * Programmatically disable a flag — persists to the WP option.
 	 *
+	 * `update_option( $key, false )` alone is a silent no-op when the option has
+	 * never been stored: core reads the missing option's implicit old value as
+	 * `false`, sees it already equals the new `false`, and skips the write — so
+	 * the row is never created and the flag stays at its default-`true` (enabled)
+	 * state. Add the row explicitly in that case so disabling always sticks.
+	 *
 	 * Note: a defined override constant still wins at read time.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
-	 * @return bool True on success; false if the option already held `false`
-	 *              (mirrors `update_option()`).
+	 * @return bool True if the option was written; false if it already held `false`.
 	 */
 	public function disable( string $flag ): bool {
-		return update_option( $this->option_key( $flag ), false );
+		$option_key = $this->option_key( $flag );
+
+		return null === get_option( $option_key, null )
+			? add_option( $option_key, false )
+			: update_option( $option_key, false );
 	}
 
 	/**

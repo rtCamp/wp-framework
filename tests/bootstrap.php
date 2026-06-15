@@ -302,9 +302,27 @@ if ( ! function_exists( 'get_option' ) ) {
 
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( string $option, mixed $value, bool|null $autoload = null ): bool { // phpcs:ignore
-		// Mirror core: updating to the already-stored value returns false.
-		if ( array_key_exists( $option, $GLOBALS['_wp_options'] )
-			&& $GLOBALS['_wp_options'][ $option ] === $value ) {
+		// Mirror core: a missing option's implicit old value is `false`, so
+		// writing `false` to an option that does not exist yet is a no-op.
+		$old_value = array_key_exists( $option, $GLOBALS['_wp_options'] )
+			? $GLOBALS['_wp_options'][ $option ]
+			: false;
+
+		if ( $old_value === $value ) {
+			return false;
+		}
+
+		$GLOBALS['_wp_options'][ $option ] = $value;
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'add_option' ) ) {
+	function add_option( string $option, mixed $value = '', string $deprecated = '', bool|string|null $autoload = null ): bool { // phpcs:ignore
+		// Mirror core: adding an option that already exists fails; otherwise the
+		// row is created verbatim (even when the value is `false`).
+		if ( array_key_exists( $option, $GLOBALS['_wp_options'] ) ) {
 			return false;
 		}
 

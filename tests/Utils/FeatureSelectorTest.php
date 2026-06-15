@@ -124,6 +124,21 @@ final class FeatureSelectorTest extends TestCase {
 		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_feature_feature_toggle'] );
 	}
 
+	public function test_disable_turns_off_a_never_stored_default_on_flag(): void {
+		$this->selector->register( [ 'fresh-flag' ] );
+
+		// Enabled by default, with no option ever written.
+		$this->assertTrue( $this->selector->is_enabled( 'fresh-flag' ) );
+		$this->assertArrayNotHasKey( 'my_plugin_feature_fresh_flag', $GLOBALS['_wp_options'] );
+
+		// disable() must persist `false` even though the (missing) old value is
+		// already `false` — update_option() alone would no-op and leave it on.
+		$this->selector->disable( 'fresh-flag' );
+
+		$this->assertFalse( $this->selector->is_enabled( 'fresh-flag' ) );
+		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_feature_fresh_flag'] );
+	}
+
 	public function test_true_constant_overrides_disabled_option(): void {
 		if ( ! defined( 'MY_PLUGIN_FEATURE_FORCED_ON' ) ) {
 			define( 'MY_PLUGIN_FEATURE_FORCED_ON', true );
