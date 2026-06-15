@@ -18,8 +18,3 @@ parameters:
 
     # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
     reportUnmatchedIgnoredErrors: true
-
-    # Ignore known false-positives here. Keep this list short — every entry is tech debt.
-    ignoreErrors:
-        # Traits are consumed by downstream plugins/themes, not within this package.
-        - identifier: trait.unused
