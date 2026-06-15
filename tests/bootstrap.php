@@ -58,6 +58,65 @@ if ( ! file_exists( $_test_root . '/includes/functions.php' ) ) {
 
 require_once $_test_root . '/includes/functions.php';
 
+// --- WordPress object-cache stubs -------------------------------------------
+// Functional in-memory implementations so Cache unit tests can exercise the
+// full SWR flow without a real WordPress install. wp_cache_add() preserves
+// atomicity (returns false if the key already exists) so the lock acquire /
+// release logic is exercised correctly. wp_cache_get() supports the $found
+// out-parameter (array_key_exists, not isset) so stored falsy values are
+// distinguishable from misses — matching WP_Object_Cache behaviour.
+
+$GLOBALS['_wp_cache'] = [];
+
+if ( ! function_exists( 'wp_cache_get' ) ) {
+	function wp_cache_get( string $key, string $group = '', bool $force = false, ?bool &$found = null ): mixed { // phpcs:ignore
+		$found = isset( $GLOBALS['_wp_cache'][ $group ] ) && array_key_exists( $key, $GLOBALS['_wp_cache'][ $group ] );
+		return $found ? $GLOBALS['_wp_cache'][ $group ][ $key ] : false;
+	}
+}
+
+if ( ! function_exists( 'wp_cache_set' ) ) {
+	function wp_cache_set( string $key, mixed $value, string $group = '', int $expiration = 0 ): bool { // phpcs:ignore
+		$GLOBALS['_wp_cache'][ $group ][ $key ] = $value;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_cache_delete' ) ) {
+	function wp_cache_delete( string $key, string $group = '' ): bool { // phpcs:ignore
+		unset( $GLOBALS['_wp_cache'][ $group ][ $key ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_cache_add' ) ) {
+	function wp_cache_add( string $key, mixed $data, string $group = '', int $expiration = 0 ): bool { // phpcs:ignore
+		if ( isset( $GLOBALS['_wp_cache'][ $group ] ) && array_key_exists( $key, $GLOBALS['_wp_cache'][ $group ] ) ) {
+			return false;
+		}
+		$GLOBALS['_wp_cache'][ $group ][ $key ] = $data;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_cache_flush_group' ) ) {
+	function wp_cache_flush_group( string $group ): bool { // phpcs:ignore
+		unset( $GLOBALS['_wp_cache'][ $group ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_cache_supports' ) ) {
+	function wp_cache_supports( string $feature ): bool { // phpcs:ignore
+		// Group flushing support is toggleable so tests can exercise both the
+		// supported and unsupported branches of Cache::flush_group().
+		if ( 'flush_group' === $feature ) {
+			return $GLOBALS['_wp_cache_supports_flush_group'] ?? true;
+		}
+		return false;
+	}
+}
+
 // Load fixtures that contain multiple classes per file (PSR-4 only autoloads
 // single-class files matching the class name).
 require_once __DIR__ . '/Fixtures/LoaderFixtures.php';

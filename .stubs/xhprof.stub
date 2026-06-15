@@ -1,0 +1,33 @@
+<?php
+/**
+ * Analysis-only declarations for the `tideways_xhprof` extension.
+ *
+ * The maintained XHProf fork for PHP 8.x provides these symbols at runtime, but they
+ * exist nowhere PHPStan can reflect (unlike the classic `xhprof` extension, which is
+ * covered by PHPStan's bundled stubs). Referenced via PHPStan's `scanFiles` so the
+ * guarded calls in {@see \rtCamp\WPFramework\Utils\XHProf_Profiler} resolve on every
+ * machine. This file is never autoloaded or executed — the constant values here are
+ * placeholders; the real values come from the extension at runtime.
+ *
+ * @package rtCamp\WPFramework
+ */
+
+/**
+ * Start profiling.
+ *
+ * @param int $flags Profiling flags (CPU, MEMORY, NO_BUILTINS).
+ *
+ * @return void
+ */
+function tideways_xhprof_enable( int $flags = 0 ): void {}
+
+/**
+ * Stop profiling and return the raw edge-keyed call graph.
+ *
+ * @return array<string, array<string, int>>
+ */
+function tideways_xhprof_disable(): array {}
+
+const TIDEWAYS_XHPROF_FLAGS_NO_BUILTINS = 1;
+const TIDEWAYS_XHPROF_FLAGS_CPU         = 2;
+const TIDEWAYS_XHPROF_FLAGS_MEMORY      = 4;
