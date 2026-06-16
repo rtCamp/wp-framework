@@ -8,8 +8,8 @@ const path = require( 'path' );
 /**
  * Write `version` into each configured file.
  *
- * Edits are surgical (regex on the raw text) so file indentation / style is kept
- * intact -- never a full JSON re-serialise.
+ * Edits are regex on raw text so each file's formatting survives (no full JSON
+ * re-serialise).
  *
  * Supported kinds:
  *   - `json`        : the top-level `"version": "..."` value.

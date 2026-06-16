@@ -7,11 +7,9 @@ const { PHP_RESERVED_WORDS } = require( './constants' );
 /**
  * Validate a project name.
  *
- * Returns an error message string on failure, or `undefined` when valid -- the
- * exact contract expected by `@rtcamp/wp-tooling/ui` `text({ validate })`.
- *
- * Guards against names that would generate invalid PHP (leading digits, illegal
- * characters, reserved keywords).
+ * Returns `undefined` when valid, matching the `text({ validate })` contract in
+ * `@rtcamp/wp-tooling/ui`. Rejects names that would generate invalid PHP (leading
+ * digits, illegal characters, reserved keywords).
  *
  * @param {string} name - Candidate project name.
  * @return {string|undefined} Error message, or undefined when valid.

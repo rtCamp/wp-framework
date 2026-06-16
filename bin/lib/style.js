@@ -1,5 +1,5 @@
 /**
- * Styled terminal output -- colored status lines, headings, and a key/value table.
+ * Styled terminal output: colored status lines, headings, and a key/value table.
  *
  * Complements `@rtcamp/wp-tooling/ui` (which owns the interactive primitives:
  * Wizard, text, confirm, spinner). Colors are emitted only in a TTY, so piped /

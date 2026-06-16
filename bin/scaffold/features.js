@@ -1,22 +1,21 @@
 /**
  * Feature kernel -- generic, feature-agnostic toggle mechanics.
  *
- * A feature is declared as DATA in a per-project scaffold config (key/label +
- * an optional declarative `apply` of files/deps/scripts + optional imperative
- * `onEnable`/`onDisable` hooks + an optional `detect` probe). The engine
- * interprets that shape; it never names a specific feature.
+ * A feature is declared as DATA in a scaffold config (key/label + optional
+ * declarative `apply` of files/deps/scripts + optional `onEnable`/`onDisable`
+ * hooks + optional `detect` probe); the engine never names a specific feature.
  *
- * State of truth: `.wp-scaffold.json.features` ({ key: bool }) is intent; a fresh
- * `detect` sweep is reality. Reality wins for display; the persisted map is
- * rebuilt from a detect sweep only after a successful apply.
+ * `.wp-scaffold.json.features` ({ key: bool }) is intent, a fresh `detect` sweep
+ * is reality. Reality wins for display; the persisted map is rebuilt from a
+ * detect sweep only after a successful apply.
  */
 
 const fs = require( 'fs' );
 const path = require( 'path' );
 
 /**
- * Validate the feature manifest of a config. Throws on the first problem so the
- * caller can abort before touching disk.
+ * Validate a config's feature manifest. Throws on first problem so the caller
+ * aborts before touching disk.
  *
  * @param {Object} config - Per-project scaffold config.
  * @return {void}
@@ -110,8 +109,7 @@ const makeFeatureApi = ( root, identity, ui ) => {
 			if ( ! fs.existsSync( abs ) ) {
 				return;
 			}
-			// Refuse directories: a single buffer snapshot cannot restore a tree on
-			// rollback, so features must remove their files explicitly.
+			// Refuse directories: a buffer snapshot can't restore a tree on rollback.
 			if ( fs.statSync( abs ).isDirectory() ) {
 				throw new Error( `remove(): refusing to delete directory "${ rel }"; remove files individually so rollback can restore them.` );
 			}
