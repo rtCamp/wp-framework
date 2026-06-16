@@ -139,23 +139,47 @@ const toggleFeatures = async ( config, root, opts ) => {
 	);
 	( unknown || [] ).forEach( ( key ) => ui.warn( `${ key }: retired feature still recorded; leaving untouched.` ) );
 
-	// Resolve the desired ENABLED set (the returned/flag set is the target, not a delta).
+	// Interactive: flip features from their current state via a radio menu (the
+	// kit's checkbox can't pre-select), then pick Apply. Picking Apply confirms,
+	// so the extra confirm below is skipped.
+	let confirmedInteractively = false;
 	if ( ! wantOn ) {
 		if ( ! rows.length ) {
 			ui.info( 'No optional features are declared.' );
 			return finalize( false, [] );
 		}
-		ui.table(
-			rows.map( ( r ) => [ r.label, `${ r.on ? 'enabled' : 'disabled' }${ r.drift ? '  (drift)' : '' }` ] ),
-			{ title: 'Optional features' }
-		);
-		const choiceFor = ( r ) => `${ r.on ? '[on]  ' : '[off] ' }${ r.label }`;
-		const byChoice = new Map( rows.map( ( r ) => [ choiceFor( r ), r ] ) );
-		const picked = await ui.checkbox( {
-			message: 'Select EVERY feature you want enabled (unselected ones are disabled)',
-			choices: rows.map( choiceFor ),
-		} );
-		wantOn = new Set( picked.map( ( label ) => byChoice.get( label ).key ) );
+
+		wantOn = new Set( rows.filter( ( r ) => r.on ).map( ( r ) => r.key ) );
+
+		for ( ;; ) {
+			ui.table(
+				rows.map( ( r ) => [ r.label, `${ wantOn.has( r.key ) ? 'enabled' : 'disabled' }${ r.drift ? '  (drift)' : '' }` ] ),
+				{ title: 'Optional features' }
+			);
+			const choiceFor = ( r ) => `${ wantOn.has( r.key ) ? '[x]' : '[ ]' } ${ r.label }`;
+			const byChoice = new Map( rows.map( ( r ) => [ choiceFor( r ), r ] ) );
+			const choice = await ui.radio( {
+				message: 'Toggle a feature, or apply',
+				choices: [ ...rows.map( choiceFor ), 'Apply changes', 'Cancel' ],
+			} );
+
+			if ( 'Cancel' === choice ) {
+				ui.warn( 'No changes applied.' );
+				return finalize( false, [] );
+			}
+			if ( 'Apply changes' === choice ) {
+				break;
+			}
+			const row = byChoice.get( choice );
+			if ( row ) {
+				if ( wantOn.has( row.key ) ) {
+					wantOn.delete( row.key );
+				} else {
+					wantOn.add( row.key );
+				}
+			}
+		}
+		confirmedInteractively = true;
 	}
 
 	const { toEnable, toDisable } = computeDiff( rows, wantOn );
@@ -168,10 +192,8 @@ const toggleFeatures = async ( config, root, opts ) => {
 	toEnable.forEach( ( r ) => ui.success( `+ enable  ${ r.label }` ) );
 	toDisable.forEach( ( r ) => ui.warn( `- disable ${ r.label }` ) );
 
-	if ( ! flags.yes ) {
-		// Default to NO when the plan disables anything: an accidental deselect
-		// shouldn't silently remove a feature.
-		const ok = await ui.confirm( { message: 'Apply these changes?', defaultValue: 0 === toDisable.length } );
+	if ( ! flags.yes && ! confirmedInteractively ) {
+		const ok = await ui.confirm( { message: 'Apply these changes?', defaultValue: true } );
 		if ( ! ok ) {
 			ui.warn( 'No changes applied.' );
 			return finalize( false, [] );
