@@ -46,4 +46,30 @@ const readIdentityFile = ( root ) => {
 	}
 };
 
-module.exports = { writeIdentityFile, readIdentityFile, IDENTITY_FILE };
+/**
+ * Read the persisted features map ({ key: bool }), or {} when absent.
+ *
+ * @param {string} root - Project root.
+ * @return {Object} Features map.
+ */
+const readFeatures = ( root ) => {
+	const identity = readIdentityFile( root );
+	return ( identity && identity.features ) || {};
+};
+
+/**
+ * Update only the `features` field of the persisted identity, preserving every
+ * other field and the file's tab indentation.
+ *
+ * @param {string} root        - Project root.
+ * @param {Object} featuresMap - Features map to persist.
+ * @param {Object} [ui]        - UI for an optional log line.
+ * @return {string} Absolute path written.
+ */
+const writeFeatures = ( root, featuresMap, ui ) => {
+	const identity = readIdentityFile( root ) || {};
+	identity.features = featuresMap;
+	return writeIdentityFile( root, identity, ui );
+};
+
+module.exports = { writeIdentityFile, readIdentityFile, readFeatures, writeFeatures, IDENTITY_FILE };

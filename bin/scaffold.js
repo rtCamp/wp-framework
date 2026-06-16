@@ -31,6 +31,8 @@ const { applyVersion } = require( './scaffold/version' );
 const { writeIdentityFile, readIdentityFile } = require( './scaffold/persist' );
 const { initRepo, commitAll, installHusky } = require( './scaffold/git' );
 const { runCleanup } = require( './scaffold/cleanup' );
+const { validateFeatures, makeFeatureApi, detectMap } = require( './scaffold/features' );
+const { manageFlow, toggleFeatures } = require( './scaffold/manage' );
 
 const DEFAULT_VERSION = '1.0.0';
 
@@ -55,10 +57,22 @@ Usage: npm run init [-- options]
 Set up this ${ kind }: rename the starter tokens to your project name, apply the
 version, persist identity to .wp-scaffold.json, then optional git / Husky / cleanup.
 
-Options:
+Once set up (.wp-scaffold.json exists), 'npm run init' enters MANAGE mode to
+toggle optional features on/off. Re-runnable any time.
+
+Scaffold options (first run):
   --name=NAME      Use NAME without prompting (required with --yes).
   --version=VER    Set the project version (default 1.0.0).
   -y, --yes        Accept defaults, no prompts; for CI. Needs --name.
+  --reinit         Force a fresh scaffold even if already set up.
+
+Manage options (after set up):
+  --list           Print feature status and exit.
+  --features=a,b   Set the exact enabled feature set (empty = none).
+  --enable=a,b     Enable features (delta).
+  --disable=a,b    Disable features (delta).
+  -y, --yes        Apply the flag selection without confirming.
+
   -c, --clean      Run cleanup only (remove scaffolding files).
   -h, --help       Show this help.
 ` );
@@ -124,6 +138,7 @@ const buildContext = ( config, name, overrides = {} ) => {
 		functionPrefix: target.functionPrefix,
 		constantPrefix: target.constantPrefix,
 		cssPrefix: target.cssPrefix,
+		features: {},
 		generatedBy: 'rtcamp/wp-framework scaffold',
 	};
 
@@ -268,6 +283,26 @@ const setupSteps = ( config, root, flags ) => {
 			},
 		},
 		{
+			name: 'Select features',
+			skip: ( c ) => c.cancelled || ! ( config.features || [] ).length,
+			async run( c ) {
+				const api = makeFeatureApi( root, c.persistPayload, ui );
+				let wantOn;
+				if ( flags.yes ) {
+					// Preserve already-enabled features (matters on --reinit over an
+					// existing tree) in addition to any defaultOn features.
+					const detected = detectMap( config, api );
+					wantOn = new Set(
+						( config.features || [] )
+							.filter( ( f ) => f.defaultOn || detected[ f.key ] )
+							.map( ( f ) => f.key )
+					);
+				}
+				const result = await toggleFeatures( config, root, { mode: 'scaffold', wantOn, flags, api, ui } );
+				c.persistPayload.features = ( result && result.finalMap ) || detectMap( config, api );
+			},
+		},
+		{
 			name: 'Persist identity',
 			skip: ( c ) => c.cancelled,
 			async run( c ) {
@@ -391,6 +426,7 @@ const run = async ( config, options = {} ) => {
 	}
 
 	try {
+		// Cleanup works in either mode.
 		if ( argv.includes( '--clean' ) || argv.includes( '-c' ) ) {
 			const others = argv.filter( ( arg ) => '--clean' !== arg && '-c' !== arg );
 			if ( others.length ) {
@@ -402,7 +438,25 @@ const run = async ( config, options = {} ) => {
 			return;
 		}
 
-		const { flags, unknown } = parseFlags( argv );
+		// Validate the feature manifest once, before touching disk, for both modes.
+		try {
+			validateFeatures( config );
+		} catch ( err ) {
+			ui.error( err.message );
+			process.exitCode = 1;
+			return;
+		}
+
+		// Manage mode: already scaffolded (unless forced to re-scaffold with --reinit).
+		const identity = readIdentityFile( root );
+		if ( identity && ! argv.includes( '--reinit' ) ) {
+			await manageFlow( config, root, argv, identity, ui, () => setupFlow( config, root, { yes: false } ) );
+			return;
+		}
+
+		// Scaffold mode (no identity, or --reinit).
+		const setupArgv = argv.filter( ( arg ) => '--reinit' !== arg );
+		const { flags, unknown } = parseFlags( setupArgv );
 		if ( unknown.length ) {
 			ui.error( `Unknown argument(s): ${ unknown.join( ' ' ) }` );
 			process.exitCode = 1;
