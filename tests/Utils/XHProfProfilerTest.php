@@ -1,6 +1,6 @@
 <?php
 /**
- * XHProf_Profiler utility tests.
+ * XHProfProfiler utility tests.
  *
  * @package rtCamp\WPFramework\Tests\Utils
  */
@@ -10,17 +10,17 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Tests\Utils;
 
 use PHPUnit\Framework\TestCase;
-use rtCamp\WPFramework\Utils\XHProf_Profiler;
+use rtCamp\WPFramework\Utils\XHProfProfiler;
 
 /**
- * Tests for XHProf_Profiler.
+ * Tests for XHProfProfiler.
  *
  * The summarize() transform is pure and exercised directly with a raw-data fixture
  * (no extension required). Backend-dependent paths (start/stop/profile against a live
  * profiler) are guarded: when an XHProf backend happens to be loaded, those guard tests
  * skip so the suite stays deterministic and free of real profiling side effects.
  */
-final class XHProf_ProfilerTest extends TestCase {
+final class XHProfProfilerTest extends TestCase {
 
 	/**
 	 * Raw edge-keyed data shaped like xhprof_disable() / tideways_xhprof_disable() output.
@@ -48,7 +48,7 @@ final class XHProf_ProfilerTest extends TestCase {
 			'b==>shared' => [ 'ct' => 2, 'wt' => 20, 'cpu' => 7, 'mu' => 200, 'pmu' => 250 ],
 		];
 
-		$summary = XHProf_Profiler::summarize( $raw );
+		$summary = XHProfProfiler::summarize( $raw );
 
 		$this->assertArrayHasKey( 'shared', $summary );
 		$this->assertSame(
@@ -58,7 +58,7 @@ final class XHProf_ProfilerTest extends TestCase {
 	}
 
 	public function test_summarize_sorts_by_wall_time_desc(): void {
-		$summary = XHProf_Profiler::summarize( self::RAW );
+		$summary = XHProfProfiler::summarize( self::RAW );
 
 		// WP_Query::get_posts (wt 800) > wpdb::query (wt 600) > main() (wt 100).
 		$this->assertSame(
@@ -68,14 +68,14 @@ final class XHProf_ProfilerTest extends TestCase {
 	}
 
 	public function test_summarize_respects_limit_and_preserves_keys(): void {
-		$summary = XHProf_Profiler::summarize( self::RAW, 2 );
+		$summary = XHProfProfiler::summarize( self::RAW, 2 );
 
 		$this->assertCount( 2, $summary );
 		$this->assertSame( [ 'WP_Query::get_posts', 'wpdb::query' ], array_keys( $summary ) );
 	}
 
 	public function test_summarize_handles_root_frame_without_edge_separator(): void {
-		$summary = XHProf_Profiler::summarize(
+		$summary = XHProfProfiler::summarize(
 			[ 'main()' => [ 'ct' => 1, 'wt' => 42, 'cpu' => 1, 'mu' => 1, 'pmu' => 1 ] ]
 		);
 
@@ -85,7 +85,7 @@ final class XHProf_ProfilerTest extends TestCase {
 
 	public function test_summarize_tolerates_missing_metric_keys(): void {
 		// CPU-only run: edges carry ct/wt/cpu but no mu/pmu.
-		$summary = XHProf_Profiler::summarize(
+		$summary = XHProfProfiler::summarize(
 			[ 'main()==>foo' => [ 'ct' => 1, 'wt' => 10, 'cpu' => 8 ] ]
 		);
 
@@ -96,27 +96,26 @@ final class XHProf_ProfilerTest extends TestCase {
 	}
 
 	public function test_summarize_returns_empty_array_for_no_data(): void {
-		$this->assertSame( [], XHProf_Profiler::summarize( [] ) );
+		$this->assertSame( [], XHProfProfiler::summarize( [] ) );
 	}
 
-	// --- singleton ------------------------------------------------------------
+	// --- instances ------------------------------------------------------------
 
-	public function test_get_instance_returns_same_instance(): void {
-		$this->assertSame(
-			XHProf_Profiler::get_instance(),
-			XHProf_Profiler::get_instance()
-		);
+	public function test_instances_are_decoupled(): void {
+		// Instance-based, not a singleton: a theme and a plugin each get their own
+		// profiler with independent session state rather than a shared global one.
+		$this->assertNotSame( new XHProfProfiler(), new XHProfProfiler() );
 	}
 
 	public function test_class_is_extendable(): void {
 		// Non-final so downstream packages can override summarize() etc. Guard the invariant.
-		$this->assertFalse( ( new \ReflectionClass( XHProf_Profiler::class ) )->isFinal() );
+		$this->assertFalse( ( new \ReflectionClass( XHProfProfiler::class ) )->isFinal() );
 	}
 
 	// --- guards (no live profiling) -------------------------------------------
 
 	public function test_stop_returns_empty_array_when_not_running(): void {
-		$profiler = XHProf_Profiler::get_instance();
+		$profiler = new XHProfProfiler();
 
 		$this->assertFalse( $profiler->is_running() );
 		$this->assertSame( [], $profiler->stop() );
@@ -127,7 +126,7 @@ final class XHProf_ProfilerTest extends TestCase {
 			$this->markTestSkipped( 'An XHProf backend is loaded; the no-backend guard is environment-dependent.' );
 		}
 
-		$profiler = XHProf_Profiler::get_instance();
+		$profiler = new XHProfProfiler();
 
 		$this->assertFalse( $profiler->start() );
 		$this->assertFalse( $profiler->is_running() );
@@ -139,7 +138,7 @@ final class XHProf_ProfilerTest extends TestCase {
 		}
 
 		$calls  = 0;
-		$result = XHProf_Profiler::get_instance()->profile(
+		$result = ( new XHProfProfiler() )->profile(
 			function () use ( &$calls ): void {
 				++$calls;
 			}

@@ -5,7 +5,7 @@
  * The maintained XHProf fork for PHP 8.x provides these symbols at runtime, but they
  * exist nowhere PHPStan can reflect (unlike the classic `xhprof` extension, which is
  * covered by PHPStan's bundled stubs). Referenced via PHPStan's `scanFiles` so the
- * guarded calls in {@see \rtCamp\WPFramework\Utils\XHProf_Profiler} resolve on every
+ * guarded calls in {@see \rtCamp\WPFramework\Utils\XHProfProfiler} resolve on every
  * machine. This file is never autoloaded or executed — the constant values here are
  * placeholders; the real values come from the extension at runtime.
  *

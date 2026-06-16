@@ -10,29 +10,34 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Utils;
 
-use rtCamp\WPFramework\Contracts\Traits\Singleton;
-
 /**
  * Profiles arbitrary code blocks with XHProf, independent of any dev-monitor stack.
+ *
+ * Instance-based: construct one per consumer rather than reaching for a single global
+ * instance, so a theme and a plugin sharing the PHP process each own a decoupled
+ * profiler with its own session state. Register an instance as Shareable in a
+ * consumer's container, or extend it to override {@see summarize()}:
+ *
+ *     $top = ( new XHProfProfiler() )->profile( fn() => expensive(), 10, 'expensive' );
  *
  * Silently no-ops when neither the `xhprof` nor the `tideways_xhprof` extension is
  * loaded, so it is safe to call in production and CI. Supports both backends — they
  * share the same `parent==>child => {ct,wt,cpu,mu,pmu}` data shape, so only the
  * enable/disable calls and the default flag constants differ.
  *
- *     $top = XHProf_Profiler::get_instance()->profile( fn() => expensive(), 10, 'expensive' );
+ * XHProf profiles the whole PHP process, not a single object, so the active session is
+ * inherently process-global even though instances are decoupled: only one session can
+ * run at a time across every instance. {@see start()} guards on that shared state and
+ * fails closed, so a second instance starting mid-session no-ops rather than corrupting
+ * the first instance's data or stopping its session early.
  *
  * Not `final`: downstream packages may extend it (e.g. to override {@see summarize()}).
  * Internal references use late static binding (`static::`) so overrides take effect.
  *
  * @package rtCamp\WPFramework\Utils
  * @since   0.0.1
- *
- * @phpstan-consistent-constructor
  */
-class XHProf_Profiler {
-
-	use Singleton;
+class XHProfProfiler {
 
 	/**
 	 * Action fired after each completed run, with the top-N summary and the run label.
@@ -43,11 +48,23 @@ class XHProf_Profiler {
 	public const PROFILE_HOOK = 'rt_framework_xhprof_profile';
 
 	/**
-	 * Whether a profiling session is currently active.
+	 * Whether a session started by this instance is currently active.
 	 *
 	 * @var bool
 	 */
 	private bool $running = false;
+
+	/**
+	 * Whether any instance in this process currently holds an active session.
+	 *
+	 * XHProf is process-global, so this latch — not the per-instance {@see $running}
+	 * flag — is what enforces the "one session at a time" invariant across decoupled
+	 * instances. Set by the instance that wins {@see start()}, cleared by the matching
+	 * {@see stop()}.
+	 *
+	 * @var bool
+	 */
+	private static bool $session_active = false;
 
 	/**
 	 * Backend in use for the active session: `xhprof`, `tideways`, or null when idle.
@@ -60,7 +77,9 @@ class XHProf_Profiler {
 	 * Start profiling.
 	 *
 	 * Returns false (silently) when a session is already running — XHProf is
-	 * process-global, so sessions cannot nest — or when no backend is available.
+	 * process-global, so sessions cannot nest, whether the running session belongs to
+	 * this instance or another one in the same process — or when no backend is
+	 * available.
 	 *
 	 * @param int|null $flags Backend profiling flags. Null resolves to CPU|MEMORY for
 	 *                        the detected backend. The default is resolved here, after
@@ -70,7 +89,7 @@ class XHProf_Profiler {
 	 * @return bool True if profiling started, false otherwise.
 	 */
 	public function start( ?int $flags = null ): bool {
-		if ( $this->running ) {
+		if ( self::$session_active ) {
 			return false;
 		}
 
@@ -87,6 +106,7 @@ class XHProf_Profiler {
 
 		$this->active_backend = $backend;
 		$this->running        = true;
+		self::$session_active = true;
 
 		return true;
 	}
@@ -112,6 +132,7 @@ class XHProf_Profiler {
 
 		$this->running        = false;
 		$this->active_backend = null;
+		self::$session_active = false;
 
 		$summary = static::summarize( $raw, $limit );
 
@@ -160,11 +181,13 @@ class XHProf_Profiler {
 	}
 
 	/**
-	 * Whether a profiling session is currently active.
+	 * Whether a session started by this instance is currently active.
 	 *
-	 * Useful for conditional teardown in long-running processes (WP-CLI, queue workers).
+	 * Reflects this instance only — not another instance's session elsewhere in the
+	 * process. Useful for conditional teardown in long-running processes (WP-CLI, queue
+	 * workers).
 	 *
-	 * @return bool True while a session is running.
+	 * @return bool True while a session started by this instance is running.
 	 */
 	public function is_running(): bool {
 		return $this->running;
