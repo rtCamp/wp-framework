@@ -28,12 +28,10 @@ use rtCamp\WPFramework\Contracts\Abstracts\AbstractSettingsPage;
  *
  * When a flag is overridden by its constant (e.g. `MY_PLUGIN_FEATURE_DARK_MODE`
  * in `wp-config.php`), the checkbox is disabled and reflects the constant's
- * value, with a help message naming the constant. A locked flag is also
- * excluded from {@see FeatureSelectorSettingsPage::get_settings()}, so saving
- * the page never writes its option: the stored value is left untouched and
- * reappears unchanged if the constant is later removed (a disabled checkbox is
- * not submitted, so registering it would let `options.php` overwrite the option
- * with `false` on every save).
+ * value, with a help message naming the constant. A disabled checkbox is not
+ * submitted, so {@see FeatureSelectorSettingsPage::sanitize_settings()} skips
+ * locked flags when rebuilding the stored array — their persisted value is left
+ * untouched and reappears unchanged if the constant is later removed.
  *
  * Boot order: register flags on the selector before `admin_init` fires
  * (typically during `plugins_loaded` or `init`). The flag list is read lazily
@@ -146,27 +144,48 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	/**
 	 * {@inheritDoc}
 	 *
-	 * One boolean setting per flag registered on the selector. Read lazily at
-	 * `admin_init`/`rest_api_init` time, after consumers have registered flags.
+	 * A single array setting holding every flag's toggle (`slug => bool`). Read
+	 * lazily at `admin_init`/`rest_api_init` time, after consumers have
+	 * registered flags. Per-flag locking and the default-on rule are applied by
+	 * {@see FeatureSelectorSettingsPage::sanitize_settings()}.
 	 */
 	protected function get_settings(): array {
-		$settings = [];
+		return [
+			$this->selector->storage_key() => [
+				'type'              => 'array',
+				'sanitize_callback' => [ $this, 'sanitize_settings' ],
+				'default'           => [],
+			],
+		];
+	}
+
+	/**
+	 * Sanitize the submitted toggles into the array stored under the selector's
+	 * {@see FeatureSelector::storage_key()}.
+	 *
+	 * Rebuilds the `slug => bool` array from the posted checkboxes: every unlocked
+	 * flag takes its submitted state — absent (unchecked) means `false`, so a
+	 * default-on flag actually turns off. Locked flags carry no submittable field,
+	 * so their stored value is preserved untouched; any unrelated keys already in
+	 * the option are left as-is.
+	 *
+	 * @param mixed $value Raw submitted value (a `slug => '1'` map, or anything).
+	 *
+	 * @return array<string, mixed> Toggles to persist.
+	 */
+	public function sanitize_settings( mixed $value ): array {
+		$submitted = is_array( $value ) ? $value : [];
+		$stored    = (array) get_option( $this->selector->storage_key(), [] );
 
 		foreach ( $this->selector->get_registered() as $slug ) {
-			// Skip locked flags: their disabled checkbox isn't submitted, so
-			// registering would let options.php overwrite the stored option.
 			if ( defined( $this->selector->constant_name( $slug ) ) ) {
 				continue;
 			}
 
-			$settings[ $this->selector->option_key( $slug ) ] = [
-				'type'              => 'boolean',
-				'sanitize_callback' => static fn ( mixed $value ): bool => (bool) $value,
-				'default'           => true,
-			];
+			$stored[ $slug ] = ! empty( $submitted[ $slug ] );
 		}
 
-		return $settings;
+		return $stored;
 	}
 
 	/**
@@ -225,7 +244,7 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	 * @param array{slug: string, name: string, description: string} $args Flag metadata.
 	 */
 	public function render_field( array $args ): void {
-		$option_key    = $this->selector->option_key( $args['slug'] );
+		$field_name    = $this->selector->storage_key() . '[' . $args['slug'] . ']';
 		$constant_name = $this->selector->constant_name( $args['slug'] );
 		$is_locked     = defined( $constant_name );
 
@@ -233,7 +252,7 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 		<label>
 			<input
 				type="checkbox"
-				name="<?php echo esc_attr( $option_key ); ?>"
+				name="<?php echo esc_attr( $field_name ); ?>"
 				value="1"
 				<?php checked( $this->selector->is_enabled( $args['slug'] ) ); ?>
 				<?php disabled( $is_locked ); ?>

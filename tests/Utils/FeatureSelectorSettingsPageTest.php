@@ -104,7 +104,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 	// --- settings registration ---------------------------------------------------
 
-	public function test_admin_init_registers_one_boolean_setting_per_flag(): void {
+	public function test_admin_init_registers_a_single_array_setting(): void {
 		$this->selector->register( [ 'dark-mode', 'beta-search' ] );
 		$this->page->register_hooks();
 
@@ -112,35 +112,47 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 		$settings = $GLOBALS['wp_framework_test_registered_settings']['my_plugin_features'];
 
+		// All flags share one option, so the page registers exactly one setting.
+		$this->assertSame( [ 'my_plugin_features' ], array_keys( $settings ) );
+
+		$args = $settings['my_plugin_features'];
+
+		$this->assertSame( 'array', $args['type'] );
+		$this->assertSame( [], $args['default'] );
+
+		// The sanitize callback rebuilds the stored array: a checked flag becomes
+		// true, an unchecked (absent) flag becomes false.
 		$this->assertSame(
-			[ 'my_plugin_feature_dark_mode', 'my_plugin_feature_beta_search' ],
-			array_keys( $settings )
+			[
+				'dark-mode'   => true,
+				'beta-search' => false,
+			],
+			$args['sanitize_callback']( [ 'dark-mode' => '1' ] )
 		);
-
-		$args = $settings['my_plugin_feature_dark_mode'];
-
-		$this->assertSame( 'boolean', $args['type'] );
-		$this->assertTrue( $args['default'] );
-		$this->assertTrue( $args['sanitize_callback']( '1' ) );
-		$this->assertFalse( $args['sanitize_callback']( '' ) );
 	}
 
-	public function test_admin_init_skips_registering_constant_locked_flags(): void {
+	public function test_saving_preserves_a_locked_flags_stored_value_and_still_renders_it(): void {
 		if ( ! defined( 'MY_PLUGIN_FEATURE_REG_LOCKED' ) ) {
 			define( 'MY_PLUGIN_FEATURE_REG_LOCKED', true );
 		}
+
+		// The locked flag was turned on and stored before the constant existed.
+		$GLOBALS['_wp_options']['my_plugin_features'] = [ 'reg-locked' => true ];
 
 		$this->selector->register( [ 'reg-locked', 'free-flag' ] );
 		$this->page->register_hooks();
 
 		do_action( 'admin_init' );
 
-		$settings = $GLOBALS['wp_framework_test_registered_settings']['my_plugin_features'];
+		$sanitize = $GLOBALS['wp_framework_test_registered_settings']['my_plugin_features']['my_plugin_features']['sanitize_callback'];
 
-		// The free flag is registered; the locked flag is not, so options.php
-		// never overwrites its stored option on save.
-		$this->assertArrayHasKey( 'my_plugin_feature_free_flag', $settings );
-		$this->assertArrayNotHasKey( 'my_plugin_feature_reg_locked', $settings );
+		// Saving the page (nothing submitted) rebuilds the stored array: the free
+		// flag follows the empty form and turns off, but the locked flag carries
+		// no field, so its stored value is preserved rather than reset to false.
+		$sanitized = $sanitize( [] );
+
+		$this->assertTrue( $sanitized['reg-locked'] );
+		$this->assertFalse( $sanitized['free-flag'] );
 
 		// It still renders as a (disabled) field so the lock stays visible.
 		$this->assertArrayHasKey(
@@ -151,15 +163,15 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 	public function test_flags_registered_after_hooks_still_appear(): void {
 		// Consumers register flags at plugins_loaded/init — after register_hooks()
-		// but before admin_init fires. get_settings() must evaluate lazily.
+		// but before admin_init fires. The field list must evaluate lazily.
 		$this->page->register_hooks();
 		$this->selector->register( [ 'late-flag' ] );
 
 		do_action( 'admin_init' );
 
 		$this->assertArrayHasKey(
-			'my_plugin_feature_late_flag',
-			$GLOBALS['wp_framework_test_registered_settings']['my_plugin_features']
+			'late-flag',
+			$GLOBALS['wp_framework_test_settings_fields']['my-plugin-features']['my_plugin_features_section']
 		);
 	}
 
@@ -196,7 +208,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 		$output = $this->render_field_output( 'dark-mode' );
 
-		$this->assertStringContainsString( 'name="my_plugin_feature_dark_mode"', $output );
+		$this->assertStringContainsString( 'name="my_plugin_features[dark-mode]"', $output );
 		$this->assertStringContainsString( 'checked', $output );
 		$this->assertStringNotContainsString( 'disabled', $output );
 	}
@@ -240,7 +252,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$output = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'action="options.php"', $output );
-		$this->assertStringContainsString( 'name="my_plugin_feature_dark_mode"', $output );
+		$this->assertStringContainsString( 'name="my_plugin_features[dark-mode]"', $output );
 		$this->assertStringContainsString( 'type="submit"', $output );
 		$this->assertSame( [ 'my_plugin_features' ], $GLOBALS['wp_framework_test_settings_fields_calls'] );
 	}

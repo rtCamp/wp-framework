@@ -13,7 +13,7 @@ namespace rtCamp\WPFramework\Utils;
 /**
  * Class - FeatureSelector
  *
- * Feature-flag registry with per-flag toggle storage.
+ * Feature-flag registry with per-context toggle storage.
  *
  * Only registered flags resolve: an unregistered or mistyped slug always
  * returns false from {@see FeatureSelector::is_enabled()} (fails closed), so a
@@ -21,7 +21,8 @@ namespace rtCamp\WPFramework\Utils;
  * precedence is:
  *   1. PHP constant — instant override (e.g. for tests or emergency disables
  *      via wp-config.php),
- *   2. WP option — persisted toggle (e.g. from a settings page),
+ *   2. stored toggle — the flag's entry in the per-context feature option (e.g.
+ *      written by a settings page),
  *   3. default `true` — features ship on; the selector exists to turn things
  *      off, not on.
  *
@@ -36,16 +37,21 @@ namespace rtCamp\WPFramework\Utils;
  *
  * Designed to be a service: construct it with the package's slug, register an
  * instance as Shareable in a consumer's container, or extend it to change the
- * key scheme by overriding the {@see FeatureSelector::option_prefix()} seam
- * (the same pattern as {@see \rtCamp\WPFramework\Utils\Cache::resolve_group()}).
+ * key scheme by overriding the {@see FeatureSelector::storage_key()} (where
+ * toggles live) or {@see FeatureSelector::option_prefix()} (constant and
+ * collision naming) seams — the same pattern as
+ * {@see \rtCamp\WPFramework\Utils\Cache::resolve_group()}.
  *
- * Key derivation: context and flag slugs are normalized (lowercase, runs of
- * characters outside `[a-z0-9_]` collapse to one underscore), the option key
- * is `{context}_feature_{flag}`, and the override constant is its uppercase
- * (`MY_PLUGIN_FEATURE_DARK_MODE` for context `my-plugin`, flag `dark-mode`).
- * With an empty context the structural prefix remains (`feature_dark_mode` /
- * `FEATURE_DARK_MODE`) — options and constants are global, so bare flag names
- * would risk colliding with unrelated code.
+ * Storage: every flag for a context lives in one option — `{context}_features`,
+ * an array of `slug => bool` — so a consumer adds one autoloaded row no matter
+ * how many flags it registers. The per-flag key `{context}_feature_{flag}` names
+ * no stored option; it exists only to derive the override constant (its
+ * uppercase, `MY_PLUGIN_FEATURE_DARK_MODE` for context `my-plugin`, flag
+ * `dark-mode`) and to detect slugs that collide once normalized. Slugs are
+ * normalized for derivation (lowercase; runs of characters outside `[a-z0-9_]`
+ * collapse to one underscore). With an empty context the structural prefix
+ * remains (`features` / `FEATURE_DARK_MODE`) — options and constants are global,
+ * so bare names would risk colliding with unrelated code.
  *
  * Pair with {@see FeatureSelectorSettingsPage} for an admin UI listing every
  * registered flag as a checkbox.
@@ -88,11 +94,11 @@ class FeatureSelector {
 	 * strings, a map of slug => metadata, or any mix of the two. Missing
 	 * `name` falls back to the slug; malformed entries are skipped.
 	 *
-	 * First registration wins: a slug that resolves to an already-registered
-	 * option key — an exact duplicate, or a different slug that normalizes to
-	 * the same key (e.g. `beta-search` and `beta search`) — is ignored and
-	 * flagged via `_doing_it_wrong()`, since the two would otherwise silently
-	 * share storage.
+	 * First registration wins: a slug that collides with an already-registered
+	 * one — an exact duplicate, or a different slug that normalizes to the same
+	 * key (e.g. `beta-search` and `beta search`) — is ignored and flagged via
+	 * `_doing_it_wrong()`, since the two would otherwise share a single override
+	 * constant and be indistinguishable.
 	 *
 	 * @param array<int|string, string|array{name?: string, description?: string}>|string $features Feature(s) to register.
 	 */
@@ -108,9 +114,9 @@ class FeatureSelector {
 				continue;
 			}
 
-			// Collisions are detected on the option key, not the raw slug: two
-			// slugs that normalize to the same key (e.g. `beta-search` and
-			// `beta search`) would share storage, so the first registration wins.
+			// Collisions are detected on the normalized per-flag key, not the raw
+			// slug: two slugs that normalize alike (e.g. `beta-search` and `beta
+			// search`) would share one override constant, so the first wins.
 			$option_key = $this->option_key( $slug );
 
 			foreach ( array_keys( $this->registered ) as $registered_slug ) {
@@ -145,7 +151,7 @@ class FeatureSelector {
 	 * returns false rather than inheriting the default-`true`. The check is
 	 * silent — it's a hot-path read, and a bad slug was already flagged at
 	 * register() time. For a registered flag the precedence is: PHP constant →
-	 * WP option → default `true`.
+	 * stored toggle → default `true`.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
@@ -164,59 +170,72 @@ class FeatureSelector {
 			return wp_validate_boolean( constant( $constant ) );
 		}
 
-		return (bool) get_option( $this->option_key( $flag ), true );
+		$features = (array) get_option( $this->storage_key(), [] );
+
+		// Default-on: a flag absent from the stored bag has never been turned off.
+		return ! array_key_exists( $flag, $features ) || (bool) $features[ $flag ];
 	}
 
 	/**
-	 * Programmatically enable a flag — persists to the WP option.
+	 * Programmatically enable a flag — sets its entry in the context's feature
+	 * option (see {@see FeatureSelector::storage_key()}).
 	 *
 	 * Refuses unregistered flags (flagged via `_doing_it_wrong()`): toggling a
-	 * slug that was never registered — usually a typo — would write a stray
-	 * option that {@see FeatureSelector::is_enabled()} ignores, so the caller
-	 * would believe it switched a feature on while nothing actually changed.
+	 * slug that was never registered — usually a typo — would write an entry that
+	 * {@see FeatureSelector::is_enabled()} ignores, so the caller would believe
+	 * it switched a feature on while nothing actually changed.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
-	 * @return bool True on success; false if the flag is unregistered, or if the
-	 *              option already held `true` (the latter mirrors `update_option()`).
+	 * @return bool True if the option changed; false if the flag is unregistered,
+	 *              or it already held `true` (the latter mirrors `update_option()`).
 	 */
 	public function enable( string $flag ): bool {
 		if ( ! $this->assert_registered( $flag, __METHOD__ ) ) {
 			return false;
 		}
 
-		return update_option( $this->option_key( $flag ), true );
+		return $this->set( $flag, true );
 	}
 
 	/**
-	 * Programmatically disable a flag — persists to the WP option.
+	 * Programmatically disable a flag — sets its entry to `false` in the context's
+	 * feature option.
 	 *
 	 * Refuses unregistered flags the same way {@see FeatureSelector::enable()}
 	 * does, so a typo'd toggle fails loudly instead of silently no-op'ing.
-	 *
-	 * `update_option( $key, false )` alone is a silent no-op when the option has
-	 * never been stored: core reads the missing option's implicit old value as
-	 * `false`, sees it already equals the new `false`, and skips the write — so
-	 * the row is never created and the flag stays at its default-`true` (enabled)
-	 * state. Add the row explicitly in that case so disabling always sticks.
 	 *
 	 * Note: a defined override constant still wins at read time.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
-	 * @return bool True if the option was written; false if the flag is
-	 *              unregistered or it already held `false`.
+	 * @return bool True if the option changed; false if the flag is unregistered
+	 *              or it already held `false`.
 	 */
 	public function disable( string $flag ): bool {
 		if ( ! $this->assert_registered( $flag, __METHOD__ ) ) {
 			return false;
 		}
 
-		$option_key = $this->option_key( $flag );
+		return $this->set( $flag, false );
+	}
 
-		return null === get_option( $option_key, null )
-			? add_option( $option_key, false )
-			: update_option( $option_key, false );
+	/**
+	 * Write a flag's toggle into the context's feature option (read-modify-write).
+	 * A missing option reads as `[]`, so the first toggle creates the row; the
+	 * shared array means one stored row per context, not one per flag.
+	 *
+	 * @param string $flag    Feature-flag slug (assumed registered).
+	 * @param bool   $enabled Target state.
+	 *
+	 * @return bool Whether the option changed (false when it already held this value).
+	 */
+	private function set( string $flag, bool $enabled ): bool {
+		$storage_key       = $this->storage_key();
+		$features          = (array) get_option( $storage_key, [] );
+		$features[ $flag ] = $enabled;
+
+		return update_option( $storage_key, $features );
 	}
 
 	/**
@@ -238,22 +257,39 @@ class FeatureSelector {
 	}
 
 	/**
-	 * Build the WP option key for a flag.
+	 * Build the per-flag key `{context}_feature_{flag}`. This names no stored
+	 * option — flags live together in {@see FeatureSelector::storage_key()} — and
+	 * exists only to derive the override constant ({@see FeatureSelector::constant_name()})
+	 * and to detect slugs that collide once normalized.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
-	 * @return string Fully qualified option key.
+	 * @return string Fully qualified per-flag key.
 	 */
 	public function option_key( string $flag ): string {
 		return $this->option_prefix() . $this->normalize( $flag );
 	}
 
 	/**
+	 * Build the option key that stores every flag's toggle for this context — a
+	 * single `{context}_features` array (`slug => bool`), so all flags share one
+	 * autoloaded row. Override this seam to relocate storage; distinct from
+	 * {@see FeatureSelector::option_key()}, which names no stored option.
+	 *
+	 * @return string Option key for the per-context feature bag.
+	 */
+	public function storage_key(): string {
+		$context = $this->normalize( $this->context );
+
+		return '' === $context ? 'features' : "{$context}_features";
+	}
+
+	/**
 	 * Build the override-constant name for a flag — the uppercase of its
-	 * option key, so the pair stays symmetrical by construction. Defining
-	 * this constant (typically in `wp-config.php`) overrides the persisted
-	 * option; its value is read with WordPress's boolean rules, so `false`,
-	 * `'false'`, `'0'`, `0`, and `''` all disable the flag.
+	 * per-flag key, so the pair stays symmetrical by construction. Defining
+	 * this constant (typically in `wp-config.php`) overrides the stored toggle;
+	 * its value is read with WordPress's boolean rules, so `false`, `'false'`,
+	 * `'0'`, `0`, and `''` all disable the flag.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
@@ -264,11 +300,12 @@ class FeatureSelector {
 	}
 
 	/**
-	 * Resolve the option-key prefix from the context. Override this seam to
-	 * change the key scheme ({@see FeatureSelector::constant_name()} follows
-	 * automatically).
+	 * Resolve the per-flag key prefix from the context. Override this seam to
+	 * change the constant/collision scheme ({@see FeatureSelector::option_key()}
+	 * and {@see FeatureSelector::constant_name()} follow automatically); override
+	 * {@see FeatureSelector::storage_key()} to change where toggles are stored.
 	 *
-	 * @return string Option-key prefix, ending in `_`.
+	 * @return string Per-flag key prefix, ending in `_`.
 	 */
 	protected function option_prefix(): string {
 		$context = $this->normalize( $this->context );
@@ -295,7 +332,7 @@ class FeatureSelector {
 	 * Guard a programmatic toggle ({@see FeatureSelector::enable()}/{@see FeatureSelector::disable()})
 	 * against unregistered flags: returns true if registered, otherwise flags the
 	 * caller via `_doing_it_wrong()` and returns false so the toggle refuses the
-	 * write. A typo'd toggle would otherwise write an option that is never read
+	 * write. A typo'd toggle would otherwise write an entry that is never read
 	 * back, fooling the caller into thinking a feature changed.
 	 *
 	 * The read path ({@see FeatureSelector::is_enabled()}) gates inline instead —

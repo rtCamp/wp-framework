@@ -126,11 +126,11 @@ final class FeatureSelectorTest extends TestCase {
 
 		$this->selector->enable( 'feature-toggle' );
 		$this->assertTrue( $this->selector->is_enabled( 'feature-toggle' ) );
-		$this->assertTrue( $GLOBALS['_wp_options']['my_plugin_feature_feature_toggle'] );
+		$this->assertTrue( $GLOBALS['_wp_options']['my_plugin_features']['feature-toggle'] );
 
 		$this->selector->disable( 'feature-toggle' );
 		$this->assertFalse( $this->selector->is_enabled( 'feature-toggle' ) );
-		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_feature_feature_toggle'] );
+		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_features']['feature-toggle'] );
 	}
 
 	public function test_enable_refuses_and_warns_for_an_unregistered_flag(): void {
@@ -138,14 +138,14 @@ final class FeatureSelectorTest extends TestCase {
 		// caller is flagged loudly rather than silently believing it took effect.
 		$this->assertFalse( $this->selector->enable( 'drak-mode' ) );
 
-		$this->assertArrayNotHasKey( 'my_plugin_feature_drak_mode', $GLOBALS['_wp_options'] );
+		$this->assertArrayNotHasKey( 'my_plugin_features', $GLOBALS['_wp_options'] );
 		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_disable_refuses_and_warns_for_an_unregistered_flag(): void {
 		$this->assertFalse( $this->selector->disable( 'drak-mode' ) );
 
-		$this->assertArrayNotHasKey( 'my_plugin_feature_drak_mode', $GLOBALS['_wp_options'] );
+		$this->assertArrayNotHasKey( 'my_plugin_features', $GLOBALS['_wp_options'] );
 		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
@@ -154,14 +154,31 @@ final class FeatureSelectorTest extends TestCase {
 
 		// Enabled by default, with no option ever written.
 		$this->assertTrue( $this->selector->is_enabled( 'fresh-flag' ) );
-		$this->assertArrayNotHasKey( 'my_plugin_feature_fresh_flag', $GLOBALS['_wp_options'] );
+		$this->assertArrayNotHasKey( 'my_plugin_features', $GLOBALS['_wp_options'] );
 
-		// disable() must persist `false` even though the (missing) old value is
-		// already `false` — update_option() alone would no-op and leave it on.
+		// disable() must persist `false` even though no row existed yet.
 		$this->selector->disable( 'fresh-flag' );
 
 		$this->assertFalse( $this->selector->is_enabled( 'fresh-flag' ) );
-		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_feature_fresh_flag'] );
+		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_features']['fresh-flag'] );
+	}
+
+	public function test_all_flags_for_a_context_share_one_option_row(): void {
+		$this->selector->register( [ 'feature-a', 'feature-b' ] );
+
+		$this->selector->enable( 'feature-a' );
+		$this->selector->disable( 'feature-b' );
+
+		// All toggles live in one option (a single autoloaded row), not one
+		// option per flag.
+		$this->assertSame( [ 'my_plugin_features' ], array_keys( $GLOBALS['_wp_options'] ) );
+		$this->assertSame(
+			[
+				'feature-a' => true,
+				'feature-b' => false,
+			],
+			$GLOBALS['_wp_options']['my_plugin_features']
+		);
 	}
 
 	public function test_unregistered_flag_fails_closed(): void {
@@ -227,6 +244,7 @@ final class FeatureSelectorTest extends TestCase {
 	public function test_key_derivation_is_symmetrical(): void {
 		$this->assertSame( 'my_plugin_feature_demo_flag', $this->selector->option_key( 'demo-flag' ) );
 		$this->assertSame( 'MY_PLUGIN_FEATURE_DEMO_FLAG', $this->selector->constant_name( 'demo-flag' ) );
+		$this->assertSame( 'my_plugin_features', $this->selector->storage_key() );
 	}
 
 	public function test_empty_context_uses_bare_feature_prefix(): void {
@@ -234,6 +252,7 @@ final class FeatureSelectorTest extends TestCase {
 
 		$this->assertSame( 'feature_demo_flag', $selector->option_key( 'demo-flag' ) );
 		$this->assertSame( 'FEATURE_DEMO_FLAG', $selector->constant_name( 'demo-flag' ) );
+		$this->assertSame( 'features', $selector->storage_key() );
 	}
 
 	public function test_context_is_normalized(): void {
