@@ -9,18 +9,21 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Utils;
 
-use PHPUnit\Framework\TestCase;
+use rtCamp\WPFramework\Tests\TestCase;
 use rtCamp\WPFramework\Utils\FeatureSelector;
 
 /**
  * Tests for FeatureSelector.
  *
- * get_option/update_option are stubbed in tests/bootstrap.php as a functional
- * in-memory store; setUp()/tearDown() reset it between tests.
+ * Integration tests against real WordPress (wp-env): toggles persist through the
+ * options API and each test's writes are rolled back by WP_UnitTestCase. The
+ * loud `_doing_it_wrong()` paths are asserted with setExpectedIncorrectUsage();
+ * a path that should stay silent simply omits it (an unexpected notice fails the
+ * test).
  *
- * Constants are process-global and immutable, so every constant-precedence
- * test uses a flag slug unique to that test and a guarded define() to stay
- * idempotent across re-runs in the same process.
+ * Constants are process-global and immutable, so every constant-precedence test
+ * uses a flag slug unique to that test and a guarded define() to stay idempotent
+ * across re-runs in the same process.
  */
 final class FeatureSelectorTest extends TestCase {
 
@@ -29,16 +32,10 @@ final class FeatureSelectorTest extends TestCase {
 	 */
 	private FeatureSelector $selector;
 
-	protected function setUp(): void {
-		$GLOBALS['_wp_options']                      = [];
-		$GLOBALS['wp_framework_test_doing_it_wrong'] = [];
+	public function set_up(): void {
+		parent::set_up();
 
 		$this->selector = new FeatureSelector( 'my-plugin' );
-	}
-
-	protected function tearDown(): void {
-		$GLOBALS['_wp_options']                      = [];
-		$GLOBALS['wp_framework_test_doing_it_wrong'] = [];
 	}
 
 	// --- register / registry ---------------------------------------------------
@@ -83,25 +80,29 @@ final class FeatureSelectorTest extends TestCase {
 	}
 
 	public function test_register_keeps_first_registration_and_warns_on_duplicate(): void {
+		$this->setExpectedIncorrectUsage( 'rtCamp\WPFramework\Utils\FeatureSelector::register' );
+
 		$this->selector->register( [ 'my-flag' => [ 'name' => 'Original' ] ] );
 		$this->selector->register( [ 'my-flag' => [ 'name' => 'Updated' ] ] );
 
 		// First write wins; the duplicate is ignored and flagged loudly.
 		$this->assertSame( 'Original', $this->selector->get_features()['my-flag']['name'] );
-		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_register_warns_on_slugs_that_normalize_to_the_same_key(): void {
+		$this->setExpectedIncorrectUsage( 'rtCamp\WPFramework\Utils\FeatureSelector::register' );
+
 		$this->selector->register( [ 'beta-search' ] );
-		$this->selector->register( [ 'beta search' ] ); // Normalizes to the same option key.
+		$this->selector->register( [ 'beta search' ] ); // Normalizes to the same key.
 
 		// First registration wins; the colliding slug is rejected and flagged.
 		$this->assertSame( [ 'beta-search' ], $this->selector->get_registered() );
-		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_register_skips_malformed_entries(): void {
 		// Malformed: int key with array value, string key with string value.
+		// No setExpectedIncorrectUsage(): skipping is silent, so an unexpected
+		// _doing_it_wrong() here would fail the test.
 		$this->selector->register(
 			[
 				0          => [ 'name' => 'Nameless' ],
@@ -110,7 +111,6 @@ final class FeatureSelectorTest extends TestCase {
 		);
 
 		$this->assertSame( [], $this->selector->get_registered() );
-		$this->assertEmpty( $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	// --- is_enabled / enable / disable ------------------------------------------
@@ -126,27 +126,27 @@ final class FeatureSelectorTest extends TestCase {
 
 		$this->selector->enable( 'feature-toggle' );
 		$this->assertTrue( $this->selector->is_enabled( 'feature-toggle' ) );
-		$this->assertTrue( $GLOBALS['_wp_options']['my_plugin_features']['feature-toggle'] );
+		$this->assertTrue( get_option( 'my_plugin_features' )['feature-toggle'] );
 
 		$this->selector->disable( 'feature-toggle' );
 		$this->assertFalse( $this->selector->is_enabled( 'feature-toggle' ) );
-		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_features']['feature-toggle'] );
+		$this->assertFalse( get_option( 'my_plugin_features' )['feature-toggle'] );
 	}
 
 	public function test_enable_refuses_and_warns_for_an_unregistered_flag(): void {
 		// A typo'd toggle is a programming error: nothing is persisted, and the
 		// caller is flagged loudly rather than silently believing it took effect.
-		$this->assertFalse( $this->selector->enable( 'drak-mode' ) );
+		$this->setExpectedIncorrectUsage( 'rtCamp\WPFramework\Utils\FeatureSelector::enable' );
 
-		$this->assertArrayNotHasKey( 'my_plugin_features', $GLOBALS['_wp_options'] );
-		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
+		$this->assertFalse( $this->selector->enable( 'drak-mode' ) );
+		$this->assertFalse( get_option( 'my_plugin_features', false ) );
 	}
 
 	public function test_disable_refuses_and_warns_for_an_unregistered_flag(): void {
-		$this->assertFalse( $this->selector->disable( 'drak-mode' ) );
+		$this->setExpectedIncorrectUsage( 'rtCamp\WPFramework\Utils\FeatureSelector::disable' );
 
-		$this->assertArrayNotHasKey( 'my_plugin_features', $GLOBALS['_wp_options'] );
-		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
+		$this->assertFalse( $this->selector->disable( 'drak-mode' ) );
+		$this->assertFalse( get_option( 'my_plugin_features', false ) );
 	}
 
 	public function test_disable_turns_off_a_never_stored_default_on_flag(): void {
@@ -154,13 +154,13 @@ final class FeatureSelectorTest extends TestCase {
 
 		// Enabled by default, with no option ever written.
 		$this->assertTrue( $this->selector->is_enabled( 'fresh-flag' ) );
-		$this->assertArrayNotHasKey( 'my_plugin_features', $GLOBALS['_wp_options'] );
+		$this->assertFalse( get_option( 'my_plugin_features', false ) );
 
 		// disable() must persist `false` even though no row existed yet.
 		$this->selector->disable( 'fresh-flag' );
 
 		$this->assertFalse( $this->selector->is_enabled( 'fresh-flag' ) );
-		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_features']['fresh-flag'] );
+		$this->assertFalse( get_option( 'my_plugin_features' )['fresh-flag'] );
 	}
 
 	public function test_all_flags_for_a_context_share_one_option_row(): void {
@@ -171,24 +171,24 @@ final class FeatureSelectorTest extends TestCase {
 
 		// All toggles live in one option (a single autoloaded row), not one
 		// option per flag.
-		$this->assertSame( [ 'my_plugin_features' ], array_keys( $GLOBALS['_wp_options'] ) );
 		$this->assertSame(
 			[
 				'feature-a' => true,
 				'feature-b' => false,
 			],
-			$GLOBALS['_wp_options']['my_plugin_features']
+			get_option( 'my_plugin_features' )
 		);
+		$this->assertFalse( get_option( 'my_plugin_feature_feature_a', false ) );
+		$this->assertFalse( get_option( 'my_plugin_feature_feature_b', false ) );
 	}
 
 	public function test_unregistered_flag_fails_closed(): void {
 		$this->selector->register( [ 'dark-mode' ] );
 
-		// A mistyped or never-registered slug returns false rather than
-		// inheriting the default-on, and the read stays silent (no notice spam).
+		// A mistyped or never-registered slug returns false rather than inheriting
+		// the default-on, and the read stays silent (no _doing_it_wrong()).
 		$this->assertFalse( $this->selector->is_enabled( 'drak-mode' ) );
 		$this->assertFalse( $this->selector->is_enabled( 'totally-unknown' ) );
-		$this->assertEmpty( $GLOBALS['wp_framework_test_doing_it_wrong'] );
 	}
 
 	public function test_unregistered_flag_fails_closed_even_with_a_defined_constant(): void {

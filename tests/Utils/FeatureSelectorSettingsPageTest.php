@@ -9,16 +9,16 @@ declare( strict_types = 1 );
 
 namespace rtCamp\WPFramework\Tests\Utils;
 
-use PHPUnit\Framework\TestCase;
+use rtCamp\WPFramework\Tests\TestCase;
 use rtCamp\WPFramework\Utils\FeatureSelector;
 use rtCamp\WPFramework\Utils\FeatureSelectorSettingsPage;
 
 /**
  * Tests for FeatureSelectorSettingsPage.
  *
- * The Settings API and admin functions are stubbed in tests/bootstrap.php as
- * recording stores (with a functional do_settings_sections); setUp()/tearDown()
- * reset them between tests.
+ * Integration tests against real WordPress (wp-env): hooks, the registered
+ * setting, the admin submenu, and settings sections/fields are read back from
+ * WordPress' own registries rather than stubs.
  */
 final class FeatureSelectorSettingsPageTest extends TestCase {
 
@@ -32,26 +32,51 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 	 */
 	private FeatureSelectorSettingsPage $page;
 
-	protected function setUp(): void {
-		$this->reset_globals();
+	public function set_up(): void {
+		parent::set_up();
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		require_once ABSPATH . 'wp-admin/includes/template.php';
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$GLOBALS['menu']                 = [];
+		$GLOBALS['submenu']              = [];
+		$GLOBALS['admin_page_hooks']     = [];
+		$GLOBALS['wp_settings_sections'] = [];
+		$GLOBALS['wp_settings_fields']   = [];
 
 		$this->selector = new FeatureSelector( 'my-plugin' );
 		$this->page     = new FeatureSelectorSettingsPage( $this->selector );
 	}
 
-	protected function tearDown(): void {
-		$this->reset_globals();
+	/**
+	 * Find the options-general.php submenu row for a given menu slug.
+	 *
+	 * Submenu rows are `[ menu_title, capability, menu_slug, page_title ]`.
+	 *
+	 * @param string $slug Menu slug to look up.
+	 *
+	 * @return array<int, string>|null Matching row, or null.
+	 */
+	private function submenu_row( string $slug ): ?array {
+		foreach ( $GLOBALS['submenu']['options-general.php'] ?? [] as $row ) {
+			if ( $slug === $row[2] ) {
+				return $row;
+			}
+		}
+
+		return null;
 	}
 
-	private function reset_globals(): void {
-		$GLOBALS['_wp_options']                              = [];
-		$GLOBALS['wp_framework_test_filters']                = [];
-		$GLOBALS['wp_framework_test_registered_settings']    = [];
-		$GLOBALS['wp_framework_test_settings_sections']      = [];
-		$GLOBALS['wp_framework_test_settings_fields']        = [];
-		$GLOBALS['wp_framework_test_settings_fields_calls']  = [];
-		$GLOBALS['wp_framework_test_admin_pages']            = [];
-		$GLOBALS['wp_framework_test_current_user_can']       = true;
+	/**
+	 * Capture render_field() output for a registered flag.
+	 */
+	private function render_field_output( string $slug ): string {
+		ob_start();
+		$this->page->render_field( $this->selector->get_features()[ $slug ] );
+
+		return (string) ob_get_clean();
 	}
 
 	// --- hooks ---------------------------------------------------------------
@@ -59,16 +84,14 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 	public function test_register_hooks_keeps_field_registration_off_rest_api_init(): void {
 		$this->page->register_hooks();
 
-		$hooks = $GLOBALS['wp_framework_test_filters'];
+		$this->assertNotFalse( has_action( 'admin_menu', [ $this->page, 'register_page' ] ) );
+		$this->assertNotFalse( has_action( 'admin_init', [ $this->page, 'register_settings' ] ) );
+		$this->assertNotFalse( has_action( 'rest_api_init', [ $this->page, 'register_settings' ] ) );
 
-		$this->assertArrayHasKey( 'admin_menu', $hooks );
-		$this->assertArrayHasKey( 'admin_init', $hooks );
-		$this->assertArrayHasKey( 'rest_api_init', $hooks );
-
-		// add_settings_section/field are not defined during REST requests —
+		// add_settings_section/field are undefined during REST requests —
 		// register_fields must be wired to admin_init only.
-		$this->assertContains( [ $this->page, 'register_fields' ], $hooks['admin_init'] );
-		$this->assertNotContains( [ $this->page, 'register_fields' ], $hooks['rest_api_init'] );
+		$this->assertNotFalse( has_action( 'admin_init', [ $this->page, 'register_fields' ] ) );
+		$this->assertFalse( has_action( 'rest_api_init', [ $this->page, 'register_fields' ] ) );
 	}
 
 	// --- page registration -----------------------------------------------------
@@ -76,13 +99,11 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 	public function test_register_page_uses_context_derived_slug(): void {
 		$this->page->register_page();
 
-		$pages = $GLOBALS['wp_framework_test_admin_pages'];
+		$row = $this->submenu_row( 'my-plugin-features' );
 
-		$this->assertCount( 1, $pages );
-		$this->assertSame( 'options-general.php', $pages[0]['parent_slug'] );
-		$this->assertSame( 'manage_options', $pages[0]['capability'] );
-		$this->assertSame( 'my-plugin-features', $pages[0]['menu_slug'] );
-		$this->assertSame( 'My Plugin Features', $pages[0]['page_title'] );
+		$this->assertNotNull( $row );
+		$this->assertSame( 'manage_options', $row[1] );
+		$this->assertSame( 'My Plugin Features', $row[3] );
 	}
 
 	public function test_menu_slug_slugifies_a_non_slug_context(): void {
@@ -90,7 +111,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 		$page->register_page();
 
-		$this->assertSame( 'my-plugin-v2-0-features', $GLOBALS['wp_framework_test_admin_pages'][0]['menu_slug'] );
+		$this->assertNotNull( $this->submenu_row( 'my-plugin-v2-0-features' ) );
 	}
 
 	public function test_empty_context_page_slug_is_bare_features(): void {
@@ -98,27 +119,28 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 		$page->register_page();
 
-		$this->assertSame( 'features', $GLOBALS['wp_framework_test_admin_pages'][0]['menu_slug'] );
-		$this->assertSame( 'Features', $GLOBALS['wp_framework_test_admin_pages'][0]['page_title'] );
+		$row = $this->submenu_row( 'features' );
+
+		$this->assertNotNull( $row );
+		$this->assertSame( 'Features', $row[3] );
 	}
 
 	// --- settings registration ---------------------------------------------------
 
-	public function test_admin_init_registers_a_single_array_setting(): void {
+	public function test_register_settings_registers_a_single_array_setting(): void {
 		$this->selector->register( [ 'dark-mode', 'beta-search' ] );
-		$this->page->register_hooks();
 
-		do_action( 'admin_init' );
+		$this->page->register_settings();
 
-		$settings = $GLOBALS['wp_framework_test_registered_settings']['my_plugin_features'];
+		$registered = get_registered_settings();
 
-		// All flags share one option, so the page registers exactly one setting.
-		$this->assertSame( [ 'my_plugin_features' ], array_keys( $settings ) );
+		// All flags share one option: the page registers exactly one setting and
+		// no per-flag settings.
+		$this->assertArrayHasKey( 'my_plugin_features', $registered );
+		$this->assertArrayNotHasKey( 'my_plugin_feature_dark_mode', $registered );
 
-		$args = $settings['my_plugin_features'];
-
-		$this->assertSame( 'array', $args['type'] );
-		$this->assertSame( [], $args['default'] );
+		$this->assertSame( 'array', $registered['my_plugin_features']['type'] );
+		$this->assertSame( [], $registered['my_plugin_features']['default'] );
 
 		// The sanitize callback rebuilds the stored array: a checked flag becomes
 		// true, an unchecked (absent) flag becomes false.
@@ -127,7 +149,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 				'dark-mode'   => true,
 				'beta-search' => false,
 			],
-			$args['sanitize_callback']( [ 'dark-mode' => '1' ] )
+			$this->page->sanitize_settings( [ 'dark-mode' => '1' ] )
 		);
 	}
 
@@ -137,19 +159,16 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		}
 
 		// The locked flag was turned on and stored before the constant existed.
-		$GLOBALS['_wp_options']['my_plugin_features'] = [ 'reg-locked' => true ];
+		update_option( 'my_plugin_features', [ 'reg-locked' => true ] );
 
 		$this->selector->register( [ 'reg-locked', 'free-flag' ] );
-		$this->page->register_hooks();
 
-		do_action( 'admin_init' );
-
-		$sanitize = $GLOBALS['wp_framework_test_registered_settings']['my_plugin_features']['my_plugin_features']['sanitize_callback'];
+		$this->page->register_fields();
 
 		// Saving the page (nothing submitted) rebuilds the stored array: the free
 		// flag follows the empty form and turns off, but the locked flag carries
 		// no field, so its stored value is preserved rather than reset to false.
-		$sanitized = $sanitize( [] );
+		$sanitized = $this->page->sanitize_settings( [] );
 
 		$this->assertTrue( $sanitized['reg-locked'] );
 		$this->assertFalse( $sanitized['free-flag'] );
@@ -157,21 +176,22 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		// It still renders as a (disabled) field so the lock stays visible.
 		$this->assertArrayHasKey(
 			'reg-locked',
-			$GLOBALS['wp_framework_test_settings_fields']['my-plugin-features']['my_plugin_features_section']
+			$GLOBALS['wp_settings_fields']['my-plugin-features']['my_plugin_features_section']
 		);
 	}
 
 	public function test_flags_registered_after_hooks_still_appear(): void {
 		// Consumers register flags at plugins_loaded/init — after register_hooks()
-		// but before admin_init fires. The field list must evaluate lazily.
+		// but before admin_init fires register_fields(). The field list must be
+		// read lazily at that point, not captured when the hooks were wired.
 		$this->page->register_hooks();
 		$this->selector->register( [ 'late-flag' ] );
 
-		do_action( 'admin_init' );
+		$this->page->register_fields();
 
 		$this->assertArrayHasKey(
 			'late-flag',
-			$GLOBALS['wp_framework_test_settings_fields']['my-plugin-features']['my_plugin_features_section']
+			$GLOBALS['wp_settings_fields']['my-plugin-features']['my_plugin_features_section']
 		);
 	}
 
@@ -190,10 +210,10 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 
 		$this->assertArrayHasKey(
 			'my_plugin_features_section',
-			$GLOBALS['wp_framework_test_settings_sections']['my-plugin-features']
+			$GLOBALS['wp_settings_sections']['my-plugin-features']
 		);
 
-		$fields = $GLOBALS['wp_framework_test_settings_fields']['my-plugin-features']['my_plugin_features_section'];
+		$fields = $GLOBALS['wp_settings_fields']['my-plugin-features']['my_plugin_features_section'];
 
 		$this->assertSame( [ 'dark-mode', 'beta-search' ], array_keys( $fields ) );
 		$this->assertSame( 'Dark Mode', $fields['dark-mode']['title'] );
@@ -254,25 +274,16 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$this->assertStringContainsString( 'action="options.php"', $output );
 		$this->assertStringContainsString( 'name="my_plugin_features[dark-mode]"', $output );
 		$this->assertStringContainsString( 'type="submit"', $output );
-		$this->assertSame( [ 'my_plugin_features' ], $GLOBALS['wp_framework_test_settings_fields_calls'] );
+		// settings_fields() emits the option-group hidden field.
+		$this->assertStringContainsString( 'option_page', $output );
 	}
 
 	public function test_render_bails_for_user_without_capability(): void {
-		$GLOBALS['wp_framework_test_current_user_can'] = false;
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
 
 		ob_start();
 		$this->page->render();
 
 		$this->assertSame( '', ob_get_clean() );
-	}
-
-	/**
-	 * Capture render_field() output for a registered flag.
-	 */
-	private function render_field_output( string $slug ): string {
-		ob_start();
-		$this->page->render_field( $this->selector->get_features()[ $slug ] );
-
-		return (string) ob_get_clean();
 	}
 }
