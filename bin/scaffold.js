@@ -18,14 +18,14 @@ const fs = require( 'fs' );
 const path = require( 'path' );
 const { execFileSync } = require( 'child_process' );
 
-// Interactive primitives (Wizard, text, confirm, spinner, CancelledError) come
-// from the shared wp-tooling UI kit; styled status lines + the details table are
-// wp-framework-local (the kit deliberately does not ship those).
+// Primitives (Wizard, text, confirm, spinner, CancelledError) from the wp-tooling
+// kit; styled status lines + details table are local (the kit doesn't ship those).
 const ui = { ...require( '@rtcamp/wp-tooling/ui' ), ...require( './lib/style' ) };
 
-const { generateIdentity } = require( './scaffold/identity' );
+const { identityFromName } = require( './scaffold/identity' );
 const { validateName } = require( './scaffold/validate' );
-const { buildReplacements } = require( './scaffold/tokens' );
+const { buildIdentityReplacements } = require( './scaffold/tokens' );
+const { editIdentityFields } = require( './scaffold/edit' );
 const { collectFiles, replaceInFiles, renameFiles } = require( './scaffold/replace' );
 const { applyVersion } = require( './scaffold/version' );
 const { writeIdentityFile, readIdentityFile } = require( './scaffold/persist' );
@@ -58,7 +58,8 @@ Set up this ${ kind }: rename the starter tokens to your project name, apply the
 version, persist identity to .wp-scaffold.json, then optional git / Husky / cleanup.
 
 Once set up (.wp-scaffold.json exists), 'npm run init' enters MANAGE mode to
-toggle optional features on/off. Re-runnable any time.
+edit project details (name, namespace, prefixes, ...) and toggle optional
+features. Re-runnable any time.
 
 Scaffold options (first run):
   --name=NAME      Use NAME without prompting (required with --yes).
@@ -104,45 +105,39 @@ const parseFlags = ( argv ) => {
 };
 
 /**
- * Resolve the full identity, replacement pairs, details table and persisted
- * payload for a chosen name, from the project config.
+ * The starter's placeholder identity (replacement source for a fresh scaffold).
  *
- * @param {Object} config             - Per-project scaffold config.
- * @param {string} name               - Chosen project name.
- * @param {Object} [overrides]        - Optional { version, vendor } overrides.
- * @return {Object} { target, replacements, namespace, version, details, persistPayload }
+ * @param {Object} config - Per-project scaffold config.
+ * @return {Object} The full placeholder identity.
  */
-const buildContext = ( config, name, overrides = {} ) => {
-	const vendor = overrides.vendor || config.vendor || 'rtcamp';
-	const target = generateIdentity( name, { vendor } );
-	const source = generateIdentity( config.source.name, { vendor } );
+const placeholderIdentity = ( config ) => identityFromName( config.source.name, config, config.source );
 
-	const extra = 'function' === typeof config.extraTokens ? config.extraTokens( target, source ) : {};
-	const replacements = buildReplacements( source, target, extra );
-
-	const namespace = 'function' === typeof config.namespace ? config.namespace( target ) : '';
-	const version = overrides.version || config.version || DEFAULT_VERSION;
-
-	const details = 'function' === typeof config.details
-		? config.details( target, { namespace, version } )
-		: {};
+/**
+ * Build replacement pairs + persisted payload for a chosen target identity.
+ *
+ * @param {Object} config   - Per-project scaffold config.
+ * @param {Object} targetId - The full target identity (post-edit).
+ * @return {Object} { replacements, persistPayload }
+ */
+const contextFromIdentity = ( config, targetId ) => {
+	const replacements = buildIdentityReplacements( placeholderIdentity( config ), targetId );
 
 	const persistPayload = {
-		name: target.name,
+		name: targetId.name,
 		kind: config.kind,
-		version,
-		slug: target.slug,
-		textDomain: target.textDomain,
-		package: target.package,
-		namespace,
-		functionPrefix: target.functionPrefix,
-		constantPrefix: target.constantPrefix,
-		cssPrefix: target.cssPrefix,
+		version: targetId.version,
+		slug: targetId.textDomain,
+		textDomain: targetId.textDomain,
+		package: targetId.package,
+		namespace: targetId.namespace,
+		functionPrefix: targetId.functionPrefix,
+		constantPrefix: targetId.constantPrefix,
+		cssPrefix: targetId.cssPrefix,
 		features: {},
 		generatedBy: 'rtcamp/wp-framework scaffold',
 	};
 
-	return { target, replacements, namespace, version, details, persistPayload };
+	return { replacements, persistPayload };
 };
 
 /**
@@ -225,38 +220,21 @@ const setupSteps = ( config, root, flags ) => {
 			name: 'Review',
 			skip: ( c ) => c.cancelled,
 			async run( c ) {
-				const overrides = { version: flags.version };
+				const start = identityFromName( c.name, config, {} );
+				start.version = flags.version || config.version || DEFAULT_VERSION;
 
-				// Re-render the identity until the user confirms or cancels.
-				for ( ;; ) {
-					Object.assign( c, buildContext( config, c.name, overrides ) );
-					ui.table( c.details, { title: `${ cap( kind ) } details` } );
-
-					if ( flags.yes ) {
-						return;
-					}
-
-					const ok = await ui.confirm( { message: 'Looks good?', defaultValue: true } );
-					if ( ok ) {
-						return;
-					}
-
-					const choice = await ui.radio( {
-						message: 'What would you like to change?',
-						choices: [ 'Name', 'Version', 'Cancel setup' ],
-					} );
-
-					if ( 'Cancel setup' === choice ) {
-						c.cancelled = true;
-						ui.warn( 'Setup cancelled. Nothing was changed.' );
-						return;
-					}
-					if ( 'Name' === choice ) {
-						c.name = await ui.text( { message: `${ cap( kind ) } name`, defaultValue: c.name, validate: validateName } );
-					} else if ( 'Version' === choice ) {
-						overrides.version = await ui.text( { message: 'Version', defaultValue: c.version } );
-					}
+				const { id, confirmed } = await editIdentityFields( config, start, ui, flags, true );
+				if ( ! confirmed ) {
+					c.cancelled = true;
+					ui.warn( 'Setup cancelled. Nothing was changed.' );
+					return;
 				}
+
+				const ctx = contextFromIdentity( config, id );
+				c.target = id;
+				c.version = id.version;
+				c.replacements = ctx.replacements;
+				c.persistPayload = ctx.persistPayload;
 			},
 		},
 		{
@@ -273,11 +251,11 @@ const setupSteps = ( config, root, flags ) => {
 			name: 'Apply version',
 			skip: ( c ) => c.cancelled || ! config.versionFiles,
 			async run( c ) {
-				// Resolve any function paths against the chosen identity, since
-				// files may have just been renamed in the previous step.
+				// Resolve function paths against the chosen identity; files may have just been renamed.
+				const target = { ...c.target, kebab: c.target.textDomain };
 				const files = config.versionFiles.map( ( spec ) => ( {
 					...spec,
-					path: 'function' === typeof spec.path ? spec.path( c.target ) : spec.path,
+					path: 'function' === typeof spec.path ? spec.path( target ) : spec.path,
 				} ) );
 				applyVersion( root, files, c.version, ui );
 			},
@@ -289,8 +267,7 @@ const setupSteps = ( config, root, flags ) => {
 				const api = makeFeatureApi( root, c.persistPayload, ui );
 				let wantOn;
 				if ( flags.yes ) {
-					// Preserve already-enabled features (matters on --reinit over an
-					// existing tree) in addition to any defaultOn features.
+					// Preserve already-enabled features (matters on --reinit over an existing tree) plus defaultOn.
 					const detected = detectMap( config, api );
 					wantOn = new Set(
 						( config.features || [] )

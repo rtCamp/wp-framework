@@ -13,7 +13,8 @@ const {
 	disableFeature,
 	detectMap,
 } = require( './features' );
-const { writeFeatures } = require( './persist' );
+const { writeFeatures, readIdentityFile } = require( './persist' );
+const { editDetailsFlow } = require( './edit' );
 
 /**
  * Capitalise the first letter.
@@ -118,9 +119,8 @@ const toggleFeatures = async ( config, root, opts ) => {
 		unknown = r.unknown;
 	}
 
-	// Every exit path goes through finalize: in manage mode it rewrites the
-	// persisted map from a fresh detect sweep, so persisted intent always trails
-	// disk reality (this heals pre-existing drift even on no-op runs).
+	// Every exit goes through finalize: in manage mode it rewrites the persisted
+	// map from a fresh detect sweep, so intent trails disk and drift self-heals.
 	const finalize = ( changed, failed ) => {
 		const finalMap = detectMap( config, api );
 		if ( 'manage' === mode ) {
@@ -169,8 +169,8 @@ const toggleFeatures = async ( config, root, opts ) => {
 	toDisable.forEach( ( r ) => ui.warn( `- disable ${ r.label }` ) );
 
 	if ( ! flags.yes ) {
-		// Default to NO whenever the plan disables anything, so an accidental
-		// deselect can never silently remove a feature without confirmation.
+		// Default to NO when the plan disables anything: an accidental deselect
+		// shouldn't silently remove a feature.
 		const ok = await ui.confirm( { message: 'Apply these changes?', defaultValue: 0 === toDisable.length } );
 		if ( ! ok ) {
 			ui.warn( 'No changes applied.' );
@@ -291,13 +291,20 @@ const manageFlow = async ( config, root, argv, identity, ui, reinit ) => {
 	// Interactive menu.
 	ui.heading( `${ cap( config.kind || 'project' ) } -- manage` );
 	for ( ;; ) {
-		const choices = features.length
-			? [ 'Toggle features', 'Show status', 'Re-run full setup', 'Exit' ]
-			: [ 'Re-run full setup', 'Exit' ];
+		const choices = [ 'Edit project details' ];
+		if ( features.length ) {
+			choices.push( 'Toggle features', 'Show status' );
+		}
+		choices.push( 'Re-run full setup', 'Exit' );
+
 		const choice = await ui.radio( { message: 'What would you like to do?', choices } );
 
 		if ( 'Exit' === choice ) {
 			return;
+		}
+		if ( 'Edit project details' === choice ) {
+			await editDetailsFlow( config, root, readIdentityFile( root ) || identity, ui, flags );
+			continue;
 		}
 		if ( 'Show status' === choice ) {
 			const r = reconcile( config, reqReadFeatures( root ), api );
@@ -309,7 +316,7 @@ const manageFlow = async ( config, root, argv, identity, ui, reinit ) => {
 			return;
 		}
 		// Toggle features: re-read fresh rows each loop.
-		const r = reconcile( config, ( reqReadFeatures( root ) ), api );
+		const r = reconcile( config, reqReadFeatures( root ), api );
 		await toggleFeatures( config, root, { mode: 'manage', flags, api, ui, rows: r.rows, unknown: r.unknown } );
 	}
 };
