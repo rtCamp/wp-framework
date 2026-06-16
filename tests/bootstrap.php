@@ -215,6 +215,20 @@ if ( ! function_exists( 'get_admin_page_title' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	function wp_validate_boolean( mixed $value ): bool {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+
+		return (bool) $value;
+	}
+}
+
 // Load fixtures that contain multiple classes per file (PSR-4 only autoloads
 // single-class files matching the class name).
 require_once __DIR__ . '/Fixtures/LoaderFixtures.php';

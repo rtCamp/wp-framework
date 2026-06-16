@@ -133,6 +133,22 @@ final class FeatureSelectorTest extends TestCase {
 		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_feature_feature_toggle'] );
 	}
 
+	public function test_enable_refuses_and_warns_for_an_unregistered_flag(): void {
+		// A typo'd toggle is a programming error: nothing is persisted, and the
+		// caller is flagged loudly rather than silently believing it took effect.
+		$this->assertFalse( $this->selector->enable( 'drak-mode' ) );
+
+		$this->assertArrayNotHasKey( 'my_plugin_feature_drak_mode', $GLOBALS['_wp_options'] );
+		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
+	}
+
+	public function test_disable_refuses_and_warns_for_an_unregistered_flag(): void {
+		$this->assertFalse( $this->selector->disable( 'drak-mode' ) );
+
+		$this->assertArrayNotHasKey( 'my_plugin_feature_drak_mode', $GLOBALS['_wp_options'] );
+		$this->assertCount( 1, $GLOBALS['wp_framework_test_doing_it_wrong'] );
+	}
+
 	public function test_disable_turns_off_a_never_stored_default_on_flag(): void {
 		$this->selector->register( [ 'fresh-flag' ] );
 
@@ -148,10 +164,33 @@ final class FeatureSelectorTest extends TestCase {
 		$this->assertFalse( $GLOBALS['_wp_options']['my_plugin_feature_fresh_flag'] );
 	}
 
+	public function test_unregistered_flag_fails_closed(): void {
+		$this->selector->register( [ 'dark-mode' ] );
+
+		// A mistyped or never-registered slug returns false rather than
+		// inheriting the default-on, and the read stays silent (no notice spam).
+		$this->assertFalse( $this->selector->is_enabled( 'drak-mode' ) );
+		$this->assertFalse( $this->selector->is_enabled( 'totally-unknown' ) );
+		$this->assertEmpty( $GLOBALS['wp_framework_test_doing_it_wrong'] );
+	}
+
+	public function test_unregistered_flag_fails_closed_even_with_a_defined_constant(): void {
+		if ( ! defined( 'MY_PLUGIN_FEATURE_PHANTOM' ) ) {
+			define( 'MY_PLUGIN_FEATURE_PHANTOM', true );
+		}
+
+		// The registry is authoritative: a flag that was never registered stays
+		// off even if a matching override constant happens to be defined — the
+		// registry check runs before the constant lookup.
+		$this->assertFalse( $this->selector->is_enabled( 'phantom' ) );
+	}
+
 	public function test_true_constant_overrides_disabled_option(): void {
 		if ( ! defined( 'MY_PLUGIN_FEATURE_FORCED_ON' ) ) {
 			define( 'MY_PLUGIN_FEATURE_FORCED_ON', true );
 		}
+
+		$this->selector->register( [ 'forced-on' ] );
 
 		// Even with the option explicitly set to false, the constant wins.
 		$this->selector->disable( 'forced-on' );
@@ -164,9 +203,23 @@ final class FeatureSelectorTest extends TestCase {
 			define( 'MY_PLUGIN_FEATURE_FORCED_OFF', false );
 		}
 
+		$this->selector->register( [ 'forced-off' ] );
+
 		$this->selector->enable( 'forced-off' );
 
 		$this->assertFalse( $this->selector->is_enabled( 'forced-off' ) );
+	}
+
+	public function test_string_false_constant_disables_the_flag(): void {
+		if ( ! defined( 'MY_PLUGIN_FEATURE_STRING_OFF' ) ) {
+			define( 'MY_PLUGIN_FEATURE_STRING_OFF', 'false' );
+		}
+
+		$this->selector->register( [ 'string-off' ] );
+
+		// A constant typed as the string 'false' (a common wp-config mistake)
+		// must disable the flag — a bare `(bool) 'false'` would be true.
+		$this->assertFalse( $this->selector->is_enabled( 'string-off' ) );
 	}
 
 	// --- key derivation ----------------------------------------------------------
@@ -198,6 +251,9 @@ final class FeatureSelectorTest extends TestCase {
 
 	public function test_same_flag_in_different_contexts_does_not_collide(): void {
 		$other = new FeatureSelector( 'other-plugin' );
+
+		$this->selector->register( [ 'shared-flag' ] );
+		$other->register( [ 'shared-flag' ] );
 
 		// Same slug, opposite states: each context reads its own option key,
 		// so toggling one cannot affect the other.

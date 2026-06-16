@@ -15,7 +15,10 @@ namespace rtCamp\WPFramework\Utils;
  *
  * Feature-flag registry with per-flag toggle storage.
  *
- * Lookup precedence for {@see FeatureSelector::is_enabled()}:
+ * Only registered flags resolve: an unregistered or mistyped slug always
+ * returns false from {@see FeatureSelector::is_enabled()} (fails closed), so a
+ * typo can't run a feature that doesn't exist. For a registered flag the lookup
+ * precedence is:
  *   1. PHP constant — instant override (e.g. for tests or emergency disables
  *      via wp-config.php),
  *   2. WP option — persisted toggle (e.g. from a settings page),
@@ -138,17 +141,27 @@ class FeatureSelector {
 	/**
 	 * Check whether a feature flag is enabled.
 	 *
-	 * Precedence: PHP constant → WP option → default `true`.
+	 * Unregistered flags fail closed: a never-registered slug (usually a typo)
+	 * returns false rather than inheriting the default-`true`. The check is
+	 * silent — it's a hot-path read, and a bad slug was already flagged at
+	 * register() time. For a registered flag the precedence is: PHP constant →
+	 * WP option → default `true`.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
 	 * @return bool True if enabled, false otherwise.
 	 */
 	public function is_enabled( string $flag ): bool {
+		if ( ! isset( $this->registered[ $flag ] ) ) {
+			return false;
+		}
+
 		$constant = $this->constant_name( $flag );
 
 		if ( defined( $constant ) ) {
-			return (bool) constant( $constant );
+			// Parse with WP's boolean rules: a string 'false' constant (a common
+			// wp-config typo) must disable the flag — `(bool) 'false'` is true.
+			return wp_validate_boolean( constant( $constant ) );
 		}
 
 		return (bool) get_option( $this->option_key( $flag ), true );
@@ -157,17 +170,29 @@ class FeatureSelector {
 	/**
 	 * Programmatically enable a flag — persists to the WP option.
 	 *
+	 * Refuses unregistered flags (flagged via `_doing_it_wrong()`): toggling a
+	 * slug that was never registered — usually a typo — would write a stray
+	 * option that {@see FeatureSelector::is_enabled()} ignores, so the caller
+	 * would believe it switched a feature on while nothing actually changed.
+	 *
 	 * @param string $flag Feature-flag slug.
 	 *
-	 * @return bool True on success; false if the option already held `true`
-	 *              (mirrors `update_option()`).
+	 * @return bool True on success; false if the flag is unregistered, or if the
+	 *              option already held `true` (the latter mirrors `update_option()`).
 	 */
 	public function enable( string $flag ): bool {
+		if ( ! $this->assert_registered( $flag, __METHOD__ ) ) {
+			return false;
+		}
+
 		return update_option( $this->option_key( $flag ), true );
 	}
 
 	/**
 	 * Programmatically disable a flag — persists to the WP option.
+	 *
+	 * Refuses unregistered flags the same way {@see FeatureSelector::enable()}
+	 * does, so a typo'd toggle fails loudly instead of silently no-op'ing.
 	 *
 	 * `update_option( $key, false )` alone is a silent no-op when the option has
 	 * never been stored: core reads the missing option's implicit old value as
@@ -179,9 +204,14 @@ class FeatureSelector {
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
-	 * @return bool True if the option was written; false if it already held `false`.
+	 * @return bool True if the option was written; false if the flag is
+	 *              unregistered or it already held `false`.
 	 */
 	public function disable( string $flag ): bool {
+		if ( ! $this->assert_registered( $flag, __METHOD__ ) ) {
+			return false;
+		}
+
 		$option_key = $this->option_key( $flag );
 
 		return null === get_option( $option_key, null )
@@ -222,7 +252,8 @@ class FeatureSelector {
 	 * Build the override-constant name for a flag — the uppercase of its
 	 * option key, so the pair stays symmetrical by construction. Defining
 	 * this constant (typically in `wp-config.php`) overrides the persisted
-	 * option.
+	 * option; its value is read with WordPress's boolean rules, so `false`,
+	 * `'false'`, `'0'`, `0`, and `''` all disable the flag.
 	 *
 	 * @param string $flag Feature-flag slug.
 	 *
@@ -258,5 +289,39 @@ class FeatureSelector {
 	 */
 	protected function normalize( string $value ): string {
 		return trim( (string) preg_replace( '/[^a-z0-9_]+/', '_', strtolower( $value ) ), '_' );
+	}
+
+	/**
+	 * Guard a programmatic toggle ({@see FeatureSelector::enable()}/{@see FeatureSelector::disable()})
+	 * against unregistered flags: returns true if registered, otherwise flags the
+	 * caller via `_doing_it_wrong()` and returns false so the toggle refuses the
+	 * write. A typo'd toggle would otherwise write an option that is never read
+	 * back, fooling the caller into thinking a feature changed.
+	 *
+	 * The read path ({@see FeatureSelector::is_enabled()}) gates inline instead —
+	 * a mistyped read just fails closed silently, avoiding notice spam on a hot
+	 * path and a double notice when register() already rejected the slug.
+	 *
+	 * @param string $flag   Feature-flag slug.
+	 * @param string $method Calling method, for the notice (pass `__METHOD__`).
+	 *
+	 * @return bool True if the flag is registered.
+	 */
+	private function assert_registered( string $flag, string $method ): bool {
+		if ( isset( $this->registered[ $flag ] ) ) {
+			return true;
+		}
+
+		_doing_it_wrong(
+			esc_html( $method ),
+			sprintf(
+				/* translators: %s: feature-flag slug. */
+				esc_html__( 'Feature flag "%s" is not registered; register it before use.', 'wp-framework' ),
+				esc_html( $flag )
+			),
+			'0.0.1'
+		);
+
+		return false;
 	}
 }
