@@ -76,7 +76,7 @@ abstract class AbstractSettingsPage implements Registrable {
 				$this->get_page_title(),
 				$this->get_menu_title(),
 				$this->get_capability(),
-				static::get_slug(),
+				$this->get_menu_slug(),
 				[ $this, 'render' ],
 				$this->get_position()
 			);
@@ -85,12 +85,24 @@ abstract class AbstractSettingsPage implements Registrable {
 				$this->get_page_title(),
 				$this->get_menu_title(),
 				$this->get_capability(),
-				static::get_slug(),
+				$this->get_menu_slug(),
 				[ $this, 'render' ],
 				$this->get_icon(),
 				$this->get_position()
 			);
 		}
+	}
+
+	/**
+	 * Get the menu slug registered with the admin menu.
+	 *
+	 * Defaults to the page slug. Override to derive the menu slug from
+	 * instance state (static get_slug() cannot).
+	 *
+	 * @return non-empty-string
+	 */
+	protected function get_menu_slug(): string {
+		return static::get_slug();
 	}
 
 	/**
