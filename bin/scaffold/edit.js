@@ -13,8 +13,8 @@ const { applyVersion } = require( './version' );
 const { writeIdentityFile, readIdentityFile } = require( './persist' );
 const { validateName } = require( './validate' );
 
-/** Editable identity fields, in display order. */
-const FIELDS = [
+/** Default editable fields when a config does not declare its own. */
+const DEFAULT_FIELDS = [
 	{ key: 'name', label: 'Name' },
 	{ key: 'version', label: 'Version' },
 	{ key: 'textDomain', label: 'Text Domain' },
@@ -26,6 +26,15 @@ const FIELDS = [
 ];
 
 /**
+ * A project's editable fields — its `fields` list, or the default set. Drives
+ * both the details table and the editor so they can't diverge.
+ *
+ * @param {Object} config - Scaffold config.
+ * @return {Array<{key: string, label: string}>} Fields.
+ */
+const fieldsOf = ( config ) => ( Array.isArray( config.fields ) ? config.fields : DEFAULT_FIELDS );
+
+/**
  * Capitalise the first letter.
  *
  * @param {string} word - Input.
@@ -34,21 +43,16 @@ const FIELDS = [
 const cap = ( word = '' ) => word.charAt( 0 ).toUpperCase() + word.slice( 1 );
 
 /**
- * Render the details table for an identity, via the project's `details()` if any.
+ * Build the details table (label -> value) from the project's fields.
  *
  * @param {Object} config - Scaffold config.
  * @param {Object} id     - Full identity.
  * @return {Object} Label -> value map.
  */
-const detailsOf = ( config, id ) => {
-	if ( 'function' === typeof config.details ) {
-		return config.details( id, { version: id.version, namespace: id.namespace } );
-	}
-	return FIELDS.reduce( ( out, field ) => {
-		out[ field.label ] = id[ field.key ];
-		return out;
-	}, {} );
-};
+const detailsOf = ( config, id ) => fieldsOf( config ).reduce( ( out, field ) => {
+	out[ field.label ] = id[ field.key ];
+	return out;
+}, {} );
 
 /**
  * Per-field validators: return an error string, or undefined when valid. Lenient
@@ -95,9 +99,10 @@ const editIdentityFields = async ( config, startId, ui, flags = {}, gate = false
 			return { id, confirmed: true };
 		}
 
+		const fields = fieldsOf( config );
 		const choice = await ui.radio( {
 			message: 'Edit a field, or confirm',
-			choices: [ ...FIELDS.map( ( field ) => field.label ), 'Confirm', 'Cancel' ],
+			choices: [ ...fields.map( ( field ) => field.label ), 'Confirm', 'Cancel' ],
 		} );
 
 		if ( 'Confirm' === choice ) {
@@ -107,7 +112,7 @@ const editIdentityFields = async ( config, startId, ui, flags = {}, gate = false
 			return { id: startId, confirmed: false };
 		}
 
-		const field = FIELDS.find( ( entry ) => entry.label === choice ).key;
+		const field = fields.find( ( entry ) => entry.label === choice ).key;
 		const value = await ui.text( { message: choice, defaultValue: id[ field ], validate: FIELD_VALIDATORS[ field ] } );
 
 		if ( 'name' === field ) {
@@ -205,7 +210,7 @@ const editDetailsFlow = async ( config, root, identity, ui, flags = {} ) => {
 		return;
 	}
 
-	const changed = FIELDS.filter( ( field ) => String( startId[ field.key ] ?? '' ) !== String( id[ field.key ] ?? '' ) );
+	const changed = fieldsOf( config ).filter( ( field ) => String( startId[ field.key ] ?? '' ) !== String( id[ field.key ] ?? '' ) );
 	if ( ! changed.length ) {
 		ui.info( 'Nothing changed.' );
 		return;
@@ -228,4 +233,4 @@ const editDetailsFlow = async ( config, root, identity, ui, flags = {} ) => {
 	ui.success( 'Project details updated.' );
 };
 
-module.exports = { FIELDS, editIdentityFields, applyIdentityEdit, editDetailsFlow, detailsOf };
+module.exports = { editIdentityFields, applyIdentityEdit, editDetailsFlow, detailsOf };
