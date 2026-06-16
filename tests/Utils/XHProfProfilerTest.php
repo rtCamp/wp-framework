@@ -40,6 +40,21 @@ final class XHProfProfilerTest extends TestCase {
 		return function_exists( 'xhprof_enable' ) || function_exists( 'tideways_xhprof_enable' );
 	}
 
+	/**
+	 * Reset the process-global session state between tests.
+	 *
+	 * The session flags are static (XHProf is process-global), so a test that leaves a
+	 * session "running" would bleed into the next under `executionOrder="random"`. Reset
+	 * via reflection so every test starts idle, independent of order.
+	 */
+	protected function tearDown(): void {
+		foreach ( [ 'running' => false, 'active_backend' => null ] as $prop => $reset ) {
+			( new \ReflectionProperty( XHProfProfiler::class, $prop ) )->setValue( null, $reset );
+		}
+
+		parent::tearDown();
+	}
+
 	// --- summarize(): the pure transform --------------------------------------
 
 	public function test_summarize_aggregates_by_callee_and_sums_metrics(): void {
@@ -101,15 +116,39 @@ final class XHProfProfilerTest extends TestCase {
 
 	// --- instances ------------------------------------------------------------
 
-	public function test_instances_are_decoupled(): void {
-		// Instance-based, not a singleton: a theme and a plugin each get their own
-		// profiler with independent session state rather than a shared global one.
+	public function test_is_instance_based_not_singleton(): void {
+		// The review requirement: not a Singleton. Each consumer constructs its own
+		// object via a public constructor (no shared get_instance() accessor), so two
+		// constructions yield distinct instances.
 		$this->assertNotSame( new XHProfProfiler(), new XHProfProfiler() );
+
+		$this->assertFalse(
+			method_exists( XHProfProfiler::class, 'get_instance' ),
+			'XHProfProfiler must not expose a singleton get_instance() accessor.'
+		);
+
+		$constructor = ( new \ReflectionClass( XHProfProfiler::class ) )->getConstructor();
+		$this->assertTrue(
+			null === $constructor || $constructor->isPublic(),
+			'XHProfProfiler must be constructable directly (no protected singleton constructor).'
+		);
 	}
 
 	public function test_class_is_extendable(): void {
 		// Non-final so downstream packages can override summarize() etc. Guard the invariant.
 		$this->assertFalse( ( new \ReflectionClass( XHProfProfiler::class ) )->isFinal() );
+	}
+
+	public function test_start_is_blocked_while_a_session_is_active(): void {
+		// Simulate an active process-global session without needing a real backend, then
+		// verify the cross-instance guard: a *different* instance's start() fails closed,
+		// and is_running() reflects the shared session. tearDown() resets the flag.
+		( new \ReflectionProperty( XHProfProfiler::class, 'running' ) )->setValue( null, true );
+
+		$profiler = new XHProfProfiler();
+
+		$this->assertFalse( $profiler->start(), 'start() must fail closed while a session is active anywhere in the process.' );
+		$this->assertTrue( $profiler->is_running(), 'is_running() must reflect the process-global session.' );
 	}
 
 	// --- guards (no live profiling) -------------------------------------------
