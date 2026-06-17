@@ -187,6 +187,36 @@ const makeFeatureApi = ( root, identity, ui ) => {
 			}
 			this.write( rel, next );
 		},
+
+		// Read a `define( 'NAME', true|false )` boolean from a PHP file. Returns
+		// the bool, or null when the file or define is absent. The `^[ \t]*`
+		// anchor (with the `m` flag) only matches a define that starts a line, so
+		// a commented-out `// define( ... )` is ignored.
+		readDefine( rel, name ) {
+			const abs = join( rel );
+			if ( ! fs.existsSync( abs ) ) {
+				return null;
+			}
+			const raw = fs.readFileSync( abs, 'utf8' );
+			const match = raw.match( new RegExp( `^[ \\t]*define\\(\\s*['"]${ name }['"]\\s*,\\s*(true|false)\\s*\\)`, 'im' ) );
+			return match ? 'true' === match[ 1 ].toLowerCase() : null;
+		},
+
+		// Flip an existing `define( 'NAME', true|false )` to the given boolean in
+		// a PHP file. Throws when the define is absent (the entry file ships it).
+		// Anchored to line start so commented-out defines are left untouched.
+		// Journaled.
+		setDefine( rel, name, value ) {
+			const raw = this.read( rel );
+			if ( null === raw ) {
+				throw new Error( `setDefine: ${ rel } not found` );
+			}
+			const re = new RegExp( `(^[ \\t]*define\\(\\s*['"]${ name }['"]\\s*,\\s*)(?:true|false)(\\s*\\))`, 'im' );
+			if ( ! re.test( raw ) ) {
+				throw new Error( `setDefine: define( '${ name }', ... ) not found in ${ rel }` );
+			}
+			this.write( rel, raw.replace( re, `$1${ value ? 'true' : 'false' }$2` ) );
+		},
 	};
 
 	return api;
