@@ -158,6 +158,35 @@ const makeFeatureApi = ( root, identity, ui ) => {
 			} );
 			fs.writeFileSync( abs, `${ JSON.stringify( flags, null, '\t' ) }\n` );
 		},
+
+		// Read a single KEY=value from a dotenv-style file. Returns the trimmed,
+		// unquoted value, or null when the file or key is absent.
+		readEnv( rel, key ) {
+			const abs = join( rel );
+			if ( ! fs.existsSync( abs ) ) {
+				return null;
+			}
+			const raw = fs.readFileSync( abs, 'utf8' );
+			const match = raw.match( new RegExp( `^[ \\t]*${ key }[ \\t]*=[ \\t]*(.*)$`, 'm' ) );
+			return match ? match[ 1 ].trim().replace( /^["']|["']$/g, '' ) : null;
+		},
+
+		// Set KEY=value in a dotenv-style file: replace the line if present,
+		// append it otherwise, creating the file when missing. Journaled.
+		setEnv( rel, key, value ) {
+			const raw = this.read( rel ) || '';
+			const line = `${ key }=${ value }`;
+			const re = new RegExp( `^[ \\t]*${ key }[ \\t]*=.*$`, 'm' );
+			let next;
+			if ( re.test( raw ) ) {
+				next = raw.replace( re, line );
+			} else if ( '' === raw ) {
+				next = `${ line }\n`;
+			} else {
+				next = raw.endsWith( '\n' ) ? `${ raw }${ line }\n` : `${ raw }\n${ line }\n`;
+			}
+			this.write( rel, next );
+		},
 	};
 
 	return api;
