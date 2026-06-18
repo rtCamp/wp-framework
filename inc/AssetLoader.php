@@ -77,9 +77,10 @@ class AssetLoader {
 	}
 
 	/**
-	 * Build a prefixed, unique asset handle from a short name, e.g.
-	 * handle( 'frontend' ) -> '<HANDLE_PREFIX>frontend'. Subclasses namespace
-	 * their handles by overriding the HANDLE_PREFIX constant.
+	 * Prefix a short name with HANDLE_PREFIX to form an asset handle. With the
+	 * default prefix, handle( 'frontend' ) returns 'wp-framework-frontend'.
+	 * Subclasses namespace their handles by overriding the HANDLE_PREFIX
+	 * constant; uniqueness is the caller's responsibility (pass distinct names).
 	 *
 	 * @param string $name Short handle name.
 	 *
