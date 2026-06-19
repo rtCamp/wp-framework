@@ -3,8 +3,7 @@
 This is the reference for the small set of interfaces and traits under
 `inc/Contracts/`. They are the public vocabulary of the registration system from
 [architecture.md](architecture.md). Everything here is **public API**: a renamed
-method or changed signature breaks every skeleton, so treat changes as breaking
-and route them through [backward-compatibility.md](backward-compatibility.md).
+method or changed signature breaks every skeleton, so treat changes as breaking.
 
 ## Interfaces
 

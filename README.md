@@ -33,7 +33,7 @@ traits) plus concrete loaders and utilities, and the skeletons build on them.
 
 The contract surface (`inc/Contracts/`) is the public API: every interface,
 abstract, and signature there is consumed by every skeleton, so changes to it are
-treated as breaking. See [docs/backward-compatibility.md](docs/backward-compatibility.md).
+treated as breaking.
 
 ## What's NOT here (intentional)
 
@@ -62,7 +62,6 @@ Start with [docs/index.md](docs/index.md), then:
 | [abstracts.md](docs/abstracts.md) | Cookbook for the nine `Abstract*` base classes. |
 | [loaders.md](docs/loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` and the theme-override hierarchy. |
 | [utilities.md](docs/utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `XHProf_Profiler`, and `Container`. |
-| [backward-compatibility.md](docs/backward-compatibility.md) | How changes to the public surface are versioned. |
 
 ## Development
 

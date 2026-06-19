@@ -11,8 +11,7 @@ Two rules define the whole package:
   (8.2+). Everything else is `require-dev`.
 - **`inc/Contracts/` is public API.** Every interface, abstract, and method
   signature under it is consumed by every skeleton, so changes there are treated
-  as breaking and routed through the
-  [backward-compatibility policy](backward-compatibility.md).
+  as breaking.
 
 ## What's in here
 
@@ -39,7 +38,6 @@ Two rules define the whole package:
 | [abstracts.md](abstracts.md) | Cookbook for the nine `Abstract*` base classes — what each is for, the methods to implement, the hook it wires, a minimal subclass. |
 | [loaders.md](loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` — the asset/render subsystem and the theme-override hierarchy they share. |
 | [utilities.md](utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `FeatureSelectorSettingsPage`, `XHProf_Profiler`, and `Container`. |
-| [backward-compatibility.md](backward-compatibility.md) | How changes to the public surface are versioned and routed. Read before touching `inc/Contracts/`. |
 | [ai-review-system.md](ai-review-system.md) | How the AI review instructions are authored here and synced into the skeletons. |
 
 ## How a skeleton uses it (the one-paragraph version)

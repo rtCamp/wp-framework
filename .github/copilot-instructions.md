@@ -15,7 +15,7 @@ Detailed rules: `.github/instructions/php.instructions.md`.
 ## Universal rules
 
 - **TDD**: failing PHPUnit test first (`tests/` mirrors `inc/`), then code.
-- **`inc/Contracts/` is public API.** Interfaces, abstracts and their method signatures are consumed by every plugin/theme: a signature change breaks all of them. Treat changes as breaking; follow `docs/backward-compatibility.md`.
+- **`inc/Contracts/` is public API.** Interfaces, abstracts and their method signatures are consumed by every plugin/theme: a signature change breaks all of them. Treat changes as breaking.
 - When you change a contract, update `ai/framework-php.instructions.md` so the consumer review rules stay accurate.
 - No runtime dependencies. Prefer official WordPress / PHP stdlib.
 
