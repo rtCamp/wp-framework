@@ -21,7 +21,14 @@ jobs:
   lint-php:
     name: 'Lint PHP'
     runs-on: self-hosted
+    container:
+      image: ubuntu:24.04
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl unzip
+
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -56,7 +63,14 @@ jobs:
   analyse-php:
     name: 'PHPStan Analysis'
     runs-on: self-hosted
+    container:
+      image: ubuntu:24.04
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl unzip
+
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -87,6 +101,13 @@ jobs:
   unit-test-php:
     name: "PHP ${{ matrix.php }} / WP ${{ matrix.wp }}"
     runs-on: self-hosted
+    # Docker-outside-of-Docker: the container gets the host's Docker socket so
+    # wp-env can spin up WordPress + tests-cli containers on the host daemon.
+    # GitHub Actions guarantees the workspace path is identical on both host
+    # and container, so wp-env's volume mounts resolve correctly on the host.
+    container:
+      image: ubuntu:24.04
+      options: -v /var/run/docker.sock:/var/run/docker.sock
     strategy:
       fail-fast: false
       matrix:
@@ -100,6 +121,11 @@ jobs:
       WP_ENV_PHP_VERSION: ${{ matrix.php }}
       WP_ENV_CORE: WordPress/WordPress#${{ matrix.wp }}
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl unzip docker.io
+
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -126,10 +152,18 @@ jobs:
   coverage-php:
     name: 'PHP Coverage'
     runs-on: self-hosted
+    container:
+      image: ubuntu:24.04
+      options: -v /var/run/docker.sock:/var/run/docker.sock
     env:
       # Coverage is version-agnostic, so one representative cell is enough.
       WP_ENV_PHP_VERSION: '8.3'
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl unzip docker.io
+
       - name: Checkout
         uses: actions/checkout@v6
 
