@@ -11,6 +11,16 @@ parameters:
     paths:
         - inc
 
+    # Declare the optional tideways_xhprof extension's symbols so XHProf_Profiler's
+    # guarded calls resolve on every machine, regardless of whether the extension is
+    # installed. scanFiles (not stubFiles) is required: these symbols exist nowhere
+    # PHPStan can reflect, and stubFiles only overrides types for already-known
+    # symbols. Classic xhprof_* is already covered by PHPStan's bundled stubs. This
+    # avoids inline ignores that would go unmatched where the extension *is* present
+    # (reportUnmatchedIgnoredErrors is on).
+    scanFiles:
+        - .stubs/xhprof.stub
+
     excludePaths:
         - vendor
         - node_modules (?)
@@ -19,7 +29,11 @@ parameters:
     # Treat unmatched ignore patterns as errors so stale suppressions get flagged.
     reportUnmatchedIgnoredErrors: true
 
-    # Ignore known false-positives here. Keep this list short — every entry is tech debt.
     ignoreErrors:
-        # Traits are consumed by downstream plugins/themes, not within this package.
-        - identifier: trait.unused
+        # Traits (e.g. Singleton) are public API consumed by downstream
+        # plugins/themes. Whether inc/ itself uses a given trait varies, so
+        # trait.unused may legitimately match zero times — tolerate that here
+        # (per-entry) while still flagging other stale ignores globally.
+        -
+            identifier: trait.unused
+            reportUnmatched: false
