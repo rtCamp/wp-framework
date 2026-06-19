@@ -178,10 +178,12 @@ class ComponentLoader {
 	}
 
 	/**
-	 * Clear request-level lookup caches.
+	 * Clear request-level lookup caches: resolved component metadata and the
+	 * memoised asset-loader hierarchy (so a mid-request theme change is picked up).
 	 */
 	public function clear_cache(): void {
 		$this->component_data_cache = [];
+		$this->asset_loaders        = null;
 	}
 
 	/**
@@ -275,8 +277,9 @@ class ComponentLoader {
 		 */
 		do_action( 'wp_framework_component_before_render', $name, $args, $context );
 
-		// Delegate to a private static method to ensure the component file
-		// is loaded in an isolated scope without access to $this.
+		// Delegate to a private static method so the component file loads in an
+		// isolated scope with no access to $this. self:: (not static::) is
+		// deliberate — the loader must not late-bind to a subclass here.
 		self::load_template( (string) $component['file'], $args, $name, $options );
 
 		$this->enqueue_component_assets( $component, $options );

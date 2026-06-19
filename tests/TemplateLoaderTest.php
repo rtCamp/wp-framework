@@ -217,6 +217,24 @@ final class TemplateLoaderTest extends TestCase {
 		$this->assertFalse( $this->loader()->locate( 'missing' ) );
 	}
 
+	public function test_get_rethrows_and_balances_the_buffer_when_a_template_throws(): void {
+		// get() must clear its own output buffer and re-throw rather than leave a
+		// half-rendered buffer open for the caller to inherit.
+		$this->use_single_theme();
+		$this->write( $this->tmp . '/plugin/templates/boom.php', '<?php throw new \RuntimeException( "kaboom" );' );
+
+		$level = ob_get_level();
+
+		try {
+			$this->loader()->get( 'boom' );
+			$this->fail( 'Expected the template exception to propagate.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertSame( 'kaboom', $e->getMessage() );
+		}
+
+		$this->assertSame( $level, ob_get_level() );
+	}
+
 	public function test_render_loads_with_filtered_args(): void {
 		$this->use_single_theme();
 		$this->write( $this->tmp . '/plugin/templates/card.php', '<?php echo wp_json_encode( $args );' );

@@ -150,7 +150,7 @@ class AssetLoader {
 		$manifest_path = $base . $manifest_file;
 		if ( ! file_exists( $manifest_path ) ) {
 			_doing_it_wrong(
-				self::class,
+				static::class,
 				esc_html__( 'Block manifest file is missing. Blocks will not be registered.', 'wp-framework' ),
 				'0.0.1'
 			);
@@ -275,16 +275,23 @@ class AssetLoader {
 	/**
 	 * Resolve asset metadata for an asset by name (relative path + extension).
 	 *
-	 * Warns and returns null only if the asset file itself is missing; the
-	 * `.asset.php` manifest is optional, and an invalid one is ignored with a
-	 * warning (see read_asset_manifest()).
+	 * Returns null if the filename is rejected for path traversal, or — with a
+	 * warning — if the asset file itself is missing. The `.asset.php` manifest is
+	 * optional, and an invalid one is ignored with a warning (see read_asset_manifest()).
 	 *
 	 * @param string $filename  Asset path relative to the assets directory, excluding the extension.
 	 * @param string $extension Asset file extension (e.g. 'js', 'css').
 	 *
-	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the asset file is missing.
+	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the filename is rejected (path traversal) or the asset file is missing.
 	 */
 	private function get_asset_meta( string $filename, string $extension ): ?array {
+		// $filename feeds a require() in read_asset_manifest(); reject any `..`
+		// traversal up front. The in-tree caller pre-sanitises, but this class is
+		// public API and may be called directly.
+		if ( str_contains( $filename, '..' ) ) {
+			return null;
+		}
+
 		$base          = $this->base_dir . untrailingslashit( $this->assets_dir );
 		$manifest_file = sprintf( '%s/%s.asset.php', $base, $filename );
 		$asset_file    = sprintf( '%s/%s.%s', $base, $filename, $extension );
@@ -292,7 +299,7 @@ class AssetLoader {
 		// The actual asset file is required — if it's missing, there is nothing to register.
 		if ( ! file_exists( $asset_file ) ) {
 			_doing_it_wrong(
-				self::class,
+				static::class,
 				sprintf(
 					/* translators: 1: The asset filename. 2: The asset extension. */
 					esc_html__( 'Asset file "%1$s.%2$s" is missing. The asset will not be registered.', 'wp-framework' ),
@@ -322,7 +329,7 @@ class AssetLoader {
 
 			if ( ! is_array( $meta ) ) {
 				_doing_it_wrong(
-					self::class,
+					static::class,
 					sprintf(
 						/* translators: %s: The asset manifest path. */
 						esc_html__( 'Asset manifest "%s" is invalid; the file modification time will be used as the version.', 'wp-framework' ),

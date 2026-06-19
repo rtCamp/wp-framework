@@ -147,11 +147,19 @@ class TemplateLoader {
 	 * @param array<string, mixed> $args Optional. Data passed to the template.
 	 *
 	 * @return string Rendered template output, or '' if not found.
+	 *
+	 * @throws \Throwable Re-thrown after clearing the output buffer if the template throws.
 	 */
 	public function get( string $slug, ?string $name = null, array $args = [] ): string {
 		ob_start();
 
-		$this->render( $slug, $name, $args );
+		try {
+			$this->render( $slug, $name, $args );
+		} catch ( \Throwable $e ) {
+			// Don't leave a half-rendered buffer open for the caller to inherit.
+			ob_end_clean();
+			throw $e;
+		}
 
 		return (string) ob_get_clean();
 	}

@@ -227,6 +227,13 @@ final class AssetLoaderTest extends TestCase {
 		$this->assertFalse( $this->loader->register_script_module( '@my/missing', 'js/missing' ) );
 	}
 
+	public function test_register_script_rejects_path_traversal_in_filename(): void {
+		// A `..` in the filename would let the require()'d .asset.php escape the
+		// assets directory; the loader refuses it (returns false, registers nothing).
+		$this->assertFalse( $this->loader->register_script( 'evil', '../../wp-config' ) );
+		$this->assertNull( $this->registered_script( 'evil' ) );
+	}
+
 	/**
 	 * Clear the script modules registry between tests.
 	 */
