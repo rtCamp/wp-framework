@@ -6,6 +6,7 @@
  * In most cases, it's better to use dependency injection.
  *
  * @package rtCamp\WPFramework\Contracts\Traits
+ * @since 0.0.1
  */
 
 declare( strict_types = 1 );
@@ -48,7 +49,7 @@ trait Singleton {
 	 */
 	final public function __clone() {
 		_doing_it_wrong(
-			__FUNCTION__,
+			__METHOD__,
 			sprintf(
 				// translators: %s: Class name.
 				esc_html__( 'The %s class should not be cloned.', 'wp-framework' ),
@@ -63,7 +64,7 @@ trait Singleton {
 	 */
 	final public function __wakeup() {
 		_doing_it_wrong(
-			__FUNCTION__,
+			__METHOD__,
 			sprintf(
 				// translators: %s: Class name.
 				esc_html__( 'De-serializing instances of %s is not allowed.', 'wp-framework' ),

@@ -11,6 +11,7 @@
  * interface instead; this one is strictly opt-in.
  *
  * @package rtCamp\WPFramework\Contracts\Interfaces
+ * @since 0.0.1
  */
 
 declare( strict_types = 1 );

@@ -16,6 +16,7 @@
  *   }
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
+ * @since 0.0.1
  */
 
 declare( strict_types = 1 );
