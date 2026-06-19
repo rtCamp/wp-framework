@@ -6,6 +6,7 @@
  * In most cases, it's better to use dependency injection.
  *
  * @package rtCamp\WPFramework\Contracts\Traits
+ * @since 0.0.1
  */
 
 declare( strict_types = 1 );

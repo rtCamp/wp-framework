@@ -7,6 +7,7 @@
  * class with `register_block_manifest()` directly.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
+ * @since 0.0.1
  */
 
 declare( strict_types = 1 );
@@ -31,6 +32,9 @@ abstract class AbstractBlock implements Registrable {
 	/**
 	 * Render the block on the server side.
 	 *
+	 * Public because WordPress calls it directly as the block's render_callback
+	 * (wired in register_block()); a protected method would fatal when core invokes it.
+	 *
 	 * @param array<string, mixed> $attributes Block attributes.
 	 * @param string               $content    Block inner content.
 	 * @param \WP_Block            $block      Block instance.
@@ -52,7 +56,7 @@ abstract class AbstractBlock implements Registrable {
 	public function register_block(): void {
 		$args = $this->get_block_args();
 
-		// Always set the render callback to this class's render method.
+		// Force our render method, overriding any render_callback from get_block_args().
 		$args['render_callback'] = [ $this, 'render' ];
 		$block_dir               = $this->get_block_dir();
 
