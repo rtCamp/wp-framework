@@ -1,4 +1,4 @@
-# PHPStan configuration — wp-php-toolkit
+# PHPStan configuration — wp-framework
 # Docs: https://phpstan.org/config-reference
 
 includes:
