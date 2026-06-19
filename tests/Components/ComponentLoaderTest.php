@@ -388,6 +388,19 @@ final class ComponentLoaderTest extends TestCase {
 		$this->assertFalse( wp_script_is( self::SCRIPT_HANDLE, 'registered' ) );
 	}
 
+	public function test_clear_cache_resets_the_memoised_asset_loader_hierarchy(): void {
+		// Resolving a component memoises the child -> parent -> package loader
+		// list; clear_cache() must drop it so a later theme change is picked up.
+		$this->write_parent_component( 'alert', '<?php echo "alert";' );
+		$this->loader->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		$loaders = new \ReflectionProperty( ComponentLoader::class, 'asset_loaders' );
+		$this->assertNotNull( $loaders->getValue( $this->loader ) );
+
+		$this->loader->clear_cache();
+		$this->assertNull( $loaders->getValue( $this->loader ) );
+	}
+
 	private function theme_asset_loader(): AssetLoader {
 		return new AssetLoader( $this->parent_dir, $this->parent_uri, 'assets/build' );
 	}
