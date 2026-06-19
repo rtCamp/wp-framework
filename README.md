@@ -1,29 +1,78 @@
-# wp-php-toolkit
+# wp-framework
 
-Shared PHP utilities for rtCamp WordPress projects. Consumed as a Composer package (`rtcamp/wp-php-toolkit`) by every rtCamp plugin skeleton.
+Shared PHP base for rtCamp WordPress projects. Consumed as a Composer package
+(`rtcamp/wp-framework`) by every rtCamp plugin and theme skeleton — currently
+**theme-elementary** and **features-plugin-skeleton**.
+
+It is a **library, not a plugin**: it ships contracts (interfaces, abstracts,
+traits) plus concrete loaders and utilities, and the skeletons build on them.
+**Zero runtime dependencies.** PHP 8.2+.
 
 ## What's inside
 
-- `Singleton` trait — standard `get_instance()` pattern
-- Utility classes — `Logger`, `Cache`, `Transients`, `Performance` (timers)
-- Collector interfaces consumed by `rtcamp/wp-dev-monitor` — `Collector_Interface`, `Stoppable`, `Profilable`, `Renderable`, `Issue_Provider`, `AI_Context_Provider`, `Timeline_Event_Provider`
-- Shared PHPCS and PHPStan baselines
+- **Registration core** — the spine every skeleton boots through:
+  - `Registrable`, `ConditionallyRegistrable`, `Shareable`, `CLICommand`
+    interfaces
+  - the `Loader` trait (instantiate a list of classes, register their hooks,
+    cache the shared ones) and the `Container` it stores instances in
+- **Nine `Abstract*` base classes** — one per WordPress registration chore, so a
+  consumer writes intent instead of boilerplate: `AbstractModule`,
+  `AbstractPostType`, `AbstractTaxonomy`, `AbstractBlock`, `AbstractShortcode`,
+  `AbstractRESTController`, `AbstractSettingsPage`, `AbstractAdminPage`,
+  `AbstractUserRole`
+- **Asset & render loaders** — `AssetLoader` (scripts/styles/modules +
+  `*.asset.php` manifests), `ComponentLoader` and `TemplateLoader` (resolve
+  components/templates across the child-theme → parent-theme → package hierarchy)
+- **`Singleton` trait** — standard `get_instance()` with clone/wakeup guards
+- **Utilities & services** (`inc/Utils/`) — context-scoped helpers:
+  - `Encryptor` — authenticated AES-256-GCM encryption for values stored in the DB
+  - `Cache` — typed wrapper over the WP object cache, group-namespaced, optional SWR
+  - `FeatureSelector` + `FeatureSelectorSettingsPage` — a fail-closed feature-flag
+    registry and its admin toggle page
+  - `XHProf_Profiler` — profile a code block with XHProf; no-ops without the extension
+
+The contract surface (`inc/Contracts/`) is the public API: every interface,
+abstract, and signature there is consumed by every skeleton, so changes to it are
+treated as breaking. See [docs/backward-compatibility.md](docs/backward-compatibility.md).
 
 ## What's NOT here (intentional)
 
-The Dev Monitor panel itself — collectors, views, assets, AI chatbox — lives in [`rtcamp/wp-dev-monitor`](https://github.com/rtCamp/wp-dev-monitor). This package only ships the interfaces those collectors implement, so both packages can evolve independently.
-
-## Development
-
-See [`CLAUDE.md`](./CLAUDE.md) for architecture rules, conventions, testing, and git workflow.
-
-Per-issue progress lives in [`.claude/issues/`](./.claude/issues/). Claude skills live in [`.claude/commands/`](./.claude/commands/).
+- **No bootstrap / `Main` class.** The framework gives you the `Loader` trait and
+  the contracts; each skeleton writes its own entry class that kicks off the first
+  `load()`. The framework is the spine, not the application.
+- **No project scaffolding engine.** The `npm run init` scaffold/init tooling is
+  moving into [`@rtcamp/wp-tooling`](https://github.com/rtCamp/wp-tooling).
 
 ## Install (consumer side)
 
 ```bash
-composer require rtcamp/wp-php-toolkit
+composer require rtcamp/wp-framework
 ```
+
+PSR-4: `rtCamp\WPFramework\` → `inc/`.
+
+## Documentation
+
+Start with [docs/index.md](docs/index.md), then:
+
+| Doc | What it covers |
+|---|---|
+| [architecture.md](docs/architecture.md) | How a class becomes a live hook — the `Registrable` → `Loader` → `Container` flow. Read first. |
+| [contracts.md](docs/contracts.md) | The interfaces and traits in detail. |
+| [abstracts.md](docs/abstracts.md) | Cookbook for the nine `Abstract*` base classes. |
+| [loaders.md](docs/loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` and the theme-override hierarchy. |
+| [utilities.md](docs/utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `XHProf_Profiler`, and `Container`. |
+| [backward-compatibility.md](docs/backward-compatibility.md) | How changes to the public surface are versioned. |
+
+## Development
+
+```bash
+composer check     # lint (PHPCS) + analyse (PHPStan) + test (PHPUnit)
+```
+
+Tests run against real WordPress via [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/).
+TDD: a failing test first (`tests/` mirrors `inc/`), then the code. See
+[AGENTS.md](AGENTS.md) for the full conventions, shared across all AI tools.
 
 ## License
 
