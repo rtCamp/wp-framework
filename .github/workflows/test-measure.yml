@@ -20,7 +20,7 @@ concurrency:
 jobs:
   lint-php:
     name: 'Lint PHP'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -55,7 +55,7 @@ jobs:
 
   analyse-php:
     name: 'PHPStan Analysis'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -86,7 +86,7 @@ jobs:
 
   unit-test-php:
     name: "PHP ${{ matrix.php }} / WP ${{ matrix.wp }}"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -119,9 +119,13 @@ jobs:
       - name: Run tests
         run: npm run test:php
 
+      - name: Stop WP environment
+        if: always()
+        run: npm run wp-env destroy
+
   coverage-php:
     name: 'PHP Coverage'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       # Coverage is version-agnostic, so one representative cell is enough.
       WP_ENV_PHP_VERSION: '8.3'
@@ -146,3 +150,7 @@ jobs:
         # With Xdebug enabled above, phpunit.xml.dist prints the coverage
         # summary to the job log (php://stdout).
         run: npm run test:php
+
+      - name: Stop WP environment
+        if: always()
+        run: npm run wp-env destroy
