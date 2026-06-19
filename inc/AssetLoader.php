@@ -27,6 +27,12 @@ namespace rtCamp\WPFramework;
  */
 class AssetLoader {
 	/**
+	 * Default asset handle prefix. Subclasses override this constant to namespace
+	 * their handles; handle() reads it via late static binding.
+	 */
+	public const HANDLE_PREFIX = 'wp-framework-';
+
+	/**
 	 * Base directory path (plugin or theme root). Readable by subclasses that
 	 * need to resolve their own paths (e.g. a block build directory).
 	 *
@@ -68,6 +74,20 @@ class AssetLoader {
 	 */
 	public function get_assets_dir(): string {
 		return $this->assets_dir;
+	}
+
+	/**
+	 * Prefix a short name with HANDLE_PREFIX to form an asset handle. With the
+	 * default prefix, handle( 'frontend' ) returns 'wp-framework-frontend'.
+	 * Subclasses namespace their handles by overriding the HANDLE_PREFIX
+	 * constant; uniqueness is the caller's responsibility (pass distinct names).
+	 *
+	 * @param string $name Short handle name.
+	 *
+	 * @return string Prefixed handle.
+	 */
+	public function handle( string $name ): string {
+		return static::HANDLE_PREFIX . $name;
 	}
 
 	/**
