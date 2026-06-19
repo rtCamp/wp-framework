@@ -49,7 +49,7 @@ trait Singleton {
 	 */
 	final public function __clone() {
 		_doing_it_wrong(
-			__METHOD__,
+			__FUNCTION__,
 			sprintf(
 				// translators: %s: Class name.
 				esc_html__( 'The %s class should not be cloned.', 'wp-framework' ),
@@ -64,7 +64,7 @@ trait Singleton {
 	 */
 	final public function __wakeup() {
 		_doing_it_wrong(
-			__METHOD__,
+			__FUNCTION__,
 			sprintf(
 				// translators: %s: Class name.
 				esc_html__( 'De-serializing instances of %s is not allowed.', 'wp-framework' ),
