@@ -275,14 +275,14 @@ class AssetLoader {
 	/**
 	 * Resolve asset metadata for an asset by name (relative path + extension).
 	 *
-	 * Warns and returns null only if the asset file itself is missing; the
-	 * `.asset.php` manifest is optional, and an invalid one is ignored with a
-	 * warning (see read_asset_manifest()).
+	 * Returns null if the filename is rejected for path traversal, or — with a
+	 * warning — if the asset file itself is missing. The `.asset.php` manifest is
+	 * optional, and an invalid one is ignored with a warning (see read_asset_manifest()).
 	 *
 	 * @param string $filename  Asset path relative to the assets directory, excluding the extension.
 	 * @param string $extension Asset file extension (e.g. 'js', 'css').
 	 *
-	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the asset file is missing.
+	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the filename is rejected (path traversal) or the asset file is missing.
 	 */
 	private function get_asset_meta( string $filename, string $extension ): ?array {
 		// $filename feeds a require() in read_asset_manifest(); reject any `..`
