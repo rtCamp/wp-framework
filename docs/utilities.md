@@ -11,6 +11,7 @@ collide.
 |---|---|
 | [`Encryptor`](#encryptor) | Authenticated AES-256-GCM encryption for values stored in the DB |
 | [`Cache`](#cache) | Typed wrapper over the WP object cache, group-namespaced, with optional SWR |
+| [`Logger`](#logger) | PSR-3-style logger that writes to `error_log()` only when `WP_DEBUG` is on |
 | [`Transients`](#transients) | Prefix-namespaced wrapper over the WP transient API; multi-instance by design |
 | [`FeatureSelector`](#featureselector) | Fail-closed feature-flag registry with per-context toggles |
 | [`FeatureSelectorSettingsPage`](#featureselectorsettingspage) | Admin page that renders a `FeatureSelector`'s flags as checkboxes |
@@ -64,6 +65,34 @@ $nav   = $cache->remember( 'nav_items', fn() => build_nav(), 'theme', 300 );
 `remember()` returns the cached value or computes, stores, and returns it. Like
 the other services, register a `Cache` instance as `Shareable` in a consumer's
 container, or extend it to change the backend behaviour.
+
+## Logger
+
+[`inc/Utils/Logger.php`](../inc/Utils/Logger.php) — a PSR-3-*style* logger that writes
+to `error_log()`, with a consumer prefix on every line so a shared log stream stays
+attributable.
+
+Instance-based and context-scoped like the others — construct one per consumer with
+that package's prefix; a theme and a plugin sharing the process each own an independent
+logger instead of routing through one global instance:
+
+```php
+$log = new Logger( 'my-plugin' );
+$log->info( 'Cache warmed', [ 'items' => 42 ] );
+// error_log: [INFO] [my-plugin] Cache warmed {"items":42}
+```
+
+- **Silent in production:** nothing is written unless logging is enabled, which by
+  default tracks `WP_DEBUG`. Safe to leave calls in shipped code — they no-op where
+  `WP_DEBUG` is off.
+- **PSR-3-style, not the full interface:** ships the four levels rtCamp plugins use —
+  `debug()`, `info()`, `warning()`, `error()` — plus the generic `log()`, and stops
+  there. No `psr/log` dependency (zero runtime deps), but the method names match PSR-3
+  so a later swap to Monolog needs no caller changes.
+- Override the protected `is_enabled()` seam to gate on something other than `WP_DEBUG`
+  (an env var, a feature flag) or to force logging on for a specific subsystem — without
+  touching the formatting. **Not `final`**, and internal calls go through `$this` so the
+  override takes effect.
 
 ## Transients
 
