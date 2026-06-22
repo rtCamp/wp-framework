@@ -14,6 +14,7 @@ collide.
 | [`FeatureSelector`](#featureselector) | Fail-closed feature-flag registry with per-context toggles |
 | [`FeatureSelectorSettingsPage`](#featureselectorsettingspage) | Admin page that renders a `FeatureSelector`'s flags as checkboxes |
 | [`XHProf_Profiler`](#xhprof_profiler) | Profile a code block with XHProf; no-ops without the extension |
+| [`Timer`](#timer) | Named start/stop/lap timers in float seconds, shared across hooks/scopes |
 | [`Container`](contracts.md#container) | Tiny instance map (the storage half of the `Loader`) |
 
 ## Encryptor
@@ -124,6 +125,34 @@ $top = XHProf_Profiler::get_instance()->profile( fn() => expensive(), 10, 'expen
 - It's a `Singleton` (`get_instance()`), and **not `final`** — a downstream
   package can extend it and override `summarize()`. Internal calls use late
   static binding so overrides take effect.
+
+## Timer
+
+[`inc/Utils/Timer.php`](../inc/Utils/Timer.php) — named timing segments that persist
+across scopes within a single request: `start()` a timer in one hook or file and
+`stop()` it in another, with no globals or hand-passed `microtime( true )` values.
+`lap()` records intermediate splits; `get()` / `get_all()` expose the collected data
+(in float seconds, like `$wpdb->queries`).
+
+```php
+$timer = new Timer();
+$timer->start( 'render' );
+$timer->lap( 'render', 'after_query' );
+// … later, in another hook holding the same instance …
+$elapsed = $timer->stop( 'render' );   // float seconds
+$all     = $timer->get_all();          // every timer, with computed elapsed
+```
+
+- **Instance-based, not a singleton.** The start-here / stop-there pattern shares
+  state by sharing the *instance*: register one as `Shareable` in the consumer's
+  container (the same pattern as `Cache` / `XHProf_Profiler`) so every hook resolves
+  the same object, while a theme and a plugin keep their own decoupled timer sets.
+- **Misuse is loud, reads are silent.** Empty / duplicate / never-started /
+  already-stopped labels are reported via `_doing_it_wrong()` (the WordPress
+  convention for developer error), not exceptions. `get()` / `get_all()` never emit
+  notices — an empty or unknown label just returns `null`.
+- A running timer's `elapsed` is measured at the moment you read it, without
+  stopping it.
 
 ## Container
 
