@@ -77,7 +77,11 @@ class Logger {
 			return;
 		}
 
-		$context_part = empty( $context ) ? '' : ' ' . (string) wp_json_encode( $context );
+		$context_part = '';
+		if ( ! empty( $context ) ) {
+			$encoded_context = wp_json_encode( $context );
+			$context_part    = is_string( $encoded_context ) ? ' ' . $encoded_context : '';
+		}
 
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Logger IS the centralised error_log() wrapper; callers route through it instead of calling error_log() directly. The sniff's intent (no debug output in production) is satisfied by the is_enabled()/WP_DEBUG gate above.
 		error_log( sprintf( '[%s] [%s] %s%s', strtoupper( $level ), $this->prefix, $message, $context_part ) );

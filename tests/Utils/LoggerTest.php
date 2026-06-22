@@ -48,7 +48,10 @@ final class LoggerTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		$this->log_file           = (string) tempnam( sys_get_temp_dir(), 'rt-logger-' );
+		$tmp = tempnam( sys_get_temp_dir(), 'rt-logger-' );
+		$this->assertNotFalse( $tmp, 'Failed to create temp file for capturing error_log output.' );
+
+		$this->log_file           = $tmp;
 		$this->original_error_log = (string) ini_get( 'error_log' );
 		ini_set( 'error_log', $this->log_file );
 	}
@@ -125,6 +128,16 @@ final class LoggerTest extends TestCase {
 		( new Logger( 'enabled' ) )->info( 'written-because-debug' );
 
 		$this->assertStringContainsString( 'written-because-debug', $this->captured() );
+	}
+
+	public function test_unencodable_context_is_dropped_without_trailing_space(): void {
+		// INF can't be JSON-encoded, so wp_json_encode() returns false. The message
+		// must still log, with the context dropped and no stray trailing space.
+		( new Logger( 'p' ) )->error( 'enc-fail', [ 'x' => INF ] );
+
+		$contents = $this->captured();
+		$this->assertStringContainsString( '[ERROR] [p] enc-fail', $contents );
+		$this->assertStringNotContainsString( 'enc-fail ', $contents );
 	}
 
 	public function test_writes_nothing_when_logging_disabled(): void {
