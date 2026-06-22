@@ -11,6 +11,7 @@ collide.
 |---|---|
 | [`Encryptor`](#encryptor) | Authenticated AES-256-GCM encryption for values stored in the DB |
 | [`Cache`](#cache) | Typed wrapper over the WP object cache, group-namespaced, with optional SWR |
+| [`Transients`](#transients) | Prefix-namespaced wrapper over the WP transient API; multi-instance by design |
 | [`FeatureSelector`](#featureselector) | Fail-closed feature-flag registry with per-context toggles |
 | [`FeatureSelectorSettingsPage`](#featureselectorsettingspage) | Admin page that renders a `FeatureSelector`'s flags as checkboxes |
 | [`XHProf_Profiler`](#xhprof_profiler) | Profile a code block with XHProf; no-ops without the extension |
@@ -62,6 +63,34 @@ $nav   = $cache->remember( 'nav_items', fn() => build_nav(), 'theme', 300 );
 `remember()` returns the cached value or computes, stores, and returns it. Like
 the other services, register a `Cache` instance as `Shareable` in a consumer's
 container, or extend it to change the backend behaviour.
+
+## Transients
+
+[`inc/Utils/Transients.php`](../inc/Utils/Transients.php) — a thin wrapper over
+WordPress's transient API (`get_transient` / `set_transient` / `delete_transient`)
+that **prefixes every key with a per-instance namespace**. Two modules that both
+reach for `set_transient( 'user_count', … )` would otherwise overwrite each other;
+prefix injection makes that collision impossible.
+
+It's the one utility here that is **multi-instance out of necessity** — there is no
+shared/singleton form, because isolated key namespaces are the whole point. Each
+consumer constructs its own wrapper:
+
+```php
+$store = new Transients( 'my-module' );
+$store->set( 'user_count', 42, HOUR_IN_SECONDS );
+$store->get( 'user_count' );   // 42 — never sees another module's 'user_count'
+$store->delete( 'user_count' );
+```
+
+- The prefix is namespaced as `<strlen(prefix)>:<prefix>_<key>`, so the
+  prefix/key boundary stays unambiguous even with underscores in either part —
+  `( 'mod', 'a_b' )` and `( 'mod_a', 'b' )` resolve to **different** transients,
+  not the same `mod_a_b`.
+- Regular single-site transients only. A multisite / site-transient variant can
+  come later by overriding the protected `resolve_key()` seam (the same
+  extension pattern as `Cache`'s `resolve_group()`) — **not `final`**.
+- `set()` defaults to a one-day TTL; pass `0` for no expiry.
 
 ## FeatureSelector
 
