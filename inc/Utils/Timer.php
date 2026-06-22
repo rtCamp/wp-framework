@@ -235,17 +235,20 @@ class Timer {
 	 * Get every recorded timer.
 	 *
 	 * Each entry carries a computed `elapsed`; for running timers that is the
-	 * time-since-start measured at the moment {@see get_all()} is called.
+	 * time-since-start measured against a single snapshot taken when
+	 * {@see get_all()} is called, so every running timer is read against the same
+	 * "now" regardless of iteration order.
 	 *
 	 * @return array<string, array{start: float, end: float|null, elapsed: float, laps: array<string, float>}>
 	 */
 	public function get_all(): array {
+		$now    = microtime( true );
 		$result = [];
 
 		foreach ( $this->timers as $label => $timer ) {
 			$elapsed = null !== $timer['end']
 				? $timer['end'] - $timer['start']
-				: microtime( true ) - $timer['start'];
+				: $now - $timer['start'];
 
 			$result[ $label ] = [
 				'start'   => $timer['start'],
