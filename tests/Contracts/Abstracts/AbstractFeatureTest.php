@@ -67,6 +67,8 @@ final class AbstractFeatureTest extends TestCase {
 			protected function get_description(): string {
 				return '' !== $this->desc_override ? $this->desc_override : parent::get_description();
 			}
+
+			public function register_hooks(): void {}
 		};
 	}
 
