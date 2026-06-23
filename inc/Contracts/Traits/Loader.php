@@ -59,10 +59,9 @@ trait Loader {
 	/**
 	 * Fetch a shared instance populated during load.
 	 *
-	 * @param string $id Class name.
-	 *
-	 * @return object The shared instance.
-	 *
+	 * @template T of object
+	 * @param class-string<T> $id Class name.
+	 * @return T
 	 * @throws \RuntimeException If load() has not been called or the class was not registered as Shareable.
 	 */
 	public function get_shared( string $id ): object {
