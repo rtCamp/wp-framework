@@ -13,49 +13,39 @@ namespace rtCamp\WPFramework\Utils;
 use rtCamp\WPFramework\Contracts\Abstracts\AbstractSettingsPage;
 
 /**
- * Class - FeatureSelectorSettingsPage
+ * Admin settings page for a FeatureSelector registry.
  *
- * Admin settings page listing every flag registered with an injected
- * {@see FeatureSelector} as a checkbox. Uses the WordPress Settings API
- * end-to-end; the form posts to `options.php` (no custom handler). The page
- * lives under `Settings → {Context} Features` with slug, option group, and
- * titles all derived from the selector's context:
+ * Renders one checkbox per registered flag and wires the form to the WordPress
+ * Settings API. All flag states are stored in the single shared option managed
+ * by the injected {@see FeatureSelector}.
  *
- *     $features = new FeatureSelector( 'my-plugin' );
- *     $features->register( [ 'dark-mode' => [ 'name' => 'Dark Mode' ] ] );
+ * The form posts to `options.php` with array-style field names:
+ *   {shared_option_key}[{flag_key}]  e.g.  elementary_features[dark-mode]
  *
- *     ( new FeatureSelectorSettingsPage( $features ) )->register_hooks();
+ * The sanitize callback writes only non-locked flags back to the stored array.
+ * Flags overridden by a PHP constant are rendered as locked (disabled checkbox)
+ * and are excluded from the sanitize pass so saving never overwrites the
+ * constant's intent in the options table.
  *
- * When a flag is overridden by its constant (e.g. `MY_PLUGIN_FEATURE_DARK_MODE`
- * in `wp-config.php`), the checkbox is disabled and reflects the constant's
- * value, with a help message naming the constant. A disabled checkbox is not
- * submitted, so {@see FeatureSelectorSettingsPage::sanitize_settings()} skips
- * locked flags when rebuilding the stored array — their persisted value is left
- * untouched and reappears unchanged if the constant is later removed.
+ * Boot order: register flags on the selector before `admin_init` fires. The
+ * flag list is read lazily when the Settings API hooks run, so flags registered
+ * after {@see FeatureSelectorSettingsPage::register_hooks()} still appear.
  *
- * Boot order: register flags on the selector before `admin_init` fires
- * (typically during `plugins_loaded` or `init`). The flag list is read lazily
- * when the Settings API hooks run, so flags registered after
- * {@see FeatureSelectorSettingsPage::register_hooks()} still appear.
- *
- * Override the protected seams (menu slug, option group, titles, capability
- * via the parent) or {@see FeatureSelectorSettingsPage::render_field()} to
- * customise the chrome.
+ * Override the protected seams (menu slug, option group, titles, capability via
+ * the parent) or {@see FeatureSelectorSettingsPage::render_field()} to customise
+ * the page chrome.
  *
  * @since 0.0.1
  */
-class FeatureSelectorSettingsPage extends AbstractSettingsPage {
+abstract class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 
 	/**
-	 * Constructor.
+	 * Return the FeatureSelector whose flags this page manages.
 	 *
-	 * @param FeatureSelector $selector Selector whose registered flags this
-	 *                                  page manages; its context namespaces the
-	 *                                  page slug and option group.
+	 * Called lazily at hook time, so it's safe to resolve from a shared container
+	 * here — the container is fully populated before any hook fires.
 	 */
-	public function __construct(
-		protected FeatureSelector $selector,
-	) {}
+	abstract protected function get_selector(): FeatureSelector;
 
 	/**
 	 * {@inheritDoc}
@@ -90,7 +80,7 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	 * @return non-empty-string
 	 */
 	protected function get_menu_slug(): string {
-		$context = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', strtolower( $this->selector->get_context() ) ), '-' );
+		$context = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', strtolower( $this->get_selector()->get_context() ) ), '-' );
 
 		return '' === $context ? static::get_slug() : $context . '-' . static::get_slug();
 	}
@@ -98,8 +88,9 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	/**
 	 * {@inheritDoc}
 	 *
-	 * Underscored menu slug, matching the selector's option-key style
-	 * (`my-plugin` → `my_plugin_features`).
+	 * Underscored menu slug — intentionally kept in sync with the selector's
+	 * shared_option_key() so that settings_fields() and the registered option
+	 * name always match (both normalize context the same way).
 	 *
 	 * @return non-empty-string
 	 */
@@ -108,9 +99,9 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	}
 
 	/**
-	 * Get the settings-section ID every flag's field is attached to.
+	 * Return the settings-section ID every flag field is attached to.
 	 *
-	 * @return string Section ID.
+	 * @return string
 	 */
 	protected function get_section_id(): string {
 		return $this->get_option_group() . '_section';
@@ -122,7 +113,7 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	 * Context `my-plugin` → `My Plugin Features`; empty context → `Features`.
 	 */
 	protected function get_page_title(): string {
-		$context = $this->selector->get_context();
+		$context = $this->get_selector()->get_context();
 
 		if ( '' === $context ) {
 			return __( 'Features', 'wp-framework' );
@@ -144,14 +135,15 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	/**
 	 * {@inheritDoc}
 	 *
-	 * A single array setting holding every flag's toggle (`slug => bool`). Read
-	 * lazily at `admin_init`/`rest_api_init` time, after consumers have
-	 * registered flags. Per-flag locking and the default-on rule are applied by
-	 * {@see FeatureSelectorSettingsPage::sanitize_settings()}.
+	 * Registers a single array option (the selector's shared option key) with
+	 * a sanitize callback that validates each non-locked flag's value.
+	 *
+	 * Locked flags (constant-overridden) are excluded from the form but their
+	 * previously stored value is preserved — see sanitize_settings().
 	 */
 	protected function get_settings(): array {
 		return [
-			$this->selector->storage_key() => [
+			$this->get_selector()->shared_option_key() => [
 				'type'              => 'array',
 				'sanitize_callback' => [ $this, 'sanitize_settings' ],
 				'default'           => [],
@@ -160,36 +152,44 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	}
 
 	/**
-	 * Sanitize the submitted toggles into the array stored under the selector's
-	 * {@see FeatureSelector::storage_key()}.
+	 * Sanitize the submitted feature-flag array before it's written to the DB.
 	 *
-	 * Rebuilds the `slug => bool` array from the posted checkboxes: every unlocked
-	 * flag takes its submitted state — absent (unchecked) means `false`, so a
-	 * default-on flag actually turns off. Locked flags carry no submittable field,
-	 * so their stored value is preserved untouched; any unrelated keys already in
-	 * the option are left as-is.
+	 * For every registered, non-locked flag: true if the checkbox was submitted,
+	 * false otherwise (unchecked checkboxes are absent from the POST body).
 	 *
-	 * @param mixed $value Raw submitted value (a `slug => '1'` map, or anything).
+	 * For locked flags (constant-overridden): the previously stored value is
+	 * carried forward so saving the form never silently resets a locked flag's
+	 * database record to false.
 	 *
-	 * @return array<string, mixed> Toggles to persist.
+	 * @param mixed $input Raw value received from the Settings API.
+	 * @return array<string, bool> Sanitized flag-key => bool map.
 	 */
-	public function sanitize_settings( mixed $value ): array {
-		$submitted = is_array( $value ) ? $value : [];
-		$stored    = (array) get_option( $this->selector->storage_key(), [] );
+	public function sanitize_settings( mixed $input ): array {
+		$submitted = is_array( $input ) ? $input : [];
+		$stored    = (array) get_option( $this->get_selector()->shared_option_key(), [] );
+		$sanitized = [];
 
-		foreach ( $this->selector->get_registered() as $slug ) {
-			if ( defined( $this->selector->constant_name( $slug ) ) ) {
+		foreach ( $this->get_selector()->get_registered() as $slug ) {
+			$key = $this->get_selector()->flag_key( $slug );
+
+			if ( defined( $this->get_selector()->constant_name( $slug ) ) ) {
+				// Preserve the stored value so the constant's intent in the DB is not overwritten.
+				if ( array_key_exists( $key, $stored ) ) {
+					$sanitized[ $key ] = (bool) $stored[ $key ];
+				}
+
 				continue;
 			}
 
-			$stored[ $slug ] = ! empty( $submitted[ $slug ] );
+			$sanitized[ $key ] = isset( $submitted[ $key ] ) && (bool) $submitted[ $key ];
 		}
 
-		return $stored;
+		return $sanitized;
 	}
 
 	/**
 	 * Register one settings field per flag, all attached to a single section.
+	 *
 	 * Hooked to `admin_init` only — see {@see FeatureSelectorSettingsPage::register_hooks()}.
 	 */
 	public function register_fields(): void {
@@ -200,7 +200,7 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 			$this->get_menu_slug()
 		);
 
-		foreach ( $this->selector->get_features() as $slug => $meta ) {
+		foreach ( $this->get_selector()->get_features() as $slug => $meta ) {
 			add_settings_field(
 				$slug,
 				esc_html( $meta['name'] ),
@@ -237,15 +237,16 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	/**
 	 * Render one flag's checkbox.
 	 *
-	 * Reuses {@see FeatureSelector::is_enabled()}, so a defined override
-	 * constant is reflected automatically; the checkbox is then disabled and a
-	 * help message names the constant.
+	 * Uses array-style field names ({shared_option_key}[{flag_key}]) so all
+	 * flags post as a single option array. Reuses {@see FeatureSelector::is_enabled()}
+	 * so a defined constant is reflected automatically; the checkbox is then
+	 * disabled and a help message names the constant.
 	 *
 	 * @param array{slug: string, name: string, description: string} $args Flag metadata.
 	 */
 	public function render_field( array $args ): void {
-		$field_name    = $this->selector->storage_key() . '[' . $args['slug'] . ']';
-		$constant_name = $this->selector->constant_name( $args['slug'] );
+		$field_name    = $this->get_selector()->shared_option_key() . '[' . $this->get_selector()->flag_key( $args['slug'] ) . ']';
+		$constant_name = $this->get_selector()->constant_name( $args['slug'] );
 		$is_locked     = defined( $constant_name );
 
 		?>
@@ -254,7 +255,7 @@ class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 				type="checkbox"
 				name="<?php echo esc_attr( $field_name ); ?>"
 				value="1"
-				<?php checked( $this->selector->is_enabled( $args['slug'] ) ); ?>
+				<?php checked( $this->get_selector()->is_enabled( $args['slug'] ) ); ?>
 				<?php disabled( $is_locked ); ?>
 			/>
 			<?php esc_html_e( 'Enable', 'wp-framework' ); ?>
