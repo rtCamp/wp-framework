@@ -76,7 +76,7 @@ abstract class AbstractFeature implements ConditionallyRegistrable {
 					'name'        => $this->get_name(),
 					'description' => $this->get_description(),
 				],
-			] 
+			]
 		);
 	}
 

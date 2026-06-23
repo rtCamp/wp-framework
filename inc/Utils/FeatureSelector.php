@@ -25,11 +25,13 @@ namespace rtCamp\WPFramework\Utils;
  *
  * Storage scheme (context "my-plugin"):
  *   option name   → my_plugin_features  (one row; value is an associative array)
- *   array key     → dark_mode           (normalized flag slug)
+ *   array key     → dark-mode           (flag slug, dashes preserved)
  *   constant name → MY_PLUGIN_FEATURE_DARK_MODE
  *
- * Both context and flag slugs are normalized before use: lowercased and any
- * run of characters outside [a-z0-9_] collapsed to a single underscore.
+ * Context slugs are normalized with underscores (my_plugin_features). Flag
+ * keys preserve dashes — only spaces and other non-[a-z0-9-] characters are
+ * collapsed to a single dash. Constant names always use underscores (derived
+ * independently via the underscore normalizer).
  *
  * Usage:
  *   $flags = new FeatureSelector( 'my-plugin' );
@@ -158,7 +160,7 @@ class FeatureSelector {
 		$stored = (array) get_option( $this->shared_option_key(), [] );
 		$key    = $this->flag_key( $flag );
 
-		return isset( $stored[ $key ] ) ? (bool) $stored[ $key ] : true;
+		return array_key_exists( $key, $stored ) ? (bool) $stored[ $key ] : true;
 	}
 
 	/**

@@ -20,7 +20,7 @@ use rtCamp\WPFramework\Contracts\Abstracts\AbstractSettingsPage;
  * by the injected {@see FeatureSelector}.
  *
  * The form posts to `options.php` with array-style field names:
- *   {shared_option_key}[{flag_key}]  e.g.  elementary_features[dark_mode]
+ *   {shared_option_key}[{flag_key}]  e.g.  elementary_features[dark-mode]
  *
  * The sanitize callback writes only non-locked flags back to the stored array.
  * Flags overridden by a PHP constant are rendered as locked (disabled checkbox)
@@ -174,7 +174,7 @@ abstract class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 
 			if ( defined( $this->get_selector()->constant_name( $slug ) ) ) {
 				// Preserve the stored value so the constant's intent in the DB is not overwritten.
-				if ( isset( $stored[ $key ] ) ) {
+				if ( array_key_exists( $key, $stored ) ) {
 					$sanitized[ $key ] = (bool) $stored[ $key ];
 				}
 
