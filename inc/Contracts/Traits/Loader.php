@@ -60,8 +60,10 @@ trait Loader {
 	 * Fetch a shared instance populated during load.
 	 *
 	 * @template T of object
-	 * @param class-string<T> $id Class name.
-	 * @return T
+	 * @param string $id Class name.
+	 * @phpstan-param class-string<T> $id
+	 * @return object
+	 * @phpstan-return T
 	 * @throws \RuntimeException If load() has not been called or the class was not registered as Shareable.
 	 */
 	public function get_shared( string $id ): object {
