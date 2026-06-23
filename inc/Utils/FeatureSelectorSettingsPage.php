@@ -138,32 +138,53 @@ abstract class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	 * Registers a single array option (the selector's shared option key) with
 	 * a sanitize callback that validates each non-locked flag's value.
 	 *
-	 * Locked flags (constant-overridden) are excluded from the sanitize pass:
-	 * their disabled checkboxes are not submitted, so including them would let
-	 * options.php write false over the stored value every time the form saves.
+	 * Locked flags (constant-overridden) are excluded from the form but their
+	 * previously stored value is preserved — see sanitize_settings().
 	 */
 	protected function get_settings(): array {
 		return [
 			$this->get_selector()->shared_option_key() => [
 				'type'              => 'array',
-				'sanitize_callback' => function ( mixed $input ): array {
-					$submitted = is_array( $input ) ? $input : [];
-					$sanitized = [];
-
-					foreach ( $this->get_selector()->get_registered() as $slug ) {
-						if ( defined( $this->get_selector()->constant_name( $slug ) ) ) {
-							continue;
-						}
-
-						$key               = $this->get_selector()->flag_key( $slug );
-						$sanitized[ $key ] = isset( $submitted[ $key ] ) && (bool) $submitted[ $key ];
-					}
-
-					return $sanitized;
-				},
+				'sanitize_callback' => [ $this, 'sanitize_settings' ],
 				'default'           => [],
 			],
 		];
+	}
+
+	/**
+	 * Sanitize the submitted feature-flag array before it's written to the DB.
+	 *
+	 * For every registered, non-locked flag: true if the checkbox was submitted,
+	 * false otherwise (unchecked checkboxes are absent from the POST body).
+	 *
+	 * For locked flags (constant-overridden): the previously stored value is
+	 * carried forward so saving the form never silently resets a locked flag's
+	 * database record to false.
+	 *
+	 * @param mixed $input Raw value received from the Settings API.
+	 * @return array<string, bool> Sanitized flag-key => bool map.
+	 */
+	public function sanitize_settings( mixed $input ): array {
+		$submitted = is_array( $input ) ? $input : [];
+		$stored    = (array) get_option( $this->get_selector()->shared_option_key(), [] );
+		$sanitized = [];
+
+		foreach ( $this->get_selector()->get_registered() as $slug ) {
+			$key = $this->get_selector()->flag_key( $slug );
+
+			if ( defined( $this->get_selector()->constant_name( $slug ) ) ) {
+				// Preserve the stored value so the constant's intent in the DB is not overwritten.
+				if ( isset( $stored[ $key ] ) ) {
+					$sanitized[ $key ] = (bool) $stored[ $key ];
+				}
+
+				continue;
+			}
+
+			$sanitized[ $key ] = isset( $submitted[ $key ] ) && (bool) $submitted[ $key ];
+		}
+
+		return $sanitized;
 	}
 
 	/**

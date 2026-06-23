@@ -135,15 +135,24 @@ class FeatureSelector {
 	/**
 	 * Check whether a flag is enabled.
 	 *
-	 * Resolves in order: PHP constant → stored array value → default true.
+	 * Resolves in order: registry check → PHP constant → stored array value → default true.
+	 * Unregistered slugs always return false (silently — no _doing_it_wrong()).
+	 * String 'false' constants (a common wp-config mistake) are treated as false.
 	 *
 	 * @param string $flag Flag slug as passed to register().
 	 */
 	public function is_enabled( string $flag ): bool {
+		// Registry is authoritative: unregistered flags are always off.
+		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {
+			return false;
+		}
+
 		$constant = $this->constant_name( $flag );
 
 		if ( defined( $constant ) ) {
-			return (bool) constant( $constant );
+			$value = constant( $constant );
+
+			return 'false' !== $value && (bool) $value;
 		}
 
 		$stored = (array) get_option( $this->shared_option_key(), [] );
@@ -158,6 +167,20 @@ class FeatureSelector {
 	 * @param string $flag Flag slug.
 	 */
 	public function enable( string $flag ): bool {
+		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {
+			_doing_it_wrong(
+				__METHOD__,
+				sprintf(
+					/* translators: %s: flag slug that was not registered. */
+					esc_html__( 'Feature flag "%s" is not registered; enable() ignored.', 'wp-framework' ),
+					esc_html( $flag )
+				),
+				'0.0.1'
+			);
+
+			return false;
+		}
+
 		return $this->write_flag( $flag, true );
 	}
 
@@ -173,6 +196,20 @@ class FeatureSelector {
 	 * @param string $flag Flag slug.
 	 */
 	public function disable( string $flag ): bool {
+		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {
+			_doing_it_wrong(
+				__METHOD__,
+				sprintf(
+					/* translators: %s: flag slug that was not registered. */
+					esc_html__( 'Feature flag "%s" is not registered; disable() ignored.', 'wp-framework' ),
+					esc_html( $flag )
+				),
+				'0.0.1'
+			);
+
+			return false;
+		}
+
 		return $this->write_flag( $flag, false );
 	}
 
@@ -209,13 +246,16 @@ class FeatureSelector {
 	/**
 	 * Normalized array key for a flag within the stored option.
 	 *
-	 * This is what is_enabled() looks up in the stored array, and what the
-	 * settings page uses as the HTML field-name suffix.
+	 * Lowercases the slug and collapses any run of characters outside [a-z0-9-]
+	 * to a single dash, preserving existing dashes. This keeps stored keys
+	 * human-readable (e.g. dark-mode, beta-search) and consistent with typical
+	 * WP slug conventions. Contrast with normalize(), which uses underscores for
+	 * PHP option-name and constant-name contexts.
 	 *
 	 * @param string $flag Flag slug.
 	 */
 	public function flag_key( string $flag ): string {
-		return $this->normalize( $flag );
+		return trim( (string) preg_replace( '/[^a-z0-9-]+/', '-', strtolower( $flag ) ), '-' );
 	}
 
 	/**

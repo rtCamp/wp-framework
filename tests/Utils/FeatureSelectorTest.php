@@ -242,29 +242,30 @@ final class FeatureSelectorTest extends TestCase {
 	// --- key derivation ----------------------------------------------------------
 
 	public function test_key_derivation_is_symmetrical(): void {
-		$this->assertSame( 'my_plugin_feature_demo_flag', $this->selector->option_key( 'demo-flag' ) );
+		$this->assertSame( 'demo-flag', $this->selector->flag_key( 'demo-flag' ) );
 		$this->assertSame( 'MY_PLUGIN_FEATURE_DEMO_FLAG', $this->selector->constant_name( 'demo-flag' ) );
-		$this->assertSame( 'my_plugin_features', $this->selector->storage_key() );
+		$this->assertSame( 'my_plugin_features', $this->selector->shared_option_key() );
 	}
 
 	public function test_empty_context_uses_bare_feature_prefix(): void {
 		$selector = new FeatureSelector();
 
-		$this->assertSame( 'feature_demo_flag', $selector->option_key( 'demo-flag' ) );
+		$this->assertSame( 'demo-flag', $selector->flag_key( 'demo-flag' ) );
 		$this->assertSame( 'FEATURE_DEMO_FLAG', $selector->constant_name( 'demo-flag' ) );
-		$this->assertSame( 'features', $selector->storage_key() );
+		$this->assertSame( 'features', $selector->shared_option_key() );
 	}
 
 	public function test_context_is_normalized(): void {
+		// Context normalization uses underscores for the option name.
 		$this->assertSame(
-			'my_plugin_feature_x',
-			( new FeatureSelector( 'My-Plugin' ) )->option_key( 'x' )
+			'my_plugin_features',
+			( new FeatureSelector( 'My-Plugin' ) )->shared_option_key()
 		);
 
 		// Runs of spaces/dots and other invalid characters collapse to one underscore.
 		$this->assertSame(
-			'my_plugin_v2_0_feature_x',
-			( new FeatureSelector( 'My Plugin v2.0' ) )->option_key( 'x' )
+			'my_plugin_v2_0_features',
+			( new FeatureSelector( 'My Plugin v2.0' ) )->shared_option_key()
 		);
 	}
 

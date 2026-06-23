@@ -47,7 +47,25 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$GLOBALS['wp_settings_fields']   = [];
 
 		$this->selector = new FeatureSelector( 'my-plugin' );
-		$this->page     = new FeatureSelectorSettingsPage( $this->selector );
+		$this->page     = $this->make_page( $this->selector );
+	}
+
+	/**
+	 * Instantiate a concrete FeatureSelectorSettingsPage backed by $selector.
+	 *
+	 * FeatureSelectorSettingsPage is abstract (get_selector() must be provided by
+	 * the consumer), so tests use an anonymous class to supply the implementation.
+	 *
+	 * @param FeatureSelector $selector Selector to back the page.
+	 */
+	private function make_page( FeatureSelector $selector ): FeatureSelectorSettingsPage {
+		return new class( $selector ) extends FeatureSelectorSettingsPage {
+			public function __construct( private readonly FeatureSelector $sel ) {}
+
+			protected function get_selector(): FeatureSelector {
+				return $this->sel;
+			}
+		};
 	}
 
 	/**
@@ -107,7 +125,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 	}
 
 	public function test_menu_slug_slugifies_a_non_slug_context(): void {
-		$page = new FeatureSelectorSettingsPage( new FeatureSelector( 'My Plugin v2.0' ) );
+		$page = $this->make_page( new FeatureSelector( 'My Plugin v2.0' ) );
 
 		$page->register_page();
 
@@ -115,7 +133,7 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 	}
 
 	public function test_empty_context_page_slug_is_bare_features(): void {
-		$page = new FeatureSelectorSettingsPage( new FeatureSelector() );
+		$page = $this->make_page( new FeatureSelector() );
 
 		$page->register_page();
 
