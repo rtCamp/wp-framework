@@ -34,6 +34,7 @@
  *   $html = $templates->get( 'content', 'card', [ 'title' => 'Hello' ] ); // string
  *
  * @package rtCamp\WPFramework
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );

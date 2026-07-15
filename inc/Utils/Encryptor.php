@@ -4,7 +4,7 @@
  *
  * Useful for encrypting sensitive data before storing it in the database.
  *
- * @package rtCamp\WPFramework
+ * @package rtCamp\WPFramework\Utils
  * @since   1.0.0
  */
 

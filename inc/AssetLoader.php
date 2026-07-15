@@ -207,6 +207,8 @@ class AssetLoader {
 	 * @param string[] $deps      Optional. Registered script handles this depends on. Inherited from the asset file if empty.
 	 * @param ?string  $ver       Optional. Version string. Inherited from the asset file (or filemtime) if null.
 	 * @param bool     $in_footer Optional. Whether to enqueue the script before </body> instead of in the <head>.
+	 *
+	 * @return bool True on success; false if the asset file is missing.
 	 */
 	public function register_script( string $handle, string $filename, array $deps = [], ?string $ver = null, bool $in_footer = true ): bool {
 		$meta = $this->get_asset_meta( $filename, 'js' );
@@ -234,6 +236,8 @@ class AssetLoader {
 	 * @param string[] $deps     Optional. Registered stylesheet handles this depends on. Inherited from the asset file if empty.
 	 * @param ?string  $ver      Optional. Version string. Inherited from the asset file (or filemtime) if null.
 	 * @param string   $media    Optional. The media for which this stylesheet has been defined.
+	 *
+	 * @return bool True on success; false if the asset file is missing.
 	 */
 	public function register_style( string $handle, string $filename, array $deps = [], ?string $ver = null, string $media = 'all' ): bool {
 		$meta = $this->get_asset_meta( $filename, 'css' );

@@ -2,7 +2,7 @@
 /**
  * FeatureSelector utility.
  *
- * @package rtCamp\WPFramework
+ * @package rtCamp\WPFramework\Utils
  * @since   1.0.0
  */
 
@@ -19,9 +19,10 @@ namespace rtCamp\WPFramework\Utils;
  * and makes it trivial to read, export, or reset all flags at once.
  *
  * Flag resolution order in is_enabled():
+ *   0. Registered?   — unregistered slugs are always off; nothing below runs
  *   1. PHP constant  — define in wp-config.php to lock a flag hard
  *   2. Stored array  — value from the shared option for this flag's key
- *   3. default true  — flags are on unless explicitly turned off
+ *   3. default true  — a registered flag is on unless explicitly turned off
  *
  * Storage scheme (context "my-plugin"):
  *   option name   → my_plugin_features  (one row; value is an associative array)
@@ -167,6 +168,8 @@ class FeatureSelector {
 	 * Enable a flag and persist the change to the database.
 	 *
 	 * @param string $flag Flag slug.
+	 *
+	 * @return bool True if the change was persisted; false if the flag is not registered.
 	 */
 	public function enable( string $flag ): bool {
 		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {
@@ -196,6 +199,8 @@ class FeatureSelector {
 	 * A PHP constant override still wins at read time regardless of what's stored.
 	 *
 	 * @param string $flag Flag slug.
+	 *
+	 * @return bool True if the change was persisted; false if the flag is not registered.
 	 */
 	public function disable( string $flag ): bool {
 		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {

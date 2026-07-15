@@ -11,6 +11,7 @@
  * distinct context, so their components and asset handles never collide.
  *
  * @package rtCamp\WPFramework
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
