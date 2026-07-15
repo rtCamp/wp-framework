@@ -82,7 +82,7 @@ composer check     # lint (PHPCS) + analyse (PHPStan) + test (PHPUnit)
 ```
 
 Tests run against real WordPress via [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/)
-(`npm install && npm run wp-env`). TDD: a failing test first (`tests/` mirrors
+(`npm install && npm run wp-env start`). TDD: a failing test first (`tests/` mirrors
 `inc/`), then the code. Conventions live in [AGENTS.md](AGENTS.md), shared across
 all contributors and AI tools.
 

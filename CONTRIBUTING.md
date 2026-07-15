@@ -22,7 +22,7 @@ composer install
 
 # 2. Bring up WordPress for the integration tests (Docker required)
 npm install
-npm run wp-env    # starts @wordpress/env
+npm run wp-env start    # starts @wordpress/env
 ```
 
 ## Before you open a PR
