@@ -20,7 +20,7 @@ namespace rtCamp\WPFramework;
 /**
  * Class ComponentLoader
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class ComponentLoader {
 
@@ -260,7 +260,7 @@ class ComponentLoader {
 					esc_html__( 'Component "%s" could not be resolved.', 'wp-framework' ),
 					esc_html( $name )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 
 			return;

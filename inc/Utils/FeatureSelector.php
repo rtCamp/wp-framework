@@ -3,7 +3,7 @@
  * FeatureSelector utility.
  *
  * @package rtCamp\WPFramework
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -43,7 +43,7 @@ namespace rtCamp\WPFramework\Utils;
  * are stored; flag_key() and constant_name() are independent and must be
  * overridden separately if needed.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class FeatureSelector {
 
@@ -119,7 +119,7 @@ class FeatureSelector {
 						esc_html( $this->flag_keys[ $flag_key ] ),
 						esc_html( $flag_key )
 					),
-					'0.0.1'
+					'1.0.0'
 				);
 
 				continue;
@@ -177,7 +177,7 @@ class FeatureSelector {
 					esc_html__( 'Feature flag "%s" is not registered; enable() ignored.', 'wp-framework' ),
 					esc_html( $flag )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 
 			return false;
@@ -206,7 +206,7 @@ class FeatureSelector {
 					esc_html__( 'Feature flag "%s" is not registered; disable() ignored.', 'wp-framework' ),
 					esc_html( $flag )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 
 			return false;

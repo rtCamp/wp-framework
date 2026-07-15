@@ -3,7 +3,7 @@
  * Interface for WP_CLI commands.
  *
  * @package rtCamp\WPFramework\Contracts\Interfaces
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

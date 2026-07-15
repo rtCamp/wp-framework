@@ -7,7 +7,7 @@
  * class with `register_block_manifest()` directly.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

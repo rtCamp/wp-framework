@@ -5,7 +5,7 @@
  * Simple container that stores object instances and retrieves them by class name.
  *
  * @package rtCamp\WPFramework
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

@@ -13,7 +13,7 @@
  *
  * @package rtCamp\WPFramework
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );
@@ -23,7 +23,7 @@ namespace rtCamp\WPFramework;
 /**
  * Class AssetLoader
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class AssetLoader {
 	/**
@@ -172,7 +172,7 @@ class AssetLoader {
 			_doing_it_wrong(
 				static::class,
 				esc_html__( 'Block manifest file is missing. Blocks will not be registered.', 'wp-framework' ),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -326,7 +326,7 @@ class AssetLoader {
 					esc_html( $filename ),
 					esc_html( $extension )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return null;
 		}
@@ -355,7 +355,7 @@ class AssetLoader {
 						esc_html__( 'Asset manifest "%s" is invalid; the file modification time will be used as the version.', 'wp-framework' ),
 						esc_html( $manifest_file )
 					),
-					'0.0.1'
+					'1.0.0'
 				);
 				$meta = [ 'dependencies' => [] ];
 			}

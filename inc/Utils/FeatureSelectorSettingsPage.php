@@ -3,7 +3,7 @@
  * FeatureSelectorSettingsPage utility.
  *
  * @package rtCamp\WPFramework
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -35,7 +35,7 @@ use rtCamp\WPFramework\Contracts\Abstracts\AbstractSettingsPage;
  * the parent) or {@see FeatureSelectorSettingsPage::render_field()} to customise
  * the page chrome.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 abstract class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 

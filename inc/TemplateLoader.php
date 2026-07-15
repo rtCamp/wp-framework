@@ -43,7 +43,7 @@ namespace rtCamp\WPFramework;
 /**
  * Class TemplateLoader
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class TemplateLoader {
 

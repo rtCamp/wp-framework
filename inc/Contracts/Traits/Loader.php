@@ -7,7 +7,7 @@
  * Plain classes (neither Registrable nor Shareable) are just instantiated.
  *
  * @package rtCamp\WPFramework\Contracts\Traits
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

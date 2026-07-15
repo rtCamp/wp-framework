@@ -3,7 +3,7 @@
  * Logger utility.
  *
  * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -40,7 +40,7 @@ namespace rtCamp\WPFramework\Utils;
  * specific subsystem. Internal calls go through `$this` so such overrides take effect.
  *
  * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since   1.0.0
  */
 class Logger {
 
