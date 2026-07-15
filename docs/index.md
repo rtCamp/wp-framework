@@ -18,9 +18,10 @@ Two rules define the whole package:
 1. **A registration system.** A predictable way to turn a list of classes into
    live WordPress hooks — `Registrable`, the `Loader` trait, and the
    `Container`. This is the spine; read [architecture.md](architecture.md) first.
-2. **A library of base classes.** Nine `Abstract*` classes that each wrap one
+2. **A library of base classes.** Ten `Abstract*` classes — most wrap one
    WordPress registration chore (a post type, a taxonomy, a block, a settings
-   page, …). See [abstracts.md](abstracts.md).
+   page, …); two are structural: `AbstractModule` groups services and
+   `AbstractFeature` gates one behind a flag. See [abstracts.md](abstracts.md).
 3. **Asset & render plumbing.** `AssetLoader`, `ComponentLoader`, and
    `TemplateLoader` — enqueue built assets and resolve component/template files
    across the child-theme → parent-theme → package hierarchy. See
@@ -35,7 +36,7 @@ Two rules define the whole package:
 |---|---|
 | [architecture.md](architecture.md) | The mental model: how a class becomes a live hook. The `Registrable` → `Loader` → `Container` flow and where `Module` fits. Start here. |
 | [contracts.md](contracts.md) | Reference for the interfaces and traits: `Registrable`, `ConditionallyRegistrable`, `Shareable`, `CLICommand`, `Loader`, `Singleton`. |
-| [abstracts.md](abstracts.md) | Cookbook for the nine `Abstract*` base classes — what each is for, the methods to implement, the hook it wires, a minimal subclass. |
+| [abstracts.md](abstracts.md) | Cookbook for the ten `Abstract*` base classes — what each is for, the methods to implement, the hook it wires, a minimal subclass. |
 | [loaders.md](loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` — the asset/render subsystem and the theme-override hierarchy they share. |
 | [utilities.md](utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `FeatureSelectorSettingsPage`, `XHProf_Profiler`, and `Container`. |
 | [ai-review-system.md](ai-review-system.md) | How the AI review instructions are authored here and synced into the skeletons. |

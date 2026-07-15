@@ -24,8 +24,9 @@ debuggable by reading `Loader::load()` top to bottom.
 [`Loader::load()`](../inc/Contracts/Traits/Loader.php) is the heart of the
 framework. Given `class-string[]`, for each class it:
 
-1. **Instantiates** it with `new $class_name()` — every loadable class must have a
-   zero-argument constructor.
+1. **Instantiates** it with `new $class_name()` — every loadable class must be
+   constructible with no arguments (i.e. no *required* constructor parameters;
+   all-optional is fine).
 2. **Registers hooks** if it is `Registrable` — but first, if it is also
    `ConditionallyRegistrable`, it calls `can_register()` and skips registration
    when that returns `false`.
@@ -56,7 +57,8 @@ constructor did the work).
 `load()` creates a **fresh `Container` each call** and assigns it to
 `$this->container`. So the shared instances belong to the loader that loaded
 them, not to a global. Call `get_shared( $class_name )` on that same loader to
-retrieve one; calling it before `load()` throws a `RuntimeException`.
+retrieve one; calling it before `load()` — or for a class that wasn't
+`Shareable` — throws a `RuntimeException`.
 
 ## Modules: loaders that hold loaders
 
@@ -125,10 +127,12 @@ they are not the same thing:
 - **`Shareable` + `get_shared()`** — the preferred one. The instance is owned by
   a loader and handed out on request. It's still a normal object; the loader just
   kept a reference. Both [`Shareable`](../inc/Contracts/Interfaces/Shareable.php)
-  and the [`Singleton`](../inc/Contracts/Traits/Singleton.php) trait carry an
-  explicit "this is a soft anti-pattern, prefer injection" warning in their own
-  docblocks — use them when a hooked object genuinely must be retrieved later, not
-  as a default.
+  and the [`Singleton`](../inc/Contracts/Traits/Singleton.php) trait warn against
+  overuse in their own docblocks, but grade it differently: `Shareable` calls
+  itself a *soft* anti-pattern (hidden shared state), while `Singleton` calls
+  singletons an anti-pattern outright and says to prefer dependency injection.
+  Use either only when a hooked object genuinely must be retrieved later, not as a
+  default.
 - **`Singleton` trait** — global `ClassName::get_instance()` access with cloning
   and deserialization guarded. Use it only when something truly must be a process
   global and you can't thread it through a loader.

@@ -15,7 +15,7 @@
  * or on its own for a plain shared service.
  *
  * @package rtCamp\WPFramework\Contracts\Interfaces
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

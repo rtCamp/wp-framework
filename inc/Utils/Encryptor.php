@@ -4,8 +4,8 @@
  *
  * Useful for encrypting sensitive data before storing it in the database.
  *
- * @package rtCamp\WPFramework
- * @since   0.0.1
+ * @package rtCamp\WPFramework\Utils
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -22,7 +22,7 @@ namespace rtCamp\WPFramework\Utils;
  * Shareable in a consumer's container, or extend it to change the cipher or the
  * key source (e.g. KMS) by overriding the {@see Encryptor::key()} seam.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class Encryptor {
 
@@ -73,7 +73,7 @@ class Encryptor {
 			_doing_it_wrong(
 				__METHOD__,
 				'OpenSSL extension is not loaded. Encryption cannot proceed.',
-				'0.0.1',
+				'1.0.0',
 			);
 			return false;
 		}
@@ -109,7 +109,7 @@ class Encryptor {
 			_doing_it_wrong(
 				__METHOD__,
 				'OpenSSL extension is not loaded. Decryption cannot proceed.',
-				'0.0.1',
+				'1.0.0',
 			);
 			return false;
 		}
@@ -120,7 +120,7 @@ class Encryptor {
 			_doing_it_wrong(
 				__METHOD__,
 				'Invalid input: not a valid base64-encoded string.',
-				'0.0.1',
+				'1.0.0',
 			);
 			return false;
 		}

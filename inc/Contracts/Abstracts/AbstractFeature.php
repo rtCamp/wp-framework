@@ -3,7 +3,7 @@
  * Abstract Feature.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -25,7 +25,7 @@ use rtCamp\WPFramework\Utils\FeatureSelector;
  * automatically. can_register() reads the same registry to decide whether
  * register_hooks() should run.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 abstract class AbstractFeature implements ConditionallyRegistrable {
 

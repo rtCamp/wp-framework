@@ -6,7 +6,7 @@
  * intermediary between the plugin's Main class and individual services.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

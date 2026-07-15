@@ -34,6 +34,7 @@
  *   $html = $templates->get( 'content', 'card', [ 'title' => 'Hello' ] ); // string
  *
  * @package rtCamp\WPFramework
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -43,7 +44,7 @@ namespace rtCamp\WPFramework;
 /**
  * Class TemplateLoader
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class TemplateLoader {
 

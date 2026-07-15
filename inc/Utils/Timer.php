@@ -3,7 +3,7 @@
  * Timer utility.
  *
  * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -36,7 +36,7 @@ namespace rtCamp\WPFramework\Utils;
  *
  * Times are returned as float seconds, consistent with `$wpdb->queries` timing.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class Timer {
 
@@ -62,7 +62,7 @@ class Timer {
 			_doing_it_wrong(
 				__METHOD__,
 				esc_html__( 'Timer label must not be empty.', 'wp-framework' ),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -75,7 +75,7 @@ class Timer {
 					esc_html__( 'Timer "%s" has already been started.', 'wp-framework' ),
 					esc_html( $label )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -105,7 +105,7 @@ class Timer {
 			_doing_it_wrong(
 				__METHOD__,
 				esc_html__( 'Timer label must not be empty.', 'wp-framework' ),
-				'0.0.1'
+				'1.0.0'
 			);
 			return 0.0;
 		}
@@ -118,7 +118,7 @@ class Timer {
 					esc_html__( 'Timer "%s" was never started.', 'wp-framework' ),
 					esc_html( $label )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return 0.0;
 		}
@@ -131,7 +131,7 @@ class Timer {
 					esc_html__( 'Timer "%s" has already been stopped.', 'wp-framework' ),
 					esc_html( $label )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return $this->timers[ $label ]['end'] - $this->timers[ $label ]['start'];
 		}
@@ -158,7 +158,7 @@ class Timer {
 			_doing_it_wrong(
 				__METHOD__,
 				esc_html__( 'Timer label must not be empty.', 'wp-framework' ),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -167,7 +167,7 @@ class Timer {
 			_doing_it_wrong(
 				__METHOD__,
 				esc_html__( 'Lap name must not be empty.', 'wp-framework' ),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -180,7 +180,7 @@ class Timer {
 					esc_html__( 'Timer "%s" was never started.', 'wp-framework' ),
 					esc_html( $label )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -193,7 +193,7 @@ class Timer {
 					esc_html__( 'Timer "%s" has already been stopped.', 'wp-framework' ),
 					esc_html( $label )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}

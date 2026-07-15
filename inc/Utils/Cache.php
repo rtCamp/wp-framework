@@ -2,8 +2,8 @@
 /**
  * Cache utility.
  *
- * @package rtCamp\WPFramework
- * @since   0.0.1
+ * @package rtCamp\WPFramework\Utils
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -50,7 +50,7 @@ namespace rtCamp\WPFramework\Utils;
  * `wp_cache_supports( 'flush_group' )` so it gracefully returns `false` when
  * the persistent cache backend does not support group flushing.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class Cache {
 

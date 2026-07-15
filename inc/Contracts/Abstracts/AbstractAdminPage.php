@@ -5,7 +5,7 @@
  * Provides a clean interface for registering WordPress admin menu pages.
  *
  * @package rtCamp\WPFramework\Contracts\Abstracts
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );

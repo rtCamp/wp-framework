@@ -3,7 +3,7 @@
  * Standalone XHProf profiler.
  *
  * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -26,7 +26,7 @@ use rtCamp\WPFramework\Contracts\Traits\Singleton;
  * Internal references use late static binding (`static::`) so overrides take effect.
  *
  * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since   1.0.0
  *
  * @phpstan-consistent-constructor
  */
@@ -118,7 +118,7 @@ class XHProf_Profiler {
 		/**
 		 * Fires after an XHProf run completes.
 		 *
-		 * @since 0.0.1
+		 * @since 1.0.0
 		 *
 		 * @param array<string, array{ct: int, wt: int, cpu: int, mu: int, pmu: int}> $summary Top-N functions by wall time.
 		 * @param string                                                              $label   Caller-supplied run label.

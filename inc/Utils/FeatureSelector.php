@@ -2,8 +2,8 @@
 /**
  * FeatureSelector utility.
  *
- * @package rtCamp\WPFramework
- * @since   0.0.1
+ * @package rtCamp\WPFramework\Utils
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -19,9 +19,10 @@ namespace rtCamp\WPFramework\Utils;
  * and makes it trivial to read, export, or reset all flags at once.
  *
  * Flag resolution order in is_enabled():
+ *   0. Registered?   — unregistered slugs are always off; nothing below runs
  *   1. PHP constant  — define in wp-config.php to lock a flag hard
  *   2. Stored array  — value from the shared option for this flag's key
- *   3. default true  — flags are on unless explicitly turned off
+ *   3. default true  — a registered flag is on unless explicitly turned off
  *
  * Storage scheme (context "my-plugin"):
  *   option name   → my_plugin_features  (one row; value is an associative array)
@@ -43,7 +44,7 @@ namespace rtCamp\WPFramework\Utils;
  * are stored; flag_key() and constant_name() are independent and must be
  * overridden separately if needed.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class FeatureSelector {
 
@@ -119,7 +120,7 @@ class FeatureSelector {
 						esc_html( $this->flag_keys[ $flag_key ] ),
 						esc_html( $flag_key )
 					),
-					'0.0.1'
+					'1.0.0'
 				);
 
 				continue;
@@ -167,6 +168,8 @@ class FeatureSelector {
 	 * Enable a flag and persist the change to the database.
 	 *
 	 * @param string $flag Flag slug.
+	 *
+	 * @return bool True if the change was persisted; false if the flag is not registered.
 	 */
 	public function enable( string $flag ): bool {
 		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {
@@ -177,7 +180,7 @@ class FeatureSelector {
 					esc_html__( 'Feature flag "%s" is not registered; enable() ignored.', 'wp-framework' ),
 					esc_html( $flag )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 
 			return false;
@@ -196,6 +199,8 @@ class FeatureSelector {
 	 * A PHP constant override still wins at read time regardless of what's stored.
 	 *
 	 * @param string $flag Flag slug.
+	 *
+	 * @return bool True if the change was persisted; false if the flag is not registered.
 	 */
 	public function disable( string $flag ): bool {
 		if ( ! isset( $this->flag_keys[ $this->flag_key( $flag ) ] ) ) {
@@ -206,7 +211,7 @@ class FeatureSelector {
 					esc_html__( 'Feature flag "%s" is not registered; disable() ignored.', 'wp-framework' ),
 					esc_html( $flag )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 
 			return false;

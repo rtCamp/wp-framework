@@ -13,7 +13,7 @@
  *
  * @package rtCamp\WPFramework
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 
 declare( strict_types = 1 );
@@ -23,7 +23,7 @@ namespace rtCamp\WPFramework;
 /**
  * Class AssetLoader
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class AssetLoader {
 	/**
@@ -172,7 +172,7 @@ class AssetLoader {
 			_doing_it_wrong(
 				static::class,
 				esc_html__( 'Block manifest file is missing. Blocks will not be registered.', 'wp-framework' ),
-				'0.0.1'
+				'1.0.0'
 			);
 			return;
 		}
@@ -207,6 +207,8 @@ class AssetLoader {
 	 * @param string[] $deps      Optional. Registered script handles this depends on. Inherited from the asset file if empty.
 	 * @param ?string  $ver       Optional. Version string. Inherited from the asset file (or filemtime) if null.
 	 * @param bool     $in_footer Optional. Whether to enqueue the script before </body> instead of in the <head>.
+	 *
+	 * @return bool True on success; false if the asset file is missing.
 	 */
 	public function register_script( string $handle, string $filename, array $deps = [], ?string $ver = null, bool $in_footer = true ): bool {
 		$meta = $this->get_asset_meta( $filename, 'js' );
@@ -234,6 +236,8 @@ class AssetLoader {
 	 * @param string[] $deps     Optional. Registered stylesheet handles this depends on. Inherited from the asset file if empty.
 	 * @param ?string  $ver      Optional. Version string. Inherited from the asset file (or filemtime) if null.
 	 * @param string   $media    Optional. The media for which this stylesheet has been defined.
+	 *
+	 * @return bool True on success; false if the asset file is missing.
 	 */
 	public function register_style( string $handle, string $filename, array $deps = [], ?string $ver = null, string $media = 'all' ): bool {
 		$meta = $this->get_asset_meta( $filename, 'css' );
@@ -326,7 +330,7 @@ class AssetLoader {
 					esc_html( $filename ),
 					esc_html( $extension )
 				),
-				'0.0.1'
+				'1.0.0'
 			);
 			return null;
 		}
@@ -355,7 +359,7 @@ class AssetLoader {
 						esc_html__( 'Asset manifest "%s" is invalid; the file modification time will be used as the version.', 'wp-framework' ),
 						esc_html( $manifest_file )
 					),
-					'0.0.1'
+					'1.0.0'
 				);
 				$meta = [ 'dependencies' => [] ];
 			}

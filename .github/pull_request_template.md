@@ -33,8 +33,7 @@ $ ...
 - [ ] Tests pass
 
 ### Housekeeping
-- [ ] `CHANGELOG.md` entry under `## Unreleased`
-- [ ] `.claude/issues/<N>-<slug>.md` updated with final state
+- [ ] `CHANGELOG.md` entry under `## [Unreleased]`
 
 ## Reviewer notes
 
@@ -46,6 +45,3 @@ $ ...
 
 <!-- Include for UI / CLI work. Optional for pure backend changes. -->
 
----
-
-<sub>Full decision log and verification history for this work lives in `.claude/issues/<N>-<slug>.md` on this branch.</sub>

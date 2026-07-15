@@ -3,7 +3,7 @@
  * Transients utility.
  *
  * @package rtCamp\WPFramework\Utils
- * @since   0.0.1
+ * @since   1.0.0
  */
 
 declare( strict_types = 1 );
@@ -31,7 +31,7 @@ namespace rtCamp\WPFramework\Utils;
  * Not `final`, and internal calls go through `$this` so such overrides take effect —
  * the same extension pattern as {@see Cache::resolve_group()}.
  *
- * @since 0.0.1
+ * @since 1.0.0
  */
 class Transients {
 
