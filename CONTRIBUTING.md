@@ -53,12 +53,6 @@ test under `tests/` (which mirrors `inc/`) first, then the implementation.
 - [ ] A `CHANGELOG.md` entry is added under `## [Unreleased]`.
 - [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
-## Reporting security issues
-
-Do **not** open a public issue for security vulnerabilities. Report them
-privately via GitHub's [security advisory](https://github.com/rtCamp/wp-framework/security/advisories/new)
-form, or email `security@rtcamp.com`.
-
 ## License
 
 By contributing, you agree that your contributions are licensed under the
