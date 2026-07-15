@@ -103,7 +103,7 @@ $ ...
 - [ ]
 
 ### Housekeeping
-- [ ] `CHANGELOG.md` entry under `## Unreleased`
+- [ ] `CHANGELOG.md` entry under `## [Unreleased]`
 
 ---
 
