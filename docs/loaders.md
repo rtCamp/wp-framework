@@ -48,8 +48,9 @@ anything: a plugin gets all three layers; a theme's own loader collapses the
 redundant layer automatically. `ComponentLoader` figures this out by comparing
 its base directory against `get_stylesheet_directory()` /
 `get_template_directory()`; `TemplateLoader` does the same with
-`str_starts_with()` on its template directory. Both memoise the result for the
-request.
+`str_starts_with()` on its template directory. `ComponentLoader` memoises the
+resolved loader hierarchy for the request; `TemplateLoader` recomputes its search
+paths each call but memoises each located template path.
 
 ---
 
@@ -83,7 +84,7 @@ extension** — e.g. `register_script( 'my-app', 'app' )` looks for
 | `register_script( $handle, $filename, $deps = [], $ver = null, $in_footer = true )` | a script | `bool` from `wp_register_script()`, or `false` if the file is missing |
 | `register_style( $handle, $filename, $deps = [], $ver = null, $media = 'all' )` | a stylesheet | `bool` from `wp_register_style()`, or `false` if missing |
 | `register_script_module( $handle, $filename, $deps = [], $ver = null )` | an ES module | `false` if the file is missing, else `true` (core's `wp_register_script_module()` returns void, so success past the file check can't be reported more precisely) |
-| `register_block_manifest( $block_path, $manifest_file )` | all blocks in a manifest via `wp_register_block_types_from_metadata_collection()` | `void` |
+| `register_block_manifest( $block_path, $manifest_file )` | all blocks in a manifest via `wp_register_block_types_from_metadata_collection()` (WordPress 6.8+; falls back to registering each block from its own `block.json` on 6.5–6.7) | `void` |
 | `has_asset( $filename, $extension )` | — | `bool` — does the file exist under base+assets |
 
 These **register**; they don't enqueue. Call `wp_enqueue_script()` /
@@ -182,14 +183,16 @@ method precisely so a component can't reach back into the loader. It can forward
 - **Asset resolution follows the same hierarchy as the PHP.** A child theme can
   ship `css/components/Button.css` and override just the style while reusing the
   plugin's PHP.
-- **Three extension points**, all keyed by context so packages don't collide:
-  the `wp_framework_component_before_render` / `…_after_render` actions, the
-  `wp_framework_component_should_enqueue` filter (return `false` to suppress
-  auto-enqueue), and the `wp_framework_component_asset_handle` filter.
+- **Three extension points.** The hook *names* are global — the same for every
+  package — but each passes the loader's **context** slug as an argument, so a
+  handler can still tell packages apart: the `wp_framework_component_before_render`
+  / `…_after_render` actions, the `wp_framework_component_should_enqueue` filter
+  (return `false` to suppress auto-enqueue), and the
+  `wp_framework_component_asset_handle` filter.
 - **Per-request caching.** Resolved component metadata is memoised; call
   `clear_cache()` to drop it (mostly for tests).
 - A missing component emits `_doing_it_wrong()` and renders nothing rather than
-  fatale-ing.
+  throwing a fatal error.
 
 ---
 

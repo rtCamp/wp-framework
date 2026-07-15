@@ -66,6 +66,20 @@ $nav   = $cache->remember( 'nav_items', fn() => build_nav(), 'theme', 300 );
 the other services, register a `Cache` instance as `Shareable` in a consumer's
 container, or extend it to change the backend behaviour.
 
+For hot keys where a simultaneous miss would stampede the backend, use
+`remember_swr( $key, $callback, $group, $expiration )`. On expiry one caller takes
+a short lock and regenerates the value in the foreground while every other caller
+is served the still-usable **stale** copy — so only one regeneration runs at a
+time:
+
+```php
+$feed = $cache->remember_swr( 'home_feed', fn() => build_feed(), 'theme', 300 );
+```
+
+It keeps two companion entries — `{key}_stale` (the fallback, stored at roughly 2×
+the TTL) and `{key}_lock` — so avoid passing a `$key` that already ends in
+`_stale` or `_lock`.
+
 ## Logger
 
 [`inc/Utils/Logger.php`](../inc/Utils/Logger.php) — a PSR-3-*style* logger that writes
@@ -160,7 +174,15 @@ and titles all derived from the selector's context.
 $features = new FeatureSelector( 'my-plugin' );
 $features->register( [ 'dark-mode' => [ 'name' => 'Dark Mode' ] ] );
 
-( new FeatureSelectorSettingsPage( $features ) )->register_hooks();
+// FeatureSelectorSettingsPage is abstract — subclass it and return the shared
+// registry from get_selector().
+final class MyFeaturesPage extends FeatureSelectorSettingsPage {
+    protected function get_selector(): FeatureSelector {
+        return MyPlugin::features(); // the shared FeatureSelector instance
+    }
+}
+
+( new MyFeaturesPage() )->register_hooks();
 ```
 
 It's the ready-made UI for the toggles `FeatureSelector` reads — register it
@@ -179,7 +201,7 @@ $top = XHProf_Profiler::get_instance()->profile( fn() => expensive(), 10, 'expen
   the `tideways_xhprof` extension is loaded — the callback still runs, it just
   isn't profiled.
 - Supports both backends (they share the same `parent==>child` data shape); only
-  the enable/disable calls differ.
+  the enable/disable calls and the default flag constants differ.
 - It's a `Singleton` (`get_instance()`), and **not `final`** — a downstream
   package can extend it and override `summarize()`. Internal calls use late
   static binding so overrides take effect.

@@ -16,7 +16,7 @@ How GitHub Copilot code-review instructions and AI-agent guidance are authored, 
 | File | Repo | Role |
 |---|---|---|
 | `ai/framework-php.instructions.md` | framework | Canonical framework + WordPress review rules. Single source of truth. |
-| `bin/sync-ai-instructions.js` | framework | One tool, run by the consumer via `npm run sync-ai`. Refreshes each package's framework rules from its vendored copy, then projects every package's instructions to the `wp-content` root. `--check` for CI. |
+| `bin/sync-ai-instructions.js` | framework | One tool, run by the consumer via `npm run sync-ai`. Refreshes each package's framework rules from its vendored copy, then projects every package's instructions to the `wp-content` root. `--check` for a CI drift gate; `--root DIR` forces the `wp-content` root instead of detecting it from the current directory. |
 | `.github/copilot-instructions.md` | each package | Repo-wide overview + review conduct (skeleton-authored). |
 | `.github/instructions/structure.instructions.md` | each package | Package layout + wiring (skeleton-authored, carries the package's names). |
 | `.github/instructions/framework-php.instructions.md` | each package | Generated from the package's vendored framework. Banner-marked; do not hand-edit. |
@@ -43,7 +43,7 @@ wp-content/.github/instructions/
    <slug>-structure.instructions.md     applyTo: plugins/<slug>/inc/**                                      (per package)
 ```
 
-- **Identical** files across packages (the framework rules) merge into **one** file with a combined `applyTo`.
+- **Identical** files shared by **two or more** packages (the framework rules) merge into **one** file with a combined `applyTo`. (In a single-package project even the framework rules have only one member, so they emit per-package as `<slug>-<name>`, like the unique files below.)
 - **Unique** files (each package's `structure`, which carries its own names) are emitted **per package** as `<slug>-<name>`.
 - A **standalone** package (no `wp-content` root above) gets step 1 only; the package's own `.github/` is what Copilot reads.
 
@@ -67,6 +67,7 @@ The framework repo itself has its **own** `.github/` with framework-*development
 
 - **Assemble a project**: drop packages into `wp-content/{plugins,themes}/`, then `composer install` and `npm install && npm run init`. `init` sets names and runs `sync-ai`, which refreshes each package's framework rules and writes the wp-content root `.github/`.
 - **Add another plugin later**: run `npm run sync-ai`; it discovers the new package, refreshes it, and merges it into the projected output.
+- **Remove a plugin**: run `npm run sync-ai` after removing it; the merged `applyTo` globs are recomputed and now-orphaned generated files are pruned (only files carrying the `GENERATED` banner are deleted).
 - **Change a shared rule**: edit `ai/framework-php.instructions.md` in the framework, publish, then in the project run `composer update` + `npm run sync-ai`.
 - **Change a package-specific rule**: edit that package's `.github/instructions/structure.instructions.md`, then `npm run sync-ai`.
 - **CI gate**: `npm run sync-ai -- --check` fails the build if the committed instructions are stale. Copilot reads instructions from the **base branch**, so keeping `main` current is what matters.

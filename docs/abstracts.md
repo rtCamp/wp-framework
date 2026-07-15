@@ -226,7 +226,8 @@ Because it's a real `WP_REST_Controller`, all the core helper methods
 (`get_items_permissions_check()`, schema helpers, …) are available to override.
 
 > **Implementation note.** The base declares `register_routes()` as a concrete
-> method that throws `"Method not implemented."` rather than as `abstract`. The
+> method that throws a "not implemented" `Exception` (the message is prefixed with
+> the method name) rather than as `abstract`. The
 > effect is "you must override it," but the failure surfaces at **runtime** (when
 > `rest_api_init` fires), not at class-load time. Always provide your own
 > `register_routes()`. (An `abstract` method would catch a missing override at
@@ -265,7 +266,8 @@ page body is yours.
 ### AbstractSettingsPage
 
 [`AbstractSettingsPage.php`](../inc/Contracts/Abstracts/AbstractSettingsPage.php)
-— `AbstractAdminPage` plus the Settings API. It registers on **three** hooks:
+— the `AbstractAdminPage` pattern plus the Settings API (a parallel class, not a
+subclass — it re-declares the same menu seams). It registers on **three** hooks:
 `admin_menu` (the page), `admin_init` (the settings), and `rest_api_init` (so
 `show_in_rest` settings are registered for the block editor / REST too).
 
@@ -344,19 +346,21 @@ Two things to keep in mind:
 ### AbstractFeature
 
 [`AbstractFeature.php`](../inc/Contracts/Abstracts/AbstractFeature.php) — the odd
-one out. It doesn't register a WordPress object of its own; it wraps **any**
-service so that service only registers when a feature flag is on. It's the only
-abstract that `implements ConditionallyRegistrable`, so the
-[`Loader`](architecture.md) calls `can_register()` and skips the whole class when
-the flag is off.
+one out. It doesn't register a WordPress object of its own; it gates a subclass's
+**own** registration behind a feature flag. It's the only abstract that
+`implements ConditionallyRegistrable`, so the [`Loader`](architecture.md) still
+instantiates the class (its constructor runs) but calls `can_register()` before
+`register_hooks()` — skipping only the hook registration when the flag is off.
 
 Two jobs, both automatic:
 
-- **Discovery.** On construction it registers its slug, name, and description into
-  a shared [`FeatureSelector`](utilities.md#featureselector) registry, so the
-  flag shows up on the settings page without any extra wiring.
-- **Gating.** `can_register()` returns `FeatureSelector::is_enabled( $slug )`, so
-  the subclass's `register_hooks()` runs only when the flag is enabled.
+- **Discovery.** On construction — which runs even when the flag is off — it
+  registers its slug, name, and description into a shared
+  [`FeatureSelector`](utilities.md#featureselector) registry, so the flag shows up
+  on the settings page without any extra wiring.
+- **Gating.** `can_register()` returns the registry's `is_enabled( $slug )` (an
+  instance call via `get_feature_registry()`), so the subclass's `register_hooks()`
+  runs only when the flag is enabled.
 
 **Must implement:** `get_slug()`, `get_feature_registry()` (return the shared
 registry), and — since `AbstractFeature` deliberately leaves it out — the

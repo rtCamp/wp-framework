@@ -18,9 +18,10 @@ Two rules define the whole package:
 1. **A registration system.** A predictable way to turn a list of classes into
    live WordPress hooks — `Registrable`, the `Loader` trait, and the
    `Container`. This is the spine; read [architecture.md](architecture.md) first.
-2. **A library of base classes.** Ten `Abstract*` classes that each wrap one
+2. **A library of base classes.** Ten `Abstract*` classes — most wrap one
    WordPress registration chore (a post type, a taxonomy, a block, a settings
-   page, a feature flag, …). See [abstracts.md](abstracts.md).
+   page, …); two are structural: `AbstractModule` groups services and
+   `AbstractFeature` gates one behind a flag. See [abstracts.md](abstracts.md).
 3. **Asset & render plumbing.** `AssetLoader`, `ComponentLoader`, and
    `TemplateLoader` — enqueue built assets and resolve component/template files
    across the child-theme → parent-theme → package hierarchy. See

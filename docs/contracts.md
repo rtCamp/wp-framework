@@ -65,10 +65,11 @@ so it can be retrieved later via `get_shared( ClassName::class )`. Absence of th
 marker means a fresh, non-shared instance — the default.
 
 The interface's own docblock calls it a **soft anti-pattern**: it introduces
-hidden shared state, much like a singleton. Reach for it only when a hooked
-object genuinely has to be fetched again elsewhere (the loaders'
-`AssetLoader`/`ComponentLoader` sharing is the canonical legitimate use). If you
-can inject the object instead, do that.
+hidden shared state, much like a singleton. Reach for it only when an object
+genuinely has to be fetched again elsewhere — either a hooked class that must
+also be shared, or a plain shared service on its own (the loaders'
+`AssetLoader`/`ComponentLoader` sharing is the canonical legitimate use, and those
+are plain, non-`Registrable` services). If you can inject the object instead, do that.
 
 ### `CLICommand`
 
@@ -103,7 +104,7 @@ gain the ability to load other classes.
 | Member | Visibility | Purpose |
 |---|---|---|
 | `load( array $classes ): void` | `protected` | Instantiate each class; register hooks if `Registrable` (respecting `ConditionallyRegistrable`); cache if `Shareable`. Creates a fresh `Container` each call. |
-| `get_shared( string $id ): object` | `public` | Return an instance previously cached as `Shareable`. Throws `RuntimeException` if `load()` hasn't run, or if `$id` wasn't `Shareable`. |
+| `get_shared( string $id ): object` | `public` | Return an instance previously cached as `Shareable`. Throws `RuntimeException` if `load()` hasn't run, or if `$id` was never cached as a `Shareable` in that load (not `Shareable`, or not among the loaded classes). |
 | `$container` | `private Container` | The per-load instance store. Not accessible to consumers — go through `get_shared()`. |
 
 Because `load()` is `protected`, only the class that `use`s the trait can start a
