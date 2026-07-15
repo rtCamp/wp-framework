@@ -1,12 +1,13 @@
 # Abstracts — the base-class cookbook
 
-The nine `Abstract*` classes in
+The ten `Abstract*` classes in
 [`inc/Contracts/Abstracts/`](../inc/Contracts/Abstracts/) are the part of the
 framework a service author touches most. Each one wraps a single WordPress
 registration chore so the subclass writes *what* it is, not *how* to register it.
 
-Every abstract here (except `AbstractModule`, which is structural) follows the
-same shape:
+Every abstract here (except `AbstractModule`, which is structural, and
+`AbstractFeature`, which gates another service behind a flag) follows the same
+shape:
 
 - it `implements Registrable`, so the [`Loader`](architecture.md) drives it;
 - its `register_hooks()` attaches **one** WordPress hook;
@@ -31,6 +32,7 @@ familiar yet.
 | `AbstractSettingsPage` | `admin_menu` + `admin_init` + `rest_api_init` | `get_slug()`, `get_page_title()`, `get_menu_title()`, `get_settings()`, `render()` |
 | `AbstractAdminPage` | `admin_menu` | `get_slug()`, `get_page_title()`, `get_menu_title()`, `render()` |
 | `AbstractUserRole` | `admin_init` | `get_slug()`, `get_display_name()`, `get_capabilities()`, `get_version()` |
+| `AbstractFeature` | — (gates the subclass's own hooks) | `get_slug()`, `get_feature_registry()`, plus the subclass's `register_hooks()` |
 
 ---
 
@@ -334,6 +336,61 @@ Two things to keep in mind:
 - `remove_role()` is provided for deactivation/uninstall — it drops the role and
   deletes the version option. Call it from your uninstall path; the framework
   won't.
+
+---
+
+## Feature flags
+
+### AbstractFeature
+
+[`AbstractFeature.php`](../inc/Contracts/Abstracts/AbstractFeature.php) — the odd
+one out. It doesn't register a WordPress object of its own; it wraps **any**
+service so that service only registers when a feature flag is on. It's the only
+abstract that `implements ConditionallyRegistrable`, so the
+[`Loader`](architecture.md) calls `can_register()` and skips the whole class when
+the flag is off.
+
+Two jobs, both automatic:
+
+- **Discovery.** On construction it registers its slug, name, and description into
+  a shared [`FeatureSelector`](utilities.md#featureselector) registry, so the
+  flag shows up on the settings page without any extra wiring.
+- **Gating.** `can_register()` returns `FeatureSelector::is_enabled( $slug )`, so
+  the subclass's `register_hooks()` runs only when the flag is enabled.
+
+**Must implement:** `get_slug()`, `get_feature_registry()` (return the shared
+registry), and — since `AbstractFeature` deliberately leaves it out — the
+subclass's own `register_hooks()` with the actual feature behavior. Optionally
+override `get_name()` (defaults to a title-cased slug — `author-bio` → `Author
+Bio`) and `get_description()` (defaults to empty).
+
+Because every feature in a project shares one registry, the usual shape is a thin
+consumer-side base that supplies it, then one small class per feature:
+
+```php
+// One shared registry for the whole plugin.
+abstract class Feature extends AbstractFeature {
+    protected function get_feature_registry(): FeatureSelector {
+        return MyPlugin::feature_selector(); // the shared instance
+    }
+}
+
+final class AuthorBio extends Feature {
+    protected function get_slug(): string { return 'author-bio'; }
+    protected function get_description(): string {
+        return __( 'Show an author bio box beneath each post.', 'my-plugin' );
+    }
+
+    public function register_hooks(): void {          // runs only when the flag is on
+        add_filter( 'the_content', [ $this, 'append_bio' ] );
+    }
+}
+```
+
+The feature now appears on the `FeatureSelector` settings page as "Author Bio"
+with that description, and its `the_content` filter attaches only while the flag
+is enabled. See [utilities.md](utilities.md#featureselector) for the registry and
+its settings page.
 
 ---
 
