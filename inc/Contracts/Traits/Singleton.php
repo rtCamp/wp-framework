@@ -18,11 +18,16 @@ namespace rtCamp\WPFramework\Contracts\Traits;
  */
 trait Singleton {
 	/**
-	 * Instance of the class.
+	 * Instances of the classes using this trait, keyed by concrete class name.
 	 *
-	 * @var ?static
+	 * A trait's `static` property is a single storage slot shared by a class and
+	 * its subclasses, so a plain `static $instance` lets a parent and a child that
+	 * both use this trait collide (the child would receive the parent's instance).
+	 * Keying by class name gives each concrete class its own instance.
+	 *
+	 * @var array<class-string, static>
 	 */
-	protected static $instance;
+	private static array $instances = [];
 
 	/**
 	 * The single constructor.
@@ -37,11 +42,13 @@ trait Singleton {
 	 * Get the instance of the class.
 	 */
 	public static function get_instance(): static {
-		if ( ! isset( static::$instance ) ) {
-			static::$instance = new static();
+		$class = static::class;
+
+		if ( ! isset( self::$instances[ $class ] ) ) {
+			self::$instances[ $class ] = new static();
 		}
 
-		return static::$instance;
+		return self::$instances[ $class ];
 	}
 
 	/**
