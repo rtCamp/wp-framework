@@ -166,6 +166,29 @@ abstract class FeatureSelectorSettingsPage extends AbstractSettingsPage {
 	 */
 	public function sanitize_settings( mixed $input ): array {
 		$submitted = is_array( $input ) ? $input : [];
+
+		/*
+		 * This runs as a `sanitize_option_{key}` filter, which fires on EVERY write
+		 * of the shared option — not only on this settings page's form. On a
+		 * programmatic write (FeatureSelector::enable()/disable()) the incoming array
+		 * is already the full intended state, so the checkbox rebuild below would
+		 * wrongly reset every default-on flag that has never been stored to false.
+		 * Only apply that rebuild for a genuine options.php submission of this option
+		 * group; pass any other write through untouched.
+		 */
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- options.php verifies the nonce + capability before this filter runs; the marker only distinguishes a form save from a programmatic write.
+		$option_page = isset( $_POST['option_page'] ) ? sanitize_text_field( wp_unslash( $_POST['option_page'] ) ) : '';
+
+		if ( $option_page !== $this->get_option_group() ) {
+			$passthrough = [];
+
+			foreach ( $submitted as $flag_key => $value ) {
+				$passthrough[ (string) $flag_key ] = (bool) $value;
+			}
+
+			return $passthrough;
+		}
+
 		$stored    = (array) get_option( $this->get_selector()->shared_option_key(), [] );
 		$sanitized = [];
 
