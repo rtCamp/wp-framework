@@ -157,6 +157,17 @@ class Encryptor {
 			);
 		}
 
-		return $this->key;
+		/*
+		 * Derive a cipher-length key from the provided secret. OpenSSL silently
+		 * NUL-pads a too-short key and truncates a too-long one, which would
+		 * quietly weaken the cipher (a 16-byte secret becomes 16 real bytes + 16
+		 * zero bytes for AES-256) and make rotating only the tail of a long key a
+		 * no-op. Hashing maps any-length secret to a full-strength, fixed-length
+		 * key deterministically. Only reached from encrypt()/decrypt(), which have
+		 * already confirmed the OpenSSL extension is loaded.
+		 */
+		$key_length = (int) openssl_cipher_key_length( $this->cipher );
+
+		return substr( hash( 'sha256', $this->key, true ), 0, $key_length );
 	}
 }
