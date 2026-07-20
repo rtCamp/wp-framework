@@ -68,7 +68,7 @@ final class ComponentLoaderTest extends TestCase {
 		// Record the render actions so tests can assert they fired.
 		$this->rendered_hooks = [];
 		foreach ( [ 'before', 'after' ] as $phase ) {
-			$hook = "wp_framework_component_{$phase}_render";
+			$hook = "wp-framework/component_{$phase}_render";
 			add_action(
 				$hook,
 				function () use ( $hook ): void {
@@ -115,7 +115,7 @@ final class ComponentLoaderTest extends TestCase {
 		);
 
 		$this->assertSame(
-			[ 'wp_framework_component_before_render', 'wp_framework_component_after_render' ],
+			[ 'wp-framework/component_before_render', 'wp-framework/component_after_render' ],
 			$this->rendered_hooks
 		);
 	}
@@ -293,7 +293,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->write_parent_asset( 'css/components/alert.css', '.alert{}' );
 
 		add_filter(
-			'wp_framework_component_should_enqueue',
+			'wp-framework/component_should_enqueue',
 			static fn ( bool $enqueue, string $name, string $type ): bool => 'style' === $type ? false : $enqueue,
 			10,
 			3
@@ -310,7 +310,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->write_parent_asset( 'css/components/alert.css', '.alert{}' );
 
 		add_filter(
-			'wp_framework_component_asset_handle',
+			'wp-framework/component_asset_handle',
 			static fn ( string $handle, string $name, string $type ): string => "custom-{$name}-{$type}",
 			10,
 			3
