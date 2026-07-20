@@ -63,6 +63,15 @@ abstract class AbstractSettingsPage implements Registrable {
 		add_action( 'admin_menu', [ $this, 'register_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'rest_api_init', [ $this, 'register_settings' ] );
+
+		// The menu and render() are gated by get_capability(), but options.php gates
+		// the *save* on option_page_capability_{group}, which defaults to
+		// manage_options. Align them so a lowered get_capability() can actually save,
+		// instead of rendering a page that silently fails to persist.
+		add_filter(
+			'option_page_capability_' . $this->get_option_group(),
+			fn (): string => $this->get_capability()
+		);
 	}
 
 	/**
