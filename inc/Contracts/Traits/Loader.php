@@ -40,8 +40,17 @@ trait Loader {
 	 */
 	protected function load( array $classes ): void {
 		$this->container = new Container();
+		$seen            = [];
 
 		foreach ( $classes as $class_name ) {
+			// Skip duplicates: a class listed twice would otherwise be instantiated
+			// twice and register its hooks on two separate instances (so the hook
+			// body runs twice), while the Shareable cache would keep only the last.
+			if ( isset( $seen[ $class_name ] ) ) {
+				continue;
+			}
+			$seen[ $class_name ] = true;
+
 			$instance = new $class_name();
 
 			if ( $instance instanceof Registrable ) {
