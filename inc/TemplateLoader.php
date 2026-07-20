@@ -261,14 +261,19 @@ class TemplateLoader {
 	 * @return string|false Full path to the template, or false if none found.
 	 */
 	private function find_template( array $templates ): string|false {
-		$cache_key = md5( implode( '|', $templates ) );
+		$paths = $this->get_template_paths();
+
+		// Key on the resolved paths as well as the candidate names: the paths depend
+		// on the active theme (get_stylesheet_directory()/get_template_directory()),
+		// so a Shareable loader reused across a switch_theme()/switch_to_blog() in
+		// one request must not serve the previous theme's cached hit.
+		$cache_key = md5( implode( '|', $paths ) . "\0" . implode( '|', $templates ) );
 
 		if ( array_key_exists( $cache_key, $this->location_cache ) ) {
 			return $this->location_cache[ $cache_key ];
 		}
 
 		$found = false;
-		$paths = $this->get_template_paths();
 
 		// Template names are the outer loop so a more specific name (e.g. the
 		// {slug}-{name} variant) wins across layers, matching WordPress'
