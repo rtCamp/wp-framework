@@ -108,6 +108,12 @@ class AssetLoader {
 	 * @return bool True if the asset file exists.
 	 */
 	public function has_asset( string $filename, string $extension ): bool {
+		// Mirror get_asset_meta()'s traversal guard: this is public API and may be
+		// called directly with a consumer-supplied filename.
+		if ( str_contains( $filename, '..' ) ) {
+			return false;
+		}
+
 		$base = $this->base_dir . untrailingslashit( $this->assets_dir );
 
 		return file_exists( sprintf( '%s/%s.%s', $base, $filename, $extension ) );
