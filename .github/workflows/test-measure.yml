@@ -20,7 +20,7 @@ concurrency:
 jobs:
   lint-php:
     name: 'Lint PHP'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -55,7 +55,7 @@ jobs:
 
   analyse-php:
     name: 'PHPStan Analysis'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -86,7 +86,7 @@ jobs:
 
   unit-test-php:
     name: "PHP ${{ matrix.php }} / WP ${{ matrix.wp }}"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     strategy:
       fail-fast: false
       matrix:
@@ -121,7 +121,7 @@ jobs:
 
   coverage-php:
     name: 'PHP Coverage'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     env:
       # Coverage is version-agnostic, so one representative cell is enough.
       WP_ENV_PHP_VERSION: '8.3'
