@@ -1,13 +1,14 @@
 # Abstracts — the base-class cookbook
 
-The ten `Abstract*` classes in
+The twelve `Abstract*` classes in
 [`inc/Contracts/Abstracts/`](../inc/Contracts/Abstracts/) are the part of the
 framework a service author touches most. Each one wraps a single WordPress
 registration chore so the subclass writes *what* it is, not *how* to register it.
 
-Every abstract here (except `AbstractModule`, which is structural, and
-`AbstractFeature`, which gates another service behind a flag) follows the same
-shape:
+Every abstract here (except `AbstractModule`, which is structural;
+`AbstractFeature`, which gates another service behind a flag; and
+`AbstractAbility`, which describes an ability that its paired
+`AbstractAbilityRegistrar` registers) follows the same shape:
 
 - it `implements Registrable`, so the [`Loader`](architecture.md) drives it;
 - its `register_hooks()` attaches **one** WordPress hook;
@@ -33,6 +34,8 @@ familiar yet.
 | `AbstractAdminPage` | `admin_menu` | `get_slug()`, `get_page_title()`, `get_menu_title()`, `render()` |
 | `AbstractUserRole` | `admin_init` | `get_slug()`, `get_display_name()`, `get_capabilities()`, `get_version()` |
 | `AbstractFeature` | — (gates the subclass's own hooks) | `get_slug()`, `get_feature_registry()`, plus the subclass's `register_hooks()` |
+| `AbstractAbility` | — (registered by its `AbstractAbilityRegistrar`) | `name()`, `label()`, `description()`, `category()`, `input_schema()`, `output_schema()`, `execute()` |
+| `AbstractAbilityRegistrar` | `wp_abilities_api_categories_init` + `wp_abilities_api_init` | `category_slug()`, `category_description()`, `abilities()` |
 
 ---
 
@@ -395,6 +398,91 @@ The feature now appears on the `FeatureSelector` settings page as "Author Bio"
 with that description, and its `the_content` filter attaches only while the flag
 is enabled. See [utilities.md](utilities.md#featureselector) for the registry and
 its settings page.
+
+## Abilities (WordPress 6.9+)
+
+### AbstractAbility
+
+[`AbstractAbility.php`](../inc/Contracts/Abstracts/AbstractAbility.php) — one
+WordPress Abilities API ability. The subclass declares *what* the ability is —
+name, label, description, category, schemas, and `execute()` — and `args()`
+maps those to the argument array `wp_register_ability()` expects. The class is
+deliberately **not** `Registrable`: abilities may only be registered inside the
+API's own init hook, so the paired registrar (below) owns that timing and an
+ability stays a plain describable object.
+
+**Must implement:** `name()` (the full `"my-plugin/do-thing"` identifier —
+lowercase, one slash), `label()`, `description()`, `category()` (the slug of a
+category the registrar registers), `input_schema()` / `output_schema()` (JSON
+Schema arrays; return `[]` to omit the key), and
+`execute( mixed $input ): array|\WP_Error`.
+
+Overridable seams:
+
+- `permission( mixed $input = null )` — the permission gate. Defaults to
+  `current_user_can( 'manage_options' )`: fail-closed, administrators only.
+- `meta()` — defaults to `[]`, which keeps the API defaults: not exposed over
+  REST, no MCP flag. Exposure is always an explicit opt-in.
+
+Both callbacks in `args()` are closure-wrapped with a defaulted parameter
+because core invokes them with **no arguments** when the ability declares no
+input schema.
+
+### AbstractAbilityRegistrar
+
+[`AbstractAbilityRegistrar.php`](../inc/Contracts/Abstracts/AbstractAbilityRegistrar.php)
+— the `Registrable` that registers a group of abilities. Its `register_hooks()`
+attaches two actions — `wp_abilities_api_categories_init` (registers the shared
+category) and `wp_abilities_api_init` (registers each ability) — the only hooks
+those registrations are legal on. Core fires both lazily on first registry
+access. On cores older than 6.9 the hooks never fire, so the registrar is
+simply inert and the package's 6.5 floor is unchanged.
+
+**Must implement:** `category_slug()`, `category_description()` (the API
+rejects a category without a non-empty description), and `abilities()` — the
+`AbstractAbility[]` to register.
+
+Overridable: `category_label()` (defaults to the title-cased slug) and
+`before_register()` (an empty hook that runs once before the abilities
+register — ensure storage exists, prime options). Category registration is
+idempotent — a registrar skips the call when the slug already exists — so
+several registrars can share one category and load in any order.
+
+The usual shape mirrors `AbstractFeature`: a thin consumer-side base supplies
+the shared category slug, one class per ability, one registrar naming them:
+
+```php
+// One shared category for the whole plugin.
+abstract class Ability extends AbstractAbility {
+    protected function category(): string { return 'my-plugin'; }
+}
+
+final class SiteSummary extends Ability {
+    public function name(): string { return 'my-plugin/site-summary'; }
+    protected function label(): string { return 'Site Summary'; }
+    protected function description(): string {
+        return 'Returns published post counts for the site.';
+    }
+    protected function input_schema(): array { return []; }
+    protected function output_schema(): array { return [ 'type' => 'object' ]; }
+
+    public function execute( mixed $input ): array|\WP_Error {
+        return [ 'posts' => (int) wp_count_posts()->publish ];
+    }
+}
+
+final class Registrar extends AbstractAbilityRegistrar {
+    protected function category_slug(): string { return 'my-plugin'; }
+    protected function category_description(): string {
+        return 'Read-only insights about the site.';
+    }
+    protected function abilities(): array { return [ new SiteSummary() ]; }
+}
+```
+
+Load `Registrar` like any other `Registrable` (usually from a module's
+`get_classes()`); the ability is then retrievable via
+`wp_get_ability( 'my-plugin/site-summary' )` and executable by administrators.
 
 ---
 
