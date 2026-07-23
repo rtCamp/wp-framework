@@ -19,8 +19,8 @@ namespace rtCamp\WPFramework\Utils;
  *
  * Instance-based, not a singleton. The cross-scope sharing the start-here / stop-there
  * pattern needs is met by holding one instance and sharing it — register it as
- * `Shareable` in the consumer's container (the same pattern as {@see Cache} and
- * {@see XHProf_Profiler}) so every hook resolves the same object. A theme and a plugin
+ * `Shareable` in the consumer's container (the same pattern as {@see Cache}) so
+ * every hook resolves the same object. A theme and a plugin
  * in the same process then each keep their own decoupled timer set, instead of writing
  * into one global instance:
  *

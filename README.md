@@ -48,7 +48,6 @@ PSR-4 autoloading: `rtCamp\WPFramework\` → `inc/`.
   - `Cache` — typed wrapper over the WP object cache, group-namespaced, optional SWR
   - `FeatureSelector` + `FeatureSelectorSettingsPage` — a fail-closed feature-flag
     registry and its admin toggle page
-  - `XHProf_Profiler` — profile a code block with XHProf; no-ops without the extension
 
 The contract surface (`inc/Contracts/`) is the public API: every interface,
 abstract, and signature there is consumed by dependents, so changes to it are
@@ -72,7 +71,7 @@ Start with [docs/index.md](docs/index.md), then:
 | [contracts.md](docs/contracts.md) | The interfaces and traits in detail. |
 | [abstracts.md](docs/abstracts.md) | Cookbook for the `Abstract*` base classes. |
 | [loaders.md](docs/loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` and the theme-override hierarchy. |
-| [utilities.md](docs/utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `XHProf_Profiler`, and `Container`. |
+| [utilities.md](docs/utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, and `Container`. |
 
 ## Development
 
