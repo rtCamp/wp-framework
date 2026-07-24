@@ -62,5 +62,9 @@ require_once $_test_root . '/includes/functions.php';
 // single-class files matching the class name).
 require_once __DIR__ . '/Fixtures/LoaderFixtures.php';
 
+// Action Scheduler is not a dependency of this package (see AbstractJob), so
+// its API is faked here rather than installed for real.
+require_once __DIR__ . '/Fixtures/ActionSchedulerFakes.php';
+
 // Start up the WP testing environment.
 require $_test_root . '/includes/bootstrap.php';
