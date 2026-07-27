@@ -50,6 +50,15 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$this->page     = $this->make_page( $this->selector );
 	}
 
+	public function tear_down(): void {
+		// Several tests simulate an options.php form save by setting this
+		// superglobal. Clear it here so a failing assertion mid-test cannot
+		// leak the form-save context into whichever test runs next.
+		unset( $_POST['option_page'] );
+
+		parent::tear_down();
+	}
+
 	/**
 	 * Instantiate a concrete FeatureSelectorSettingsPage backed by $selector.
 	 *
@@ -165,17 +174,13 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		// becomes false. Simulate that form-save context.
 		$_POST['option_page'] = 'my_plugin_features';
 
-		try {
-			$this->assertSame(
-				[
-					'dark-mode'   => true,
-					'beta-search' => false,
-				],
-				$this->page->sanitize_settings( [ 'dark-mode' => '1' ] )
-			);
-		} finally {
-			unset( $_POST['option_page'] );
-		}
+		$this->assertSame(
+			[
+				'dark-mode'   => true,
+				'beta-search' => false,
+			],
+			$this->page->sanitize_settings( [ 'dark-mode' => '1' ] )
+		);
 	}
 
 	public function test_saving_preserves_a_locked_flags_stored_value_and_still_renders_it(): void {
@@ -195,7 +200,6 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		// no field, so its stored value is preserved rather than reset to false.
 		$_POST['option_page'] = 'my_plugin_features';
 		$sanitized            = $this->page->sanitize_settings( [] );
-		unset( $_POST['option_page'] );
 
 		$this->assertTrue( $sanitized['reg-locked'] );
 		$this->assertFalse( $sanitized['free-flag'] );

@@ -26,6 +26,21 @@ final class EncryptorTest extends TestCase {
 		return new Encryptor( $key );
 	}
 
+	/**
+	 * An Encryptor that exposes the derived key so tests can assert on it
+	 * directly rather than inferring derivation from roundtrip behaviour.
+	 *
+	 * @param string $key    Secret of any length.
+	 * @param string $cipher Cipher to derive for.
+	 */
+	private function key_probe( string $key, string $cipher = 'aes-256-gcm' ): Encryptor {
+		return new class( $key, $cipher ) extends Encryptor {
+			public function derived_key(): string {
+				return $this->key();
+			}
+		};
+	}
+
 	public function test_encrypt_decrypt_roundtrips_plaintext(): void {
 		$encryptor = $this->encryptor();
 		$plaintext = 'sensitive-secret-value';
@@ -111,5 +126,73 @@ final class EncryptorTest extends TestCase {
 		$encrypted = $encryptor->encrypt( 'gcm variant' );
 		$this->assertIsString( $encrypted );
 		$this->assertSame( 'gcm variant', $encryptor->decrypt( $encrypted ) );
+	}
+
+	/**
+	 * @dataProvider data_secret_lengths
+	 *
+	 * @param string $secret Secret of a length other than the cipher key length.
+	 */
+	public function test_any_length_secret_derives_a_full_cipher_length_key( string $secret ): void {
+		// OpenSSL would NUL-pad a short secret and truncate a long one; the
+		// derivation must instead map any length to the full key length.
+		$this->assertSame( 32, strlen( $this->key_probe( $secret )->derived_key() ) );
+
+		$encryptor = $this->encryptor( $secret );
+		$encrypted = $encryptor->encrypt( 'any-length secret' );
+
+		$this->assertIsString( $encrypted );
+		$this->assertSame( 'any-length secret', $encryptor->decrypt( $encrypted ) );
+	}
+
+	/**
+	 * @return array<string, array{string}>
+	 */
+	public function data_secret_lengths(): array {
+		return [
+			'single byte'      => [ 'k' ],
+			'shorter than key' => [ 'short-secret' ],
+			'exactly key size' => [ self::KEY ],
+			'longer than key'  => [ str_repeat( 'k', 100 ) ],
+		];
+	}
+
+	public function test_derived_key_length_follows_the_cipher(): void {
+		$this->assertSame( 16, strlen( $this->key_probe( 'short-secret', 'aes-128-gcm' )->derived_key() ) );
+		$this->assertSame( 32, strlen( $this->key_probe( 'short-secret', 'aes-256-gcm' )->derived_key() ) );
+	}
+
+	public function test_secrets_differing_only_past_the_key_length_are_not_equivalent(): void {
+		// Regression: OpenSSL truncates an over-long key, so rotating only the
+		// tail of a long secret used to be a silent no-op. Hashing must make the
+		// whole secret significant.
+		$shared = str_repeat( 'k', 32 );
+		$first  = $shared . 'tail-one';
+		$second = $shared . 'tail-two';
+
+		$this->assertNotSame(
+			$this->key_probe( $first )->derived_key(),
+			$this->key_probe( $second )->derived_key()
+		);
+
+		$encrypted = $this->encryptor( $first )->encrypt( 'rotated' );
+		$this->assertIsString( $encrypted );
+		$this->assertFalse( $this->encryptor( $second )->decrypt( $encrypted ) );
+	}
+
+	public function test_short_secret_is_not_equivalent_to_its_nul_padded_form(): void {
+		// Regression: OpenSSL NUL-pads a short key, which made 'secret' and
+		// 'secret' + NULs the same key and quietly weakened the cipher.
+		$secret = 'secret';
+		$padded = $secret . str_repeat( "\0", 32 - strlen( $secret ) );
+
+		$this->assertNotSame(
+			$this->key_probe( $secret )->derived_key(),
+			$this->key_probe( $padded )->derived_key()
+		);
+
+		$encrypted = $this->encryptor( $secret )->encrypt( 'not padded' );
+		$this->assertIsString( $encrypted );
+		$this->assertFalse( $this->encryptor( $padded )->decrypt( $encrypted ) );
 	}
 }
