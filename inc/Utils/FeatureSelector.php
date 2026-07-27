@@ -276,7 +276,12 @@ class FeatureSelector {
 		$context = $this->normalize( $this->context );
 		$prefix  = '' === $context ? 'FEATURE_' : strtoupper( $context ) . '_FEATURE_';
 
-		return $prefix . strtoupper( $this->normalize( $flag ) );
+		// Derive the constant from flag_key() — the same partition used for storage
+		// — so two slugs that get distinct storage keys can't collapse to one
+		// constant. (normalize() collapses runs of dashes, so `beta-search` and
+		// `beta--search` would otherwise share MY_PLUGIN_FEATURE_BETA_SEARCH and one
+		// define() would lock both.) Unchanged for ordinary single-dash slugs.
+		return $prefix . strtoupper( str_replace( '-', '_', $this->flag_key( $flag ) ) );
 	}
 
 	/**

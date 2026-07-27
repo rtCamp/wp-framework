@@ -74,7 +74,7 @@ final class AbstractRESTControllerTest extends TestCase {
 			protected $namespace = 'wpf-test/v1';
 		};
 
-		$this->expectException( \Exception::class );
+		$this->expectException( \LogicException::class );
 
 		$controller->register_routes();
 	}

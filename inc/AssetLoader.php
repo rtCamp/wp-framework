@@ -108,9 +108,41 @@ class AssetLoader {
 	 * @return bool True if the asset file exists.
 	 */
 	public function has_asset( string $filename, string $extension ): bool {
+		// Mirror get_asset_meta()'s traversal guard: this is public API and may be
+		// called directly with consumer-supplied values.
+		if ( ! $this->is_safe_asset_path( $filename, $extension ) ) {
+			return false;
+		}
+
 		$base = $this->base_dir . untrailingslashit( $this->assets_dir );
 
 		return file_exists( sprintf( '%s/%s.%s', $base, $filename, $extension ) );
+	}
+
+	/**
+	 * Whether a filename/extension pair is safe to interpolate into a path.
+	 *
+	 * Both parts matter. The extension is joined after a literal dot, so a
+	 * leading-dot extension forms `..` out of two values that each look clean:
+	 * `has_asset( '/', './outside' )` would otherwise build `<base>//../outside`
+	 * and probe outside the assets directory. An extension is a bare suffix, so
+	 * path separators in it are always wrong.
+	 *
+	 * @param string $filename  Asset path relative to the assets directory, excluding the extension.
+	 * @param string $extension Asset file extension (e.g. 'js', 'css').
+	 *
+	 * @return bool True if the pair can be safely interpolated.
+	 */
+	private function is_safe_asset_path( string $filename, string $extension ): bool {
+		if ( str_contains( $filename, '..' ) || str_contains( $extension, '..' ) ) {
+			return false;
+		}
+
+		if ( str_starts_with( $extension, '.' ) ) {
+			return false;
+		}
+
+		return ! preg_match( '#[/\\\\]#', $extension );
 	}
 
 	/**
@@ -309,10 +341,11 @@ class AssetLoader {
 	 * @return array{version: string, dependencies?: array<int, string>}|null Metadata, or null if the filename is rejected (path traversal) or the asset file is missing.
 	 */
 	private function get_asset_meta( string $filename, string $extension ): ?array {
-		// $filename feeds a require() in read_asset_manifest(); reject any `..`
-		// traversal up front. The in-tree caller pre-sanitises, but this class is
-		// public API and may be called directly.
-		if ( str_contains( $filename, '..' ) ) {
+		// $filename feeds a require() in read_asset_manifest(); reject traversal
+		// in either part up front. The in-tree callers pre-sanitise and pass a
+		// literal extension, but this class is public API and may be called
+		// directly, so the guard covers both values.
+		if ( ! $this->is_safe_asset_path( $filename, $extension ) ) {
 			return null;
 		}
 

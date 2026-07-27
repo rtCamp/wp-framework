@@ -68,7 +68,7 @@ final class ComponentLoaderTest extends TestCase {
 		// Record the render actions so tests can assert they fired.
 		$this->rendered_hooks = [];
 		foreach ( [ 'before', 'after' ] as $phase ) {
-			$hook = "wp_framework_component_{$phase}_render";
+			$hook = "wp-framework/component_{$phase}_render";
 			add_action(
 				$hook,
 				function () use ( $hook ): void {
@@ -115,9 +115,54 @@ final class ComponentLoaderTest extends TestCase {
 		);
 
 		$this->assertSame(
-			[ 'wp_framework_component_before_render', 'wp_framework_component_after_render' ],
+			[ 'wp-framework/component_before_render', 'wp-framework/component_after_render' ],
 			$this->rendered_hooks
 		);
+	}
+
+	public function test_render_hooks_are_isolated_per_loader_context(): void {
+		// The point of namespacing the hooks is that one package's listeners do not
+		// fire for another's loader. Asserting only the default `wp-framework`
+		// names would pass even if the context were ignored entirely.
+		$this->write_parent_component( 'alert', '<?php echo "alert";' );
+
+		$fired = [];
+		foreach ( [ 'alpha', 'beta' ] as $context ) {
+			add_action(
+				"{$context}/component_before_render",
+				static function () use ( $context, &$fired ): void {
+					$fired[] = $context;
+				}
+			);
+		}
+
+		TestComponentLoader::$test_context = 'alpha';
+		$alpha                             = new TestComponentLoader( $this->theme_asset_loader() );
+		$alpha->clear_cache();
+		$alpha->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		$this->assertSame( [ 'alpha' ], $fired );
+
+		TestComponentLoader::$test_context = 'beta';
+		$beta                              = new TestComponentLoader( $this->theme_asset_loader() );
+		$beta->clear_cache();
+		$beta->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		// Beta's listener fires exactly once and alpha's does not fire again.
+		$this->assertSame( [ 'alpha', 'beta' ], $fired );
+	}
+
+	public function test_default_context_listeners_do_not_fire_for_another_context(): void {
+		$this->write_parent_component( 'alert', '<?php echo "alert";' );
+
+		// set_up() already registered recorders on the default `wp-framework`
+		// hooks; a loader in another context must leave them untouched.
+		TestComponentLoader::$test_context = 'other-package';
+		$other                             = new TestComponentLoader( $this->theme_asset_loader() );
+		$other->clear_cache();
+		$other->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		$this->assertSame( [], $this->rendered_hooks );
 	}
 
 	public function test_render_outputs_component_with_arguments(): void {
@@ -293,7 +338,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->write_parent_asset( 'css/components/alert.css', '.alert{}' );
 
 		add_filter(
-			'wp_framework_component_should_enqueue',
+			'wp-framework/component_should_enqueue',
 			static fn ( bool $enqueue, string $name, string $type ): bool => 'style' === $type ? false : $enqueue,
 			10,
 			3
@@ -310,7 +355,7 @@ final class ComponentLoaderTest extends TestCase {
 		$this->write_parent_asset( 'css/components/alert.css', '.alert{}' );
 
 		add_filter(
-			'wp_framework_component_asset_handle',
+			'wp-framework/component_asset_handle',
 			static fn ( string $handle, string $name, string $type ): string => "custom-{$name}-{$type}",
 			10,
 			3

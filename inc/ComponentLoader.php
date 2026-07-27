@@ -111,6 +111,22 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Build a context-namespaced hook name so one package's component filters
+	 * don't fire for another's.
+	 *
+	 * The context is prefixed into the hook name (e.g. `my-plugin/component_before_render`),
+	 * mirroring TemplateLoader's prefixed hooks — the loader context slug is still
+	 * passed as an argument for handlers that want it.
+	 *
+	 * @param string $event Hook suffix (e.g. 'before_render').
+	 *
+	 * @return string Namespaced hook name.
+	 */
+	private function component_hook( string $event ): string {
+		return $this->get_context() . '/component_' . $event;
+	}
+
+	/**
 	 * Get the package's own asset loader — the owning theme or plugin.
 	 *
 	 * Returns the injected loader. A subclass loaded without constructor
@@ -276,7 +292,7 @@ class ComponentLoader {
 		 * @param array<string, mixed> $args    Component arguments.
 		 * @param string               $context Loader context slug.
 		 */
-		do_action( 'wp_framework_component_before_render', $name, $args, $context );
+		do_action( $this->component_hook( 'before_render' ), $name, $args, $context );
 
 		// Delegate to a private static method so the component file loads in an
 		// isolated scope with no access to $this. self:: (not static::) is
@@ -292,7 +308,7 @@ class ComponentLoader {
 		 * @param array<string, mixed> $args    Component arguments.
 		 * @param string               $context Loader context slug.
 		 */
-		do_action( 'wp_framework_component_after_render', $name, $args, $context );
+		do_action( $this->component_hook( 'after_render' ), $name, $args, $context );
 	}
 
 	/**
@@ -489,7 +505,7 @@ class ComponentLoader {
 			 * @param string $asset_type 'style' or 'script'.
 			 * @param string $context    Loader context slug.
 			 */
-			$enqueue = (bool) apply_filters( 'wp_framework_component_should_enqueue', $enqueue, $name, $asset_type, $context );
+			$enqueue = (bool) apply_filters( $this->component_hook( 'should_enqueue' ), $enqueue, $name, $asset_type, $context );
 
 			if ( ! $enqueue ) {
 				continue;
@@ -525,7 +541,7 @@ class ComponentLoader {
 		 * @param string $asset_type 'style' or 'script'.
 		 * @param string $context    Loader context slug.
 		 */
-		return (string) apply_filters( 'wp_framework_component_asset_handle', $handle, $name, $asset_type, $context );
+		return (string) apply_filters( $this->component_hook( 'asset_handle' ), $handle, $name, $asset_type, $context );
 	}
 
 	/**

@@ -234,6 +234,44 @@ final class AssetLoaderTest extends TestCase {
 		$this->assertNull( $this->registered_script( 'evil' ) );
 	}
 
+	public function test_has_asset_rejects_path_traversal_in_the_filename(): void {
+		// has_asset() is public API in its own right, so its guard needs direct
+		// coverage rather than being exercised only through register_script().
+		$this->write_asset( 'assets/build/js/real.js', '' );
+
+		$this->assertTrue( $this->loader->has_asset( 'js/real', 'js' ) );
+		$this->assertFalse( $this->loader->has_asset( '../../wp-config', 'php' ) );
+	}
+
+	public function test_has_asset_rejects_traversal_built_from_the_extension(): void {
+		// The extension is joined after a literal dot, so a leading-dot extension
+		// forms `..` even though neither argument contains it: '/' + '.' +
+		// './outside' resolves to <base>//../outside.
+		$this->assertFalse( $this->loader->has_asset( '/', './outside' ) );
+		$this->assertFalse( $this->loader->has_asset( 'js/real', '../../wp-config' ) );
+		$this->assertFalse( $this->loader->has_asset( 'js/real', 'js/../../escape' ) );
+	}
+
+	public function test_has_asset_probe_cannot_reach_a_file_outside_the_assets_dir(): void {
+		// Prove the guard is load-bearing rather than rejecting a path that would
+		// have missed anyway: build the exact string the unguarded sprintf() would
+		// produce, assert a real file sits at it, then assert has_asset() still
+		// refuses. If the path arithmetic ever stops escaping, the first assertion
+		// fails loudly instead of the test passing for the wrong reason.
+		// The assets directory has to exist for the traversal to resolve at all —
+		// POSIX walks every component, so `assets/build/../..` is ENOENT if
+		// `assets/build` was never created.
+		$this->write_asset( 'assets/build/js/real.js', '' );
+		$this->write_asset( 'outside.txt', 'secret' );
+
+		$filename  = '/';
+		$extension = './../outside.txt';
+		$base      = trailingslashit( $this->temp_dir ) . 'assets/build';
+
+		$this->assertFileExists( sprintf( '%s/%s.%s', $base, $filename, $extension ) );
+		$this->assertFalse( $this->loader->has_asset( $filename, $extension ) );
+	}
+
 	/**
 	 * Clear the script modules registry between tests.
 	 */

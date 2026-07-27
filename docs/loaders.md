@@ -183,14 +183,16 @@ method precisely so a component can't reach back into the loader. It can forward
 - **Asset resolution follows the same hierarchy as the PHP.** A child theme can
   ship `css/components/Button.css` and override just the style while reusing the
   plugin's PHP.
-- **Three extension points.** The hook *names* are global — the same for every
-  package — but each passes the loader's **context** slug as an argument, so a
-  handler can still tell packages apart: the `wp_framework_component_before_render`
-  / `…_after_render` actions, the `wp_framework_component_should_enqueue` filter
-  (return `false` to suppress auto-enqueue), and the
-  `wp_framework_component_asset_handle` filter.
-- **Per-request caching.** Resolved component metadata is memoised; call
-  `clear_cache()` to drop it (mostly for tests).
+- **Three extension points, namespaced by context.** Each hook name is prefixed
+  with the loader's context slug — `{context}/component_before_render` /
+  `…_after_render` actions, the `{context}/component_should_enqueue` filter
+  (return `false` to suppress auto-enqueue), and the `{context}/component_asset_handle`
+  filter — so one package's handler never fires for another's (the context slug is
+  also passed as an argument). This mirrors `TemplateLoader`'s prefixed hooks.
+- **Per-request caching.** Resolved component metadata and the asset-loader
+  hierarchy are memoised; both depend on the active theme, so call `clear_cache()`
+  after a `switch_theme()`/`switch_to_blog()` in a long-lived (Shareable) loader.
+  `TemplateLoader` folds the resolved paths into its lookup key automatically.
 - A missing component emits `_doing_it_wrong()` and renders nothing rather than
   throwing a fatal error.
 
