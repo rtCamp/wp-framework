@@ -27,8 +27,8 @@ Two rules define the whole package:
    across the child-theme → parent-theme → package hierarchy. See
    [loaders.md](loaders.md).
 4. **Utilities & services.** Context-scoped helpers a consumer holds or shares:
-   `Encryptor`, `Cache`, `FeatureSelector` (+ its settings page), and
-   `XHProf_Profiler`. See [utilities.md](utilities.md).
+   `Encryptor`, `Cache`, and `FeatureSelector` (+ its settings page). See
+   [utilities.md](utilities.md).
 
 ## Map of the docs
 
@@ -38,7 +38,7 @@ Two rules define the whole package:
 | [contracts.md](contracts.md) | Reference for the interfaces and traits: `Registrable`, `ConditionallyRegistrable`, `Shareable`, `CLICommand`, `Loader`, `Singleton`. |
 | [abstracts.md](abstracts.md) | Cookbook for the ten `Abstract*` base classes — what each is for, the methods to implement, the hook it wires, a minimal subclass. |
 | [loaders.md](loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` — the asset/render subsystem and the theme-override hierarchy they share. |
-| [utilities.md](utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `FeatureSelectorSettingsPage`, `XHProf_Profiler`, and `Container`. |
+| [utilities.md](utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, `FeatureSelectorSettingsPage`, and `Container`. |
 | [ai-review-system.md](ai-review-system.md) | How the AI review instructions are authored here and synced into the skeletons. |
 
 ## How a skeleton uses it (the one-paragraph version)

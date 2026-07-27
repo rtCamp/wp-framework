@@ -15,7 +15,6 @@ collide.
 | [`Transients`](#transients) | Prefix-namespaced wrapper over the WP transient API; multi-instance by design |
 | [`FeatureSelector`](#featureselector) | Fail-closed feature-flag registry with per-context toggles |
 | [`FeatureSelectorSettingsPage`](#featureselectorsettingspage) | Admin page that renders a `FeatureSelector`'s flags as checkboxes |
-| [`XHProf_Profiler`](#xhprof_profiler) | Profile a code block with XHProf; no-ops without the extension |
 | [`Timer`](#timer) | Named start/stop/lap timers in float seconds, shared across hooks/scopes |
 | [`Container`](contracts.md#container) | Tiny instance map (the storage half of the `Loader`) |
 
@@ -188,24 +187,6 @@ final class MyFeaturesPage extends FeatureSelectorSettingsPage {
 It's the ready-made UI for the toggles `FeatureSelector` reads — register it
 like any other `Registrable`.
 
-## XHProf_Profiler
-
-[`inc/Utils/XHProf_Profiler.php`](../inc/Utils/XHProf_Profiler.php) — profiles an
-arbitrary code block with XHProf, independent of any dev-monitor stack.
-
-```php
-$top = XHProf_Profiler::get_instance()->profile( fn() => expensive(), 10, 'expensive' );
-```
-
-- **Safe in production and CI:** it silently no-ops when neither the `xhprof` nor
-  the `tideways_xhprof` extension is loaded — the callback still runs, it just
-  isn't profiled.
-- Supports both backends (they share the same `parent==>child` data shape); only
-  the enable/disable calls and the default flag constants differ.
-- It's a `Singleton` (`get_instance()`), and **not `final`** — a downstream
-  package can extend it and override `summarize()`. Internal calls use late
-  static binding so overrides take effect.
-
 ## Timer
 
 [`inc/Utils/Timer.php`](../inc/Utils/Timer.php) — named timing segments that persist
@@ -225,7 +206,7 @@ $all     = $timer->get_all();          // every timer, with computed elapsed
 
 - **Instance-based, not a singleton.** The start-here / stop-there pattern shares
   state by sharing the *instance*: register one as `Shareable` in the consumer's
-  container (the same pattern as `Cache` / `XHProf_Profiler`) so every hook resolves
+  container (the same pattern as `Cache`) so every hook resolves
   the same object, while a theme and a plugin keep their own decoupled timer sets.
 - **Misuse is loud, reads are silent.** Empty / duplicate / never-started /
   already-stopped labels are reported via `_doing_it_wrong()` (the WordPress

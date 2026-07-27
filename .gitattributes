@@ -13,7 +13,6 @@
 # Keep the Composer/dist tarball lean: exclude dev, CI, test and docs
 # tooling from `composer require` installs and `git archive` exports.
 /.github            export-ignore
-/.stubs             export-ignore
 /tests              export-ignore
 /.editorconfig      export-ignore
 /.gitattributes     export-ignore
