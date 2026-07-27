@@ -48,7 +48,7 @@ Initial release. Requires PHP 8.2+.
   - `Transients` — prefix-namespaced transient access.
   - `Timer` — named, multi-scope timing.
   - `Logger` — levelled logging.
-- Reference documentation under `docs/`, a GPL-2.0-or-later `LICENSE`, and a
+- Reference documentation under `docs/`, a GPL-2.0-or-later `LICENSE.md`, and a
   WordPress integration test suite running against `@wordpress/env`.
 
 [Unreleased]: https://github.com/rtCamp/wp-framework/compare/v1.0.0...HEAD
