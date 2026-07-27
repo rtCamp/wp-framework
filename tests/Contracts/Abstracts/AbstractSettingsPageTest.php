@@ -84,6 +84,47 @@ final class AbstractSettingsPageTest extends TestCase {
 		$this->assertArrayHasKey( self::OPTION, get_registered_settings() );
 	}
 
+	public function test_register_hooks_aligns_the_save_capability_with_get_capability(): void {
+		// options.php gates the save on option_page_capability_{group}, which
+		// defaults to manage_options. A page that lowers get_capability() would
+		// otherwise render for a user who then silently fails to save.
+		$page = new class() extends AbstractSettingsPage {
+			public static function get_slug(): string {
+				return 'wpf-test-settings';
+			}
+			protected function get_capability(): string {
+				return 'edit_posts';
+			}
+			protected function get_page_title(): string {
+				return 'WPF Settings';
+			}
+			protected function get_menu_title(): string {
+				return 'WPF Settings';
+			}
+			protected function get_settings(): array {
+				return [];
+			}
+			public function render(): void {}
+		};
+
+		$page->register_hooks();
+
+		$this->assertSame(
+			'edit_posts',
+			apply_filters( 'option_page_capability_' . self::SLUG, 'manage_options' )
+		);
+	}
+
+	public function test_save_capability_filter_is_scoped_to_this_pages_option_group(): void {
+		$this->settings_page()->register_hooks();
+
+		// Another plugin's option group must be left untouched.
+		$this->assertSame(
+			'manage_options',
+			apply_filters( 'option_page_capability_some_other_group', 'manage_options' )
+		);
+	}
+
 	public function test_register_page_adds_submenu_under_settings(): void {
 		$this->settings_page()->register_page();
 
