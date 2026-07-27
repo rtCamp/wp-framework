@@ -84,7 +84,7 @@ class Encryptor {
 		$value = openssl_encrypt(
 			$raw_value,
 			$this->cipher,
-			$this->key(),
+			$this->cipher_key(),
 			OPENSSL_RAW_DATA,
 			$iv,
 			$tag,
@@ -132,7 +132,7 @@ class Encryptor {
 		return openssl_decrypt(
 			$ciphertext,
 			$this->cipher,
-			$this->key(),
+			$this->cipher_key(),
 			OPENSSL_RAW_DATA,
 			$iv,
 			$tag
@@ -140,15 +140,19 @@ class Encryptor {
 	}
 
 	/**
-	 * Resolve the encryption key.
+	 * Resolve the raw secret.
 	 *
-	 * Override seam: a subclass can source the key from elsewhere (KMS, a rotated
-	 * secret, an env var) without touching the crypto. Must never return an empty
-	 * key — encryption must not proceed with a weak/missing key.
+	 * Override seam: a subclass can source the secret from elsewhere (KMS, a
+	 * rotated secret, an env var) without touching the crypto. Must never return
+	 * an empty secret — encryption must not proceed with a weak/missing key.
 	 *
-	 * @return string The encryption key.
+	 * The return value is a *secret of any length*, not a cipher key: the
+	 * derivation in {@see Encryptor::cipher_key()} turns it into one, so an
+	 * override cannot accidentally hand OpenSSL a wrong-length key.
 	 *
-	 * @throws \RuntimeException If no key is available.
+	 * @return string The raw secret.
+	 *
+	 * @throws \RuntimeException If no secret is available.
 	 */
 	protected function key(): string {
 		if ( '' === $this->key ) {
@@ -158,5 +162,31 @@ class Encryptor {
 		}
 
 		return $this->key;
+	}
+
+	/**
+	 * Derive the cipher key actually handed to OpenSSL.
+	 *
+	 * Deliberately private and not part of the override seam: the derivation is
+	 * a correctness guarantee for every key source, including subclasses that
+	 * override {@see Encryptor::key()}. Were this folded into that seam, a KMS-
+	 * or env-backed override would bypass it and fall back to OpenSSL's silent
+	 * handling of a wrong-length key.
+	 *
+	 * OpenSSL NUL-pads a too-short key and truncates a too-long one, which would
+	 * quietly weaken the cipher (a 16-byte secret becomes 16 real bytes + 16 zero
+	 * bytes for AES-256) and make rotating only the tail of a long secret a no-op.
+	 * Hashing maps any-length secret to a full-strength, fixed-length key
+	 * deterministically. Only reached from encrypt()/decrypt(), which have already
+	 * confirmed the OpenSSL extension is loaded.
+	 *
+	 * @return string Key of exactly the cipher's key length.
+	 *
+	 * @throws \RuntimeException If no secret is available.
+	 */
+	private function cipher_key(): string {
+		$key_length = (int) openssl_cipher_key_length( $this->cipher );
+
+		return substr( hash( 'sha256', $this->key(), true ), 0, $key_length );
 	}
 }

@@ -50,6 +50,15 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$this->page     = $this->make_page( $this->selector );
 	}
 
+	public function tear_down(): void {
+		// Several tests simulate an options.php form save by setting this
+		// superglobal. Clear it here so a failing assertion mid-test cannot
+		// leak the form-save context into whichever test runs next.
+		unset( $_POST['option_page'] );
+
+		parent::tear_down();
+	}
+
 	/**
 	 * Instantiate a concrete FeatureSelectorSettingsPage backed by $selector.
 	 *
@@ -160,8 +169,11 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		$this->assertSame( 'array', $registered['my_plugin_features']['type'] );
 		$this->assertSame( [], $registered['my_plugin_features']['default'] );
 
-		// The sanitize callback rebuilds the stored array: a checked flag becomes
-		// true, an unchecked (absent) flag becomes false.
+		// On a genuine options.php form save the sanitize callback rebuilds the
+		// stored array: a checked flag becomes true, an unchecked (absent) flag
+		// becomes false. Simulate that form-save context.
+		$_POST['option_page'] = 'my_plugin_features';
+
 		$this->assertSame(
 			[
 				'dark-mode'   => true,
@@ -186,7 +198,8 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 		// Saving the page (nothing submitted) rebuilds the stored array: the free
 		// flag follows the empty form and turns off, but the locked flag carries
 		// no field, so its stored value is preserved rather than reset to false.
-		$sanitized = $this->page->sanitize_settings( [] );
+		$_POST['option_page'] = 'my_plugin_features';
+		$sanitized            = $this->page->sanitize_settings( [] );
 
 		$this->assertTrue( $sanitized['reg-locked'] );
 		$this->assertFalse( $sanitized['free-flag'] );
@@ -196,6 +209,22 @@ final class FeatureSelectorSettingsPageTest extends TestCase {
 			'reg-locked',
 			$GLOBALS['wp_settings_fields']['my-plugin-features']['my_plugin_features_section']
 		);
+	}
+
+	public function test_programmatic_enable_after_register_settings_does_not_reset_other_flags(): void {
+		// Regression: sanitize_settings() is a sanitize_option_{key} filter that
+		// fires on EVERY write of the shared option. register_settings() installs
+		// it (as it would on any admin/REST request), then a programmatic enable()
+		// writes the option. That write must NOT route through the form rebuild and
+		// reset the other default-on, never-stored flags to false.
+		$this->selector->register( [ 'feature-a', 'feature-b', 'feature-c' ] );
+		$this->page->register_settings();
+
+		$this->selector->enable( 'feature-a' );
+
+		$this->assertTrue( $this->selector->is_enabled( 'feature-a' ) );
+		$this->assertTrue( $this->selector->is_enabled( 'feature-b' ), 'a default-on flag must stay on after an unrelated programmatic enable()' );
+		$this->assertTrue( $this->selector->is_enabled( 'feature-c' ), 'a default-on flag must stay on after an unrelated programmatic enable()' );
 	}
 
 	public function test_flags_registered_after_hooks_still_appear(): void {

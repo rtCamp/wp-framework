@@ -26,6 +26,19 @@ final class EncryptorTest extends TestCase {
 		return new Encryptor( $key );
 	}
 
+	/**
+	 * The key OpenSSL actually receives, so tests can assert on the derivation
+	 * directly rather than inferring it from roundtrip behaviour.
+	 *
+	 * cipher_key() is deliberately private — it must not be part of the override
+	 * seam — so reach it by reflection rather than widening the API for tests.
+	 *
+	 * @param Encryptor $encryptor Instance to derive for.
+	 */
+	private function derived_key( Encryptor $encryptor ): string {
+		return ( new \ReflectionMethod( Encryptor::class, 'cipher_key' ) )->invoke( $encryptor );
+	}
+
 	public function test_encrypt_decrypt_roundtrips_plaintext(): void {
 		$encryptor = $this->encryptor();
 		$plaintext = 'sensitive-secret-value';
@@ -111,5 +124,111 @@ final class EncryptorTest extends TestCase {
 		$encrypted = $encryptor->encrypt( 'gcm variant' );
 		$this->assertIsString( $encrypted );
 		$this->assertSame( 'gcm variant', $encryptor->decrypt( $encrypted ) );
+	}
+
+	/**
+	 * @dataProvider data_secret_lengths
+	 *
+	 * @param string $secret Secret of a length other than the cipher key length.
+	 */
+	public function test_any_length_secret_derives_a_full_cipher_length_key( string $secret ): void {
+		// OpenSSL would NUL-pad a short secret and truncate a long one; the
+		// derivation must instead map any length to the full key length.
+		$this->assertSame( 32, strlen( $this->derived_key( new Encryptor( $secret ) ) ) );
+
+		$encryptor = $this->encryptor( $secret );
+		$encrypted = $encryptor->encrypt( 'any-length secret' );
+
+		$this->assertIsString( $encrypted );
+		$this->assertSame( 'any-length secret', $encryptor->decrypt( $encrypted ) );
+	}
+
+	/**
+	 * @return array<string, array{string}>
+	 */
+	public function data_secret_lengths(): array {
+		return [
+			'single byte'      => [ 'k' ],
+			'shorter than key' => [ 'short-secret' ],
+			'exactly key size' => [ self::KEY ],
+			'longer than key'  => [ str_repeat( 'k', 100 ) ],
+		];
+	}
+
+	public function test_derived_key_length_follows_the_cipher(): void {
+		$this->assertSame( 16, strlen( $this->derived_key( new Encryptor( 'short-secret', 'aes-128-gcm' ) ) ) );
+		$this->assertSame( 32, strlen( $this->derived_key( new Encryptor( 'short-secret', 'aes-256-gcm' ) ) ) );
+	}
+
+	public function test_secrets_differing_only_past_the_key_length_are_not_equivalent(): void {
+		// Regression: OpenSSL truncates an over-long key, so rotating only the
+		// tail of a long secret used to be a silent no-op. Hashing must make the
+		// whole secret significant.
+		$shared = str_repeat( 'k', 32 );
+		$first  = $shared . 'tail-one';
+		$second = $shared . 'tail-two';
+
+		$this->assertNotSame(
+			$this->derived_key( new Encryptor( $first ) ),
+			$this->derived_key( new Encryptor( $second ) )
+		);
+
+		$encrypted = $this->encryptor( $first )->encrypt( 'rotated' );
+		$this->assertIsString( $encrypted );
+		$this->assertFalse( $this->encryptor( $second )->decrypt( $encrypted ) );
+	}
+
+	public function test_subclass_key_override_still_goes_through_the_derivation(): void {
+		// Regression: the derivation used to live inside key(), the documented
+		// override seam, so a subclass sourcing its secret from a KMS or env var
+		// bypassed it and handed OpenSSL a raw wrong-length key. The seam now
+		// returns a raw secret and the derivation sits behind it.
+		$override = new class() extends Encryptor {
+			protected function key(): string {
+				return 'short';
+			}
+		};
+
+		$this->assertSame( 32, strlen( $this->derived_key( $override ) ) );
+
+		// Same secret via either route must derive the same key, so ciphertext
+		// from one decrypts with the other.
+		$encrypted = $override->encrypt( 'via override' );
+		$this->assertIsString( $encrypted );
+		$this->assertSame( 'via override', $this->encryptor( 'short' )->decrypt( $encrypted ) );
+	}
+
+	public function test_subclass_key_override_of_an_over_long_secret_is_not_truncated(): void {
+		$shared = str_repeat( 'k', 32 );
+
+		$first = new class() extends Encryptor {
+			protected function key(): string {
+				return str_repeat( 'k', 32 ) . 'tail-one';
+			}
+		};
+
+		$encrypted = $first->encrypt( 'override rotation' );
+		$this->assertIsString( $encrypted );
+
+		// Rotating only the tail of an over-long secret must actually change the
+		// key even when the secret arrives through the override seam.
+		$this->assertFalse( $this->encryptor( $shared . 'tail-two' )->decrypt( $encrypted ) );
+		$this->assertSame( 'override rotation', $this->encryptor( $shared . 'tail-one' )->decrypt( $encrypted ) );
+	}
+
+	public function test_short_secret_is_not_equivalent_to_its_nul_padded_form(): void {
+		// Regression: OpenSSL NUL-pads a short key, which made 'secret' and
+		// 'secret' + NULs the same key and quietly weakened the cipher.
+		$secret = 'secret';
+		$padded = $secret . str_repeat( "\0", 32 - strlen( $secret ) );
+
+		$this->assertNotSame(
+			$this->derived_key( new Encryptor( $secret ) ),
+			$this->derived_key( new Encryptor( $padded ) )
+		);
+
+		$encrypted = $this->encryptor( $secret )->encrypt( 'not padded' );
+		$this->assertIsString( $encrypted );
+		$this->assertFalse( $this->encryptor( $padded )->decrypt( $encrypted ) );
 	}
 }
