@@ -324,6 +324,43 @@ final class TemplateLoaderTest extends TestCase {
 		$this->assertFalse( $loader->locate( 'card' ) );
 	}
 
+	public function test_a_theme_switch_is_not_served_from_the_previous_themes_cache(): void {
+		// Regression: the location cache used to key on candidate names only, so a
+		// Shareable loader reused across a switch_theme()/switch_to_blog() in one
+		// request kept serving the old theme's hit. The key now includes the
+		// resolved paths, which change with the active theme.
+		$this->use_single_theme();
+		$this->write( $this->tmp . '/parent/my-plugin/card.php' );
+		$this->write( $this->tmp . '/child/my-plugin/card.php' );
+
+		$loader = $this->loader();
+		$this->assertSame( $this->tmp . '/parent/my-plugin/card.php', $loader->locate( 'card' ) );
+
+		// Switch to a child theme without clearing the loader.
+		$this->use_child_theme();
+
+		$this->assertSame( $this->tmp . '/child/my-plugin/card.php', $loader->locate( 'card' ) );
+	}
+
+	public function test_switching_back_reuses_the_original_themes_entry(): void {
+		// The key is per-path-set rather than a blanket invalidation, so switching
+		// back must return the first theme's result again.
+		$this->use_single_theme();
+		$this->write( $this->tmp . '/parent/my-plugin/card.php' );
+		$this->write( $this->tmp . '/child/my-plugin/card.php' );
+
+		$loader = $this->loader();
+		$parent_hit = $loader->locate( 'card' );
+
+		$this->use_child_theme();
+		$child_hit = $loader->locate( 'card' );
+
+		$this->use_single_theme();
+
+		$this->assertNotSame( $parent_hit, $child_hit );
+		$this->assertSame( $parent_hit, $loader->locate( 'card' ) );
+	}
+
 	public function test_locate_returns_false_when_no_candidate_names(): void {
 		$this->use_single_theme();
 

@@ -120,6 +120,51 @@ final class ComponentLoaderTest extends TestCase {
 		);
 	}
 
+	public function test_render_hooks_are_isolated_per_loader_context(): void {
+		// The point of namespacing the hooks is that one package's listeners do not
+		// fire for another's loader. Asserting only the default `wp-framework`
+		// names would pass even if the context were ignored entirely.
+		$this->write_parent_component( 'alert', '<?php echo "alert";' );
+
+		$fired = [];
+		foreach ( [ 'alpha', 'beta' ] as $context ) {
+			add_action(
+				"{$context}/component_before_render",
+				static function () use ( $context, &$fired ): void {
+					$fired[] = $context;
+				}
+			);
+		}
+
+		TestComponentLoader::$test_context = 'alpha';
+		$alpha                             = new TestComponentLoader( $this->theme_asset_loader() );
+		$alpha->clear_cache();
+		$alpha->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		$this->assertSame( [ 'alpha' ], $fired );
+
+		TestComponentLoader::$test_context = 'beta';
+		$beta                              = new TestComponentLoader( $this->theme_asset_loader() );
+		$beta->clear_cache();
+		$beta->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		// Beta's listener fires exactly once and alpha's does not fire again.
+		$this->assertSame( [ 'alpha', 'beta' ], $fired );
+	}
+
+	public function test_default_context_listeners_do_not_fire_for_another_context(): void {
+		$this->write_parent_component( 'alert', '<?php echo "alert";' );
+
+		// set_up() already registered recorders on the default `wp-framework`
+		// hooks; a loader in another context must leave them untouched.
+		TestComponentLoader::$test_context = 'other-package';
+		$other                             = new TestComponentLoader( $this->theme_asset_loader() );
+		$other->clear_cache();
+		$other->get( 'alert', [], [ 'script' => false, 'style' => false ] );
+
+		$this->assertSame( [], $this->rendered_hooks );
+	}
+
 	public function test_render_outputs_component_with_arguments(): void {
 		$this->write_parent_component( 'banner', '<?php echo "<h2>" . esc_html( (string) $args["title"] ) . "</h2>";' );
 

@@ -247,6 +247,40 @@ final class FeatureSelectorTest extends TestCase {
 		$this->assertSame( 'my_plugin_features', $this->selector->shared_option_key() );
 	}
 
+	public function test_slugs_with_repeated_dashes_get_distinct_constants(): void {
+		// Regression: the constant used to be derived via normalize(), which
+		// collapses runs of dashes, so these two slugs shared one constant and a
+		// single define() would lock both. flag_key() keeps them apart, and the
+		// constant must follow the same partition as storage.
+		$this->assertNotSame(
+			$this->selector->flag_key( 'beta-search' ),
+			$this->selector->flag_key( 'beta--search' )
+		);
+
+		$this->assertNotSame(
+			$this->selector->constant_name( 'beta-search' ),
+			$this->selector->constant_name( 'beta--search' )
+		);
+
+		$this->assertSame( 'MY_PLUGIN_FEATURE_BETA_SEARCH', $this->selector->constant_name( 'beta-search' ) );
+		$this->assertSame( 'MY_PLUGIN_FEATURE_BETA__SEARCH', $this->selector->constant_name( 'beta--search' ) );
+	}
+
+	public function test_constant_name_follows_the_same_partition_as_storage(): void {
+		// Two slugs that flag_key() maps to the same storage key must also map to
+		// the same constant — otherwise a flag could be locked under one spelling
+		// and read under another.
+		$this->assertSame(
+			$this->selector->flag_key( 'Dark Mode' ),
+			$this->selector->flag_key( 'dark-mode' )
+		);
+
+		$this->assertSame(
+			$this->selector->constant_name( 'Dark Mode' ),
+			$this->selector->constant_name( 'dark-mode' )
+		);
+	}
+
 	public function test_empty_context_uses_bare_feature_prefix(): void {
 		$selector = new FeatureSelector();
 

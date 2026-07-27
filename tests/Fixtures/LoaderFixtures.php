@@ -86,3 +86,21 @@ final class ShareableRegistrable implements Registrable, Shareable {
 		self::$registered = true;
 	}
 }
+
+/**
+ * Counts constructions and registrations so a duplicate entry in the class list
+ * is observable — a boolean flag cannot tell "registered" from "registered twice".
+ */
+final class CountingRegistrable implements Registrable, Shareable {
+	public static int $construct_count = 0;
+
+	public static int $register_count = 0;
+
+	public function __construct() {
+		++self::$construct_count;
+	}
+
+	public function register_hooks(): void {
+		++self::$register_count;
+	}
+}
