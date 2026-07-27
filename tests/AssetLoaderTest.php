@@ -258,6 +258,10 @@ final class AssetLoaderTest extends TestCase {
 		// produce, assert a real file sits at it, then assert has_asset() still
 		// refuses. If the path arithmetic ever stops escaping, the first assertion
 		// fails loudly instead of the test passing for the wrong reason.
+		// The assets directory has to exist for the traversal to resolve at all —
+		// POSIX walks every component, so `assets/build/../..` is ENOENT if
+		// `assets/build` was never created.
+		$this->write_asset( 'assets/build/js/real.js', '' );
 		$this->write_asset( 'outside.txt', 'secret' );
 
 		$filename  = '/';
