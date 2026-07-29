@@ -10,9 +10,9 @@ declare( strict_types = 1 );
 namespace rtCamp\WPFramework\Tests;
 
 use rtCamp\WPFramework\Tests\Fixtures\BareSingleton;
-use rtCamp\WPFramework\Tests\Fixtures\SingletonChild;
+use rtCamp\WPFramework\Tests\Fixtures\FlakySingleton;
+use rtCamp\WPFramework\Tests\Fixtures\ReentrantSingleton;
 use rtCamp\WPFramework\Tests\Fixtures\SingletonExample;
-use rtCamp\WPFramework\Tests\Fixtures\SingletonParent;
 use rtCamp\WPFramework\Tests\TestCase;
 
 final class SingletonTest extends TestCase {
@@ -59,32 +59,38 @@ final class SingletonTest extends TestCase {
 		$this->assertInstanceOf( BareSingleton::class, BareSingleton::get_instance() );
 	}
 
-	public function test_parent_and_subclass_get_separate_instances(): void {
-		// Regression: the instance store is keyed by class-string, so a subclass
-		// that inherits get_instance() must not be handed the parent's object
-		// (or vice versa, depending on which one is resolved first).
-		$parent = SingletonParent::get_instance();
-		$child  = SingletonChild::get_instance();
+	public function test_the_documented_early_assignment_guard_supports_reentrant_construction(): void {
+		// Regression: the trait documents that a heavy constructor should assign
+		// `static::$instance = $this;` first, so work done during construction (a
+		// Main running a Loader) can call get_instance() re-entrantly and receive
+		// the same object. This pins that contract — the property must stay
+		// protected and assignable, and the guard must short-circuit a second
+		// construction. Changing the storage broke a real consumer once already.
+		$instance = ReentrantSingleton::get_instance();
 
-		$this->assertNotSame( $parent, $child );
-		$this->assertInstanceOf( SingletonParent::class, $parent );
-		$this->assertInstanceOf( SingletonChild::class, $child );
+		$this->assertSame( 1, ReentrantSingleton::$construct_count );
+		$this->assertSame( $instance, ReentrantSingleton::$seen_during_construction );
 
-		// The subclass must resolve to its own concrete type, not the parent's.
-		$this->assertNotInstanceOf( SingletonChild::class, $parent );
+		// The re-entrant caller saw the constructor's progress on this object,
+		// not a fresh copy with default property values.
+		$this->assertSame( 'yes', ReentrantSingleton::$seen_during_construction->ready );
 	}
 
-	public function test_parent_and_subclass_each_construct_once(): void {
-		SingletonParent::get_instance();
-		SingletonParent::get_instance();
-		SingletonChild::get_instance();
-		SingletonChild::get_instance();
+	public function test_a_throwing_constructor_is_not_left_published(): void {
+		FlakySingleton::$fail = true;
 
-		$this->assertSame( 1, SingletonParent::$construct_counts[ SingletonParent::class ] ?? 0 );
-		$this->assertSame( 1, SingletonParent::$construct_counts[ SingletonChild::class ] ?? 0 );
-	}
+		try {
+			FlakySingleton::get_instance();
+			$this->fail( 'Expected the constructor exception to propagate.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertSame( 'construction failed', $e->getMessage() );
+		}
 
-	public function test_subclass_instance_is_stable_across_calls(): void {
-		$this->assertSame( SingletonChild::get_instance(), SingletonChild::get_instance() );
+		// Nothing is stored until the constructor returns, so the failed attempt
+		// cached nothing: once construction can succeed, get_instance() builds a
+		// fresh, working instance.
+		FlakySingleton::$fail = false;
+
+		$this->assertInstanceOf( FlakySingleton::class, FlakySingleton::get_instance() );
 	}
 }

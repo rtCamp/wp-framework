@@ -18,16 +18,22 @@ namespace rtCamp\WPFramework\Contracts\Traits;
  */
 trait Singleton {
 	/**
-	 * Instances of the classes using this trait, keyed by concrete class name.
+	 * The single instance of the class using this trait.
 	 *
-	 * A trait's `static` property is a single storage slot shared by a class and
-	 * its subclasses, so a plain `static $instance` lets a parent and a child that
-	 * both use this trait collide (the child would receive the parent's instance).
-	 * Keying by class name gives each concrete class its own instance.
+	 * Protected on purpose: it is part of the trait's contract. A singleton whose
+	 * constructor does real work (a plugin/theme `Main` running a Loader) should
+	 * assign `static::$instance = $this;` as its first statement, so anything
+	 * built during that work can call `get_instance()` re-entrantly and receive
+	 * this same object instead of triggering a second construction.
 	 *
-	 * @var array<class-string, static>
+	 * Limitation: a trait `static` property is one storage slot shared by a class
+	 * and its subclasses. Do not extend a class that uses this trait and call
+	 * `get_instance()` on the child — whichever side is resolved first occupies
+	 * the shared slot for both.
+	 *
+	 * @var ?static
 	 */
-	private static array $instances = [];
+	protected static $instance;
 
 	/**
 	 * The single constructor.
@@ -40,15 +46,19 @@ trait Singleton {
 
 	/**
 	 * Get the instance of the class.
+	 *
+	 * The instance is stored once the constructor returns. If the constructor
+	 * does work that can call back into `get_instance()`, assign
+	 * `static::$instance = $this;` as its first statement (see the property
+	 * docblock) — otherwise the re-entrant call finds nothing stored yet and
+	 * constructs a second instance, recursing until the stack blows.
 	 */
 	public static function get_instance(): static {
-		$class = static::class;
-
-		if ( ! isset( self::$instances[ $class ] ) ) {
-			self::$instances[ $class ] = new static();
+		if ( ! isset( static::$instance ) ) {
+			static::$instance = new static();
 		}
 
-		return self::$instances[ $class ];
+		return static::$instance;
 	}
 
 	/**
