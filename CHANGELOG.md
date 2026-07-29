@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- `Singleton` returns to the ecosystem-standard storage shape:
+  `protected static $instance`, stored by `get_instance()` once the constructor
+  returns. The class-string-keyed private map introduced for 1.0.0 broke a real
+  consumer contract — a heavy constructor assigning `static::$instance = $this;`
+  first so work done during construction can re-enter `get_instance()`. That
+  early-assignment guard is now the documented, tested pattern. Trade-off, also
+  documented on the trait: a class using the trait and its subclasses share one
+  storage slot, so do not call `get_instance()` on a subclass of a singleton.
 
 ## [1.0.0] - 2026-07-28
 
