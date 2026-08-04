@@ -188,4 +188,62 @@ final class AbstractAbilityTest extends TestCase {
 
 		$this->assertSame( [ [ 'key' => 'value' ] ], $received->getArrayCopy() );
 	}
+
+	/**
+	 * @dataProvider data_results
+	 *
+	 * @param mixed $result Value the ability returns.
+	 */
+	public function test_execute_may_return_any_schema_valid_type( mixed $result ): void {
+		$ability = new class( $result ) extends AbstractAbility {
+
+			/**
+			 * @param mixed $result Value to return from execute().
+			 */
+			public function __construct( private mixed $result ) {}
+
+			public function name(): string {
+				return 'test-plugin/scalar';
+			}
+
+			protected function label(): string {
+				return 'Scalar';
+			}
+
+			protected function description(): string {
+				return 'Returns a non-array result.';
+			}
+
+			protected function category(): string {
+				return 'test-plugin';
+			}
+
+			protected function input_schema(): array {
+				return [];
+			}
+
+			protected function output_schema(): array {
+				return [];
+			}
+
+			public function execute( mixed $input ): mixed {
+				return $this->result;
+			}
+		};
+
+		$this->assertSame( $result, $ability->args()['execute_callback']() );
+	}
+
+	/**
+	 * @return array<string, array{mixed}> Result values.
+	 */
+	public function data_results(): array {
+		return [
+			'string'     => [ 'just a string' ],
+			'boolean'    => [ true ],
+			'integer'    => [ 42 ],
+			'list array' => [ [ 'a', 'b' ] ],
+			'null'       => [ null ],
+		];
+	}
 }
