@@ -91,9 +91,9 @@ abstract class AbstractAbility {
 	 *
 	 * @param mixed $input Input validated against the input schema.
 	 *
-	 * @return array<string, mixed>|\WP_Error Result data, or an error.
+	 * @return mixed|\WP_Error Result data, or an error.
 	 */
-	abstract public function execute( mixed $input ): array|\WP_Error;
+	abstract public function execute( mixed $input ): mixed;
 
 	/**
 	 * Decide whether the current user may execute the ability.
@@ -139,7 +139,7 @@ abstract class AbstractAbility {
 			'label'               => $this->label(),
 			'description'         => $this->description(),
 			'category'            => $this->category(),
-			'execute_callback'    => fn ( mixed $input = null ): array|\WP_Error => $this->execute( $input ),
+			'execute_callback'    => fn ( mixed $input = null ): mixed => $this->execute( $input ),
 			'permission_callback' => fn ( mixed $input = null ): bool|\WP_Error => $this->permission( $input ),
 		];
 

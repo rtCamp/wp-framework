@@ -415,7 +415,7 @@ ability stays a plain describable object.
 lowercase, one slash), `label()`, `description()`, `category()` (the slug of a
 category the registrar registers), `input_schema()` / `output_schema()` (JSON
 Schema arrays; return `[]` to omit the key), and
-`execute( mixed $input ): array|\WP_Error`.
+`execute( mixed $input ): mixed`.
 
 Overridable seams:
 
@@ -466,7 +466,7 @@ final class SiteSummary extends Ability {
     protected function input_schema(): array { return []; }
     protected function output_schema(): array { return [ 'type' => 'object' ]; }
 
-    public function execute( mixed $input ): array|\WP_Error {
+    public function execute( mixed $input ): mixed {
         return [ 'posts' => (int) wp_count_posts()->publish ];
     }
 }
