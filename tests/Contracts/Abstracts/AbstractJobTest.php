@@ -32,24 +32,30 @@ final class AbstractJobTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
+		if ( ! AS_FAKES_ACTIVE ) {
+			$this->markTestSkipped( 'The real Action Scheduler is loaded, so the fakes these tests drive are not.' );
+		}
+
 		as_fakes_reset();
 	}
 
 	/**
 	 * Minimal concrete AbstractJob with injectable behavior/config seams.
 	 *
-	 * @param \ArrayObject|null $log      Appended to with every handle() call, if given.
-	 * @param string            $group    get_group() override.
-	 * @param int               $priority get_priority() override.
-	 * @param bool              $unique   is_unique() override.
+	 * @param \ArrayObject|null $log            Appended to with every handle() call, if given.
+	 * @param string            $group          get_group() override.
+	 * @param int               $hook_priority  get_hook_priority() override.
+	 * @param bool              $unique         is_unique() override.
+	 * @param int               $queue_priority get_queue_priority() override.
 	 */
-	private function make_job( ?\ArrayObject $log = null, string $group = '', int $priority = 10, bool $unique = false ): AbstractJob {
-		return new class( $log, $group, $priority, $unique ) extends AbstractJob {
+	private function make_job( ?\ArrayObject $log = null, string $group = '', int $hook_priority = 10, bool $unique = false, int $queue_priority = 10 ): AbstractJob {
+		return new class( $log, $group, $hook_priority, $unique, $queue_priority ) extends AbstractJob {
 			public function __construct(
 				private readonly ?\ArrayObject $log,
 				private readonly string $group,
-				private readonly int $priority,
-				private readonly bool $unique
+				private readonly int $hook_priority,
+				private readonly bool $unique,
+				private readonly int $queue_priority
 			) {}
 
 			public static function get_hook(): string {
@@ -64,8 +70,12 @@ final class AbstractJobTest extends TestCase {
 				return $this->group;
 			}
 
-			protected function get_priority(): int {
-				return $this->priority;
+			protected function get_hook_priority(): int {
+				return $this->hook_priority;
+			}
+
+			protected function get_queue_priority(): int {
+				return $this->queue_priority;
 			}
 
 			protected function is_unique(): bool {
@@ -78,7 +88,7 @@ final class AbstractJobTest extends TestCase {
 		$this->assertInstanceOf( Registrable::class, $this->make_job() );
 	}
 
-	public function test_register_hooks_adds_action_on_get_hook_with_declared_priority_and_one_accepted_arg(): void {
+	public function test_register_hooks_adds_action_on_get_hook_with_declared_hook_priority_and_one_accepted_arg(): void {
 		global $wp_filter;
 
 		$job = $this->make_job( null, '', 20 );
@@ -178,6 +188,17 @@ final class AbstractJobTest extends TestCase {
 
 		// The group scoped the lookup: querying a different group finds nothing.
 		$this->assertFalse( as_has_scheduled_action( $job::get_hook(), [ [ 'w' => 1 ] ], 'other-group' ) );
+	}
+
+	public function test_queue_priority_reaches_every_scheduling_call_and_ignores_hook_priority(): void {
+		$job = $this->make_job( null, '', PHP_INT_MAX, false, 30 );
+
+		$job->schedule_async( [ 'a' => 1 ] );
+		$job->schedule_at( time() + HOUR_IN_SECONDS, [ 'b' => 2 ] );
+		$job->schedule_recurring( time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS, [ 'c' => 3 ] );
+
+		// The out-of-range hook priority stays on the hook; only get_queue_priority() reaches the queue.
+		$this->assertSame( [ 30, 30, 30 ], array_column( \ActionSchedulerFakeStore::$actions, 'priority' ) );
 	}
 
 	public function test_schedule_methods_return_null_when_action_scheduler_unavailable(): void {

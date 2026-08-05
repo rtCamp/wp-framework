@@ -14,6 +14,11 @@
 
 declare( strict_types = 1 );
 
+// False when the real library is loaded — nothing below is declared, so AbstractJob's tests skip.
+if ( ! defined( 'AS_FAKES_ACTIVE' ) ) {
+	define( 'AS_FAKES_ACTIVE', ! class_exists( 'ActionScheduler', false ) && ! function_exists( 'as_enqueue_async_action' ) );
+}
+
 if ( ! class_exists( 'ActionScheduler', false ) ) {
 	final class ActionScheduler {
 		/**
@@ -32,7 +37,7 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 	 * In-memory scheduled-action store backing the as_*() fakes below.
 	 */
 	final class ActionSchedulerFakeStore {
-		/** @var array<int, array{hook: string, args: array<mixed>, group: string, timestamp: ?int}> */
+		/** @var array<int, array{hook: string, args: array<mixed>, group: string, timestamp: ?int, priority: int}> */
 		public static array $actions = [];
 
 		private static int $next_id = 1;
@@ -58,7 +63,7 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 		/**
 		 * @param array<mixed> $args
 		 */
-		public static function add( string $hook, array $args, string $group, bool $unique, ?int $timestamp ): int {
+		public static function add( string $hook, array $args, string $group, bool $unique, ?int $timestamp, int $priority ): int {
 			if ( $unique ) {
 				$existing = self::find( $hook, $args, $group );
 				if ( null !== $existing ) {
@@ -73,6 +78,7 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 				'args'      => $args,
 				'group'     => $group,
 				'timestamp' => $timestamp,
+				'priority'  => max( 0, min( 255, $priority ) ),
 			];
 
 			return $id;
@@ -82,19 +88,19 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 
 if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 	function as_enqueue_async_action( string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10 ): int {
-		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, null );
+		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, null, $priority );
 	}
 }
 
 if ( ! function_exists( 'as_schedule_single_action' ) ) {
 	function as_schedule_single_action( int $timestamp, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10 ): int {
-		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, $timestamp );
+		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, $timestamp, $priority );
 	}
 }
 
 if ( ! function_exists( 'as_schedule_recurring_action' ) ) {
 	function as_schedule_recurring_action( int $timestamp, int $interval_in_seconds, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10 ): int {
-		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, $timestamp );
+		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, $timestamp, $priority );
 	}
 }
 
@@ -111,6 +117,7 @@ if ( ! function_exists( 'as_has_scheduled_action' ) ) {
 }
 
 if ( ! function_exists( 'as_next_scheduled_action' ) ) {
+	// int timestamp, or true for an undated (async) action, matching the real API.
 	function as_next_scheduled_action( string $hook, ?array $args = null, string $group = '' ): int|bool {
 		foreach ( ActionSchedulerFakeStore::$actions as $action ) {
 			if ( $action['hook'] === $hook && $action['group'] === $group && ( null === $args || $action['args'] === $args ) ) {
@@ -167,6 +174,10 @@ if ( ! function_exists( 'as_fakes_reset' ) ) {
 	 * Reset both fakes to a clean, "available" state. Call from setUp().
 	 */
 	function as_fakes_reset(): void {
+		if ( ! AS_FAKES_ACTIVE ) {
+			return;
+		}
+
 		ActionSchedulerFakeStore::reset();
 		ActionScheduler::$initialized = true;
 	}
