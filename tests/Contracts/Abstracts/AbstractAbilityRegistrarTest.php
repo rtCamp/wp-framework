@@ -6,8 +6,10 @@
  * hooks fire through core's lazy registry initialization, then abilities are
  * read back with wp_get_ability(). On older cores every test is skipped.
  * Both core registries are singletons, so they are reset via reflection
- * around every test (the suite runs in random order). Tests use anonymous
- * classes throughout so each scenario is self-contained.
+ * around every test (the suite runs in random order). The hooks each
+ * registrar adds need no such cleanup — WP_UnitTestCase::tear_down() restores
+ * $wp_filter wholesale after every test. Tests use anonymous classes
+ * throughout so each scenario is self-contained.
  *
  * @package rtCamp\WPFramework\Tests\Contracts\Abstracts
  */
