@@ -47,7 +47,7 @@ abstract class AbstractJob implements Registrable {
 			function ( array $args = [] ): void {
 				$this->handle( $args );
 			},
-			$this->get_priority(),
+			$this->get_hook_priority(),
 			1
 		);
 	}
@@ -73,7 +73,7 @@ abstract class AbstractJob implements Registrable {
 			return null;
 		}
 
-		$id = as_enqueue_async_action( static::get_hook(), [ $args ], $this->get_group(), $this->is_unique() );
+		$id = as_enqueue_async_action( static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
 
 		return $id > 0 ? $id : null;
 	}
@@ -91,7 +91,7 @@ abstract class AbstractJob implements Registrable {
 			return null;
 		}
 
-		$id = as_schedule_single_action( $timestamp, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique() );
+		$id = as_schedule_single_action( $timestamp, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
 
 		return $id > 0 ? $id : null;
 	}
@@ -110,7 +110,7 @@ abstract class AbstractJob implements Registrable {
 			return null;
 		}
 
-		$id = as_schedule_recurring_action( $timestamp, $interval_in_seconds, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique() );
+		$id = as_schedule_recurring_action( $timestamp, $interval_in_seconds, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
 
 		return $id > 0 ? $id : null;
 	}
@@ -174,11 +174,26 @@ abstract class AbstractJob implements Registrable {
 	}
 
 	/**
-	 * Return the hook priority `register_hooks()` registers `handle()` at.
+	 * Return the WordPress hook priority `register_hooks()` registers `handle()` at.
+	 *
+	 * Orders this listener against other callbacks on the same hook — unrelated
+	 * to {@see get_queue_priority()}.
 	 *
 	 * @return int
 	 */
-	protected function get_priority(): int {
+	protected function get_hook_priority(): int {
+		return 10;
+	}
+
+	/**
+	 * Return the Action Scheduler queue priority the `schedule_*()` methods pass.
+	 *
+	 * Orders this job against other queued actions — lower runs first. Action
+	 * Scheduler clamps it to 0-255, unlike a WordPress hook priority.
+	 *
+	 * @return int
+	 */
+	protected function get_queue_priority(): int {
 		return 10;
 	}
 

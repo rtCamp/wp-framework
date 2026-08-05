@@ -524,10 +524,13 @@ match — so `handle()` always receives one plain array. Scheduling through the
 raw `as_*()` functions directly, instead of this class's own `schedule_*()`
 methods, breaks that contract.
 
-Overridable seams: `get_group()` (defaults to `''`), `get_priority()`
-(defaults to `10`), `is_unique()` (defaults to `false` — when `true`, Action
-Scheduler skips scheduling a duplicate of an already-pending/running action
-with the same hook, group, and args).
+Overridable seams: `get_group()` (defaults to `''`), `is_unique()` (defaults to
+`false` — when `true`, Action Scheduler skips scheduling a duplicate of an
+already-pending/running action with the same hook, group, and args), plus two
+distinct priorities, both defaulting to `10`: `get_hook_priority()` is the
+WordPress hook priority `register_hooks()` attaches `handle()` at, while
+`get_queue_priority()` is passed to every `schedule_*()` call to order this job
+against other queued actions (Action Scheduler clamps it to `0`-`255`).
 
 ```php
 final class SendWelcomeEmailJob extends AbstractJob {
