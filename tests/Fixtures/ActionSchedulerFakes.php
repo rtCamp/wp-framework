@@ -14,9 +14,13 @@
 
 declare( strict_types = 1 );
 
-// False when the real library is loaded — nothing below is declared, so AbstractJob's tests skip.
+// False when the real library is loaded — nothing below is declared and AbstractJob's tests skip.
 if ( ! defined( 'AS_FAKES_ACTIVE' ) ) {
 	define( 'AS_FAKES_ACTIVE', ! class_exists( 'ActionScheduler', false ) && ! function_exists( 'as_enqueue_async_action' ) );
+}
+
+if ( ! AS_FAKES_ACTIVE ) {
+	return;
 }
 
 if ( ! class_exists( 'ActionScheduler', false ) ) {
@@ -174,10 +178,6 @@ if ( ! function_exists( 'as_fakes_reset' ) ) {
 	 * Reset both fakes to a clean, "available" state. Call from setUp().
 	 */
 	function as_fakes_reset(): void {
-		if ( ! AS_FAKES_ACTIVE ) {
-			return;
-		}
-
 		ActionSchedulerFakeStore::reset();
 		ActionScheduler::$initialized = true;
 	}
