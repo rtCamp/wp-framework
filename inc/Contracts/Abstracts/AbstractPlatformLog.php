@@ -70,12 +70,29 @@ abstract class AbstractPlatformLog {
 		$timestamp = null;
 		$level     = 'unknown';
 
-		if ( preg_match( '/^\[([^\]]+)\]\s*(.*)$/', $rest, $matches ) ) {
+		// "[02-Sep-2026 10:15:00 UTC] …" — the bracketed timestamp PHP writes first.
+		$timestamp_pattern = '/^\[([^\]]+)\]\s*(.*)$/';
+
+		// "PHP Warning:  …" — the severity marker, allowing multi-word levels
+		// ("Fatal error", "Parse error") and PHP's double space after the colon.
+		$level_pattern = '/^PHP\s+([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$/';
+
+		// "PHP   3. foo()" or "#3 /srv/a.php(8)" — a stack-trace frame, not an entry.
+		$trace_frame_pattern = '/^(?:PHP\s+\d+\.|#\d+)\s/';
+
+		// The two location suffixes PHP emits, tried in order. The leading group is
+		// greedy so the *last* " in " wins: a message may contain its own.
+		$location_patterns = [
+			'/^(.*) in (.+) on line (\d+)$/',
+			'/^(.*) in (.+):(\d+)$/',
+		];
+
+		if ( preg_match( $timestamp_pattern, $rest, $matches ) ) {
 			$timestamp = $matches[1];
 			$rest      = $matches[2];
 		}
 
-		if ( preg_match( '/^PHP\s+([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$/', $rest, $matches ) ) {
+		if ( preg_match( $level_pattern, $rest, $matches ) ) {
 			$level = strtolower( $matches[1] );
 			$rest  = $matches[2];
 		}
@@ -87,22 +104,20 @@ abstract class AbstractPlatformLog {
 
 		// Xdebug timestamps the trace it prints under a fatal, so those lines
 		// survive the check above. They belong to the entry before them.
-		if ( 'stack trace' === $level || preg_match( '/^(?:PHP\s+\d+\.|#\d+)\s/', $rest ) ) {
+		if ( 'stack trace' === $level || preg_match( $trace_frame_pattern, $rest ) ) {
 			return null;
 		}
 
 		$file        = null;
 		$line_number = null;
 
-		// Greedy leading group so the *last* " in " wins: a message may contain its own.
-		if ( preg_match( '/^(.*) in (.+) on line (\d+)$/', $rest, $matches ) ) {
-			$rest        = $matches[1];
-			$file        = $matches[2];
-			$line_number = (int) $matches[3];
-		} elseif ( preg_match( '/^(.*) in (.+):(\d+)$/', $rest, $matches ) ) {
-			$rest        = $matches[1];
-			$file        = $matches[2];
-			$line_number = (int) $matches[3];
+		foreach ( $location_patterns as $location_pattern ) {
+			if ( preg_match( $location_pattern, $rest, $matches ) ) {
+				$rest        = $matches[1];
+				$file        = $matches[2];
+				$line_number = (int) $matches[3];
+				break;
+			}
 		}
 
 		return [

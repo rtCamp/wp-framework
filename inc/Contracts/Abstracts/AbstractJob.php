@@ -66,16 +66,16 @@ abstract class AbstractJob implements Registrable {
 	 *
 	 * @param array<string, mixed> $args Arguments passed to {@see handle()}.
 	 *
-	 * @return int|null The action ID, or null when Action Scheduler is unavailable.
+	 * @return int|null The action ID, 0 when Action Scheduler declined to schedule
+	 *                  it (most often an `is_unique()` duplicate), or null when
+	 *                  Action Scheduler is unavailable and nothing was attempted.
 	 */
 	public function schedule_async( array $args = [] ): ?int {
 		if ( ! static::is_available() ) {
 			return null;
 		}
 
-		$id = as_enqueue_async_action( static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
-
-		return $id > 0 ? $id : null;
+		return as_enqueue_async_action( static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
 	}
 
 	/**
@@ -84,16 +84,15 @@ abstract class AbstractJob implements Registrable {
 	 * @param int                  $timestamp Unix timestamp to run at.
 	 * @param array<string, mixed> $args      Arguments passed to {@see handle()}.
 	 *
-	 * @return int|null The action ID, or null when Action Scheduler is unavailable.
+	 * @return int|null The action ID, 0 when Action Scheduler declined to schedule
+	 *                  it, or null when Action Scheduler is unavailable.
 	 */
 	public function schedule_at( int $timestamp, array $args = [] ): ?int {
 		if ( ! static::is_available() ) {
 			return null;
 		}
 
-		$id = as_schedule_single_action( $timestamp, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
-
-		return $id > 0 ? $id : null;
+		return as_schedule_single_action( $timestamp, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
 	}
 
 	/**
@@ -103,16 +102,15 @@ abstract class AbstractJob implements Registrable {
 	 * @param int                  $interval_in_seconds How long to wait between runs.
 	 * @param array<string, mixed> $args                Arguments passed to {@see handle()}.
 	 *
-	 * @return int|null The action ID, or null when Action Scheduler is unavailable.
+	 * @return int|null The action ID, 0 when Action Scheduler declined to schedule
+	 *                  it, or null when Action Scheduler is unavailable.
 	 */
 	public function schedule_recurring( int $timestamp, int $interval_in_seconds, array $args = [] ): ?int {
 		if ( ! static::is_available() ) {
 			return null;
 		}
 
-		$id = as_schedule_recurring_action( $timestamp, $interval_in_seconds, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
-
-		return $id > 0 ? $id : null;
+		return as_schedule_recurring_action( $timestamp, $interval_in_seconds, static::get_hook(), [ $args ], $this->get_group(), $this->is_unique(), $this->get_queue_priority() );
 	}
 
 	/**

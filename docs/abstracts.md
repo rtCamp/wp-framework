@@ -547,10 +547,11 @@ $job->schedule_async( [ 'email' => $user->user_email ] );  // imperative call si
 ```
 
 `schedule_async()`, `schedule_at( $timestamp, $args )`, and
-`schedule_recurring( $timestamp, $interval_in_seconds, $args )` each return
-the Action Scheduler action ID, or `null` when Action Scheduler is
-unavailable. `is_scheduled( $args )` and `unschedule( $args )` round out the
-seam for checking and cancelling.
+`schedule_recurring( $timestamp, $interval_in_seconds, $args )` each return the
+Action Scheduler action ID, `0` when Action Scheduler declined to schedule it
+(most often an `is_unique()` duplicate), or `null` when Action Scheduler is
+unavailable and nothing was attempted. `is_scheduled( $args )` and
+`unschedule( $args )` round out the seam for checking and cancelling.
 
 ## Platform extensibility
 
