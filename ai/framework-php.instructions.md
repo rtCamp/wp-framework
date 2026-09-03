@@ -16,7 +16,7 @@ Decision order for a new class, **do NOT default to Singleton**:
 2. **`Registrable` + `Shareable`**: only if another class must retrieve it via `get_shared()`.
 3. **`Singleton`**: only the `Main` bootstrap.
 
-Extend the framework abstracts; never hand-roll their job: `AbstractModule` and `Abstract{PostType,Taxonomy,Block,Shortcode,RESTController,SettingsPage,AdminPage,UserRole}`.
+Extend the framework abstracts; never hand-roll their job: `AbstractModule`, `AbstractFeature`, and `Abstract{PostType,Taxonomy,Block,Shortcode,RESTController,SettingsPage,AdminPage,UserRole}`.
 
 Flag genuine contract/security violations, not style. Allow any correct implementation.
 

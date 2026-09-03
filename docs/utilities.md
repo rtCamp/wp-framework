@@ -24,6 +24,10 @@ collide.
 for sensitive values before they go into the database (API tokens, secrets).
 **AES-256-GCM** by default.
 
+The OpenSSL PHP extension must be loaded when `encrypt()` or `decrypt()` is
+called. If it is unavailable, the method reports incorrect usage and returns
+`false`.
+
 GCM is *authenticated*: it produces an auth tag that makes tampering detectable,
 so a modified ciphertext fails to decrypt instead of silently returning garbage.
 The class hard-rejects any cipher whose name doesn't end in `-gcm` (the stored
@@ -65,6 +69,20 @@ $nav   = $cache->remember( 'nav_items', fn() => build_nav(), 'theme', 300 );
 the other services, register a `Cache` instance as `Shareable` in a consumer's
 container, or extend it to change the backend behaviour.
 
+The direct wrapper methods are also available:
+
+| Method | Behavior |
+|---|---|
+| `get( $key, $group = '', $force = false, &$found = null )` | Read a value; `$found` distinguishes a miss from a stored falsy value. |
+| `set( $key, $value, $group = '', $expiration = 0 )` | Store a serializable value; `0` means no expiry. |
+| `delete( $key, $group = '' )` | Delete one key. It does not delete SWR companion keys. |
+| `flush_group( $group )` | Flush the namespaced group when the active cache backend supports group flushing; otherwise return `false`. |
+| `remember( $key, $callback, $group = '', $expiration = 0 )` | Return a hit or synchronously generate and store a miss. |
+| `remember_swr( $key, $callback, $group = '', $expiration = 0 )` | Add stale data and locking around an expensive regeneration. |
+
+With context `my-plugin`, group `posts` becomes `my-plugin:posts`, and the empty
+group becomes `my-plugin`. Override `resolve_group()` to change that scheme.
+
 For hot keys where a simultaneous miss would stampede the backend, use
 `remember_swr( $key, $callback, $group, $expiration )`. On expiry one caller takes
 a short lock and regenerates the value in the foreground while every other caller
@@ -78,6 +96,17 @@ $feed = $cache->remember_swr( 'home_feed', fn() => build_feed(), 'theme', 300 );
 It keeps two companion entries — `{key}_stale` (the fallback, stored at roughly 2×
 the TTL) and `{key}_lock` — so avoid passing a `$key` that already ends in
 `_stale` or `_lock`.
+
+On a stale hit, all callers—including the caller that wins the lock and performs
+the synchronous regeneration—receive the stale value for that request. The new
+value is stored for subsequent requests. On a cold start with neither fresh nor
+stale data, the lock winner receives the generated value.
+
+Cross-process stampede protection requires a persistent object-cache backend
+such as Redis or Memcached. With WordPress's default request-local cache, the API
+still behaves as a get-or-set helper, but locks are not shared across PHP workers.
+For complete invalidation of an SWR entry, flush its group; deleting the primary
+key leaves its `_stale` and `_lock` companions intact.
 
 ## Logger
 
@@ -139,9 +168,8 @@ $store->delete( 'user_count' );
 
 [`inc/Utils/FeatureSelector.php`](../inc/Utils/FeatureSelector.php) — a
 feature-flag registry with per-context toggle storage. It is **fail-closed**:
-only registered flags resolve, and an unregistered or mistyped slug always
-returns `false` from `is_enabled()`, so a typo can't accidentally run a feature
-that doesn't exist.
+only a key produced by a registered flag can resolve, and an unknown normalized
+key returns `false` from `is_enabled()`.
 
 ```php
 $features = new FeatureSelector( 'my-plugin' );
@@ -158,6 +186,31 @@ For a registered flag the lookup precedence is:
    written by a settings page);
 3. **default `true`** — features ship on. The selector exists to turn things
    *off*, not on.
+
+### Registry and state API
+
+| Method | Behavior |
+|---|---|
+| `register( $features )` | Accept one slug, a list of slugs, or a `slug => metadata` map. First registration wins. |
+| `is_enabled( $flag )` | Resolve a registered flag through constant, stored value, then default. |
+| `enable( $flag )` / `disable( $flag )` | Persist a registered flag's state; return `false` and warn for an unknown flag. |
+| `get_registered()` | Return registered slugs in registration order. |
+| `get_features()` | Return metadata keyed by original slug. |
+| `get_context()` | Return the constructor context without normalization. |
+| `shared_option_key()` | Return the single option holding this context's flags. |
+| `flag_key( $flag )` | Return the normalized, dash-preserving storage key. |
+| `constant_name( $flag )` | Return the PHP constant used to lock the flag. |
+
+For context `my-plugin` and flag `dark-mode`, the defaults are option
+`my_plugin_features`, array key `dark-mode`, and constant
+`MY_PLUGIN_FEATURE_DARK_MODE`. Registration detects collisions after key
+normalization and keeps the first registration. Because lookups use that same
+normalized key, spelling variants that normalize identically refer to the same
+registered flag; callers should nevertheless use the original registered slug.
+
+A defined constant always wins over the stored toggle. The string `'false'` is
+treated as false to handle a common `wp-config.php` mistake; other values use
+normal PHP boolean conversion.
 
 ## FeatureSelectorSettingsPage
 
@@ -187,6 +240,12 @@ final class MyFeaturesPage extends FeatureSelectorSettingsPage {
 It's the ready-made UI for the toggles `FeatureSelector` reads — register it
 like any other `Registrable`.
 
+The page registers a single array option with a sanitization callback. A flag
+locked by a PHP constant renders as disabled, and saving the page preserves its
+previous stored value. `register_fields()` runs only on `admin_init`; the setting
+itself is also registered on `rest_api_init`, where the wp-admin field helpers
+are unavailable. The render method performs its own capability check.
+
 ## Timer
 
 [`inc/Utils/Timer.php`](../inc/Utils/Timer.php) — named timing segments that persist
@@ -203,6 +262,21 @@ $timer->lap( 'render', 'after_query' );
 $elapsed = $timer->stop( 'render' );   // float seconds
 $all     = $timer->get_all();          // every timer, with computed elapsed
 ```
+
+`get( $label )` returns `null` for an empty or unknown label. Otherwise it
+returns:
+
+```php
+[
+    'start'   => 0.0,       // absolute microtime value
+    'end'     => null,      // absolute microtime value, or null while running
+    'elapsed' => 0.0,       // seconds since start
+    'laps'    => [ 'after_query' => 0.0 ], // seconds since start, keyed by lap name
+]
+```
+
+`get_all()` returns that shape keyed by timer label. All running timers in one
+`get_all()` call use the same time snapshot.
 
 - **Instance-based, not a singleton.** The start-here / stop-there pattern shares
   state by sharing the *instance*: register one as `Shareable` in the consumer's

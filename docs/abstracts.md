@@ -226,8 +226,8 @@ Because it's a real `WP_REST_Controller`, all the core helper methods
 (`get_items_permissions_check()`, schema helpers, …) are available to override.
 
 > **Implementation note.** The base declares `register_routes()` as a concrete
-> method that throws a "not implemented" `Exception` (the message is prefixed with
-> the method name) rather than as `abstract`. The
+> method that throws a `LogicException` naming the concrete class and method,
+> rather than as `abstract`. The
 > effect is "you must override it," but the failure surfaces at **runtime** (when
 > `rest_api_init` fires), not at class-load time. Always provide your own
 > `register_routes()`. (An `abstract` method would catch a missing override at
@@ -277,6 +277,14 @@ subclass — it re-declares the same menu seams). It registers on **three** hook
 `get_settings()` returns a map of `option_name => register_setting() args`; the
 base loops it and calls `register_setting( $this->get_option_group(), … )` for
 each. The option group defaults to the page slug.
+
+`get_menu_slug()` also defaults to the page slug and can be overridden when the
+menu slug depends on instance state. The base always filters
+`option_page_capability_{group}` for this page's option group to return
+`get_capability()`, so the menu, the render callback, and the `options.php` save
+are authorized by the same capability. That matters when `get_capability()` is
+lowered from its `manage_options` default: without the filter the page would
+render for the lower capability but silently fail to save.
 
 ```php
 final class SettingsPage extends AbstractSettingsPage {

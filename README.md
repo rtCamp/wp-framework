@@ -17,15 +17,62 @@
 
 `wp-framework` is a **library, not a plugin**. It ships contracts (interfaces,
 abstracts, traits) plus concrete loaders and utilities; consuming plugins and
-themes build their features on top. **Zero runtime dependencies. PHP 8.2+.**
+themes build their features on top. It has **zero Composer runtime dependencies**.
+
+Requirements:
+
+- PHP 8.2+
+- WordPress 6.5+
+- Composer
+- The OpenSSL PHP extension when using `Encryptor`
 
 ## Install
 
-```bash
-composer require rtcamp/wp-framework
+Not on public Packagist — add the repository to the consuming project's
+`composer.json`, then require it with a caret constraint:
+
+```json
+{
+	"repositories": [
+		{ "type": "vcs", "url": "https://github.com/rtCamp/wp-framework" }
+	]
+}
 ```
 
+```bash
+composer require rtcamp/wp-framework:^1.0
+```
+
+(The `repositories` entry is unnecessary when the project already resolves this
+package through an rtCamp-hosted Composer registry.)
+
 PSR-4 autoloading: `rtCamp\WPFramework\` → `inc/`.
+
+## Quick look
+
+```php
+use rtCamp\WPFramework\Contracts\Abstracts\AbstractPostType;
+use rtCamp\WPFramework\Contracts\Traits\Loader;
+
+final class ArticlePostType extends AbstractPostType {
+	public static function get_slug(): string    { return 'article'; }
+	public function get_singular_label(): string { return __( 'Article', 'acme' ); }
+	public function get_plural_label(): string   { return __( 'Articles', 'acme' ); }
+	public function get_menu_icon(): string      { return 'dashicons-media-document'; }
+}
+
+final class Main {
+	use Loader;
+
+	public function boot(): void {
+		$this->load( [ ArticlePostType::class ] );   // instantiates + registers hooks
+	}
+}
+```
+
+A registered, REST-enabled post type with no `register_post_type()` call and no
+`init` hook written by hand. Full walkthrough in
+[docs/getting-started.md](docs/getting-started.md).
 
 ## What's inside
 
@@ -48,6 +95,9 @@ PSR-4 autoloading: `rtCamp\WPFramework\` → `inc/`.
   - `Cache` — typed wrapper over the WP object cache, group-namespaced, optional SWR
   - `FeatureSelector` + `FeatureSelectorSettingsPage` — a fail-closed feature-flag
     registry and its admin toggle page
+  - `Logger` — context-prefixed, `WP_DEBUG`-gated logging
+  - `Timer` — named request-scoped timers and laps
+  - `Transients` — prefix-namespaced transient storage
 
 The contract surface (`inc/Contracts/`) is the public API: every interface,
 abstract, and signature there is consumed by dependents, so changes to it are
@@ -67,23 +117,33 @@ Start with [docs/index.md](docs/index.md), then:
 
 | Doc | What it covers |
 |---|---|
+| [getting-started.md](docs/getting-started.md) | Install, bootstrap a plugin or theme, load a module, and share a service. |
 | [architecture.md](docs/architecture.md) | How a class becomes a live hook — the `Registrable` → `Loader` → `Container` flow. Read first. |
 | [contracts.md](docs/contracts.md) | The interfaces and traits in detail. |
 | [abstracts.md](docs/abstracts.md) | Cookbook for the `Abstract*` base classes. |
 | [loaders.md](docs/loaders.md) | `AssetLoader`, `ComponentLoader`, `TemplateLoader` and the theme-override hierarchy. |
-| [utilities.md](docs/utilities.md) | `Encryptor`, `Cache`, `FeatureSelector`, and `Container`. |
+| [utilities.md](docs/utilities.md) | `Encryptor`, `Cache`, feature flags, logging, transients, timers, and `Container`. |
+| [upgrading.md](docs/upgrading.md) | What changes between releases and what a consumer has to do about it. |
+| [troubleshooting.md](docs/troubleshooting.md) | Symptom → cause for the errors and silent no-ops the framework emits. |
+| [ai-review-system.md](docs/ai-review-system.md) | How the AI review instructions are authored here and synced into the skeletons. |
+| [maintainers.md](docs/maintainers.md) | Development environment, tests, change checklist, and documentation maintenance. |
 
 ## Development
 
 ```bash
-composer install   # PHP dev dependencies
-composer check     # lint (PHPCS) + analyse (PHPStan) + test (PHPUnit)
+composer install
+npm ci
+npm run wp-env start
+composer lint
+composer analyse
+npm run test:php
 ```
 
-Tests run against real WordPress via [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/)
-(`npm install && npm run wp-env start`). TDD: a failing test first (`tests/` mirrors
-`inc/`), then the code. Conventions live in [AGENTS.md](AGENTS.md), shared across
-all contributors and AI tools.
+Tests run against real WordPress via [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/).
+Use `npm run test:php`, which runs PHPUnit inside the wp-env test container;
+`composer test` only works directly when a host WordPress test suite has been
+configured. See [docs/maintainers.md](docs/maintainers.md) for the complete
+workflow.
 
 ## Contributing
 
