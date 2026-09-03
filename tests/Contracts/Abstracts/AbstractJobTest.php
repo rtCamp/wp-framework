@@ -173,8 +173,9 @@ final class AbstractJobTest extends TestCase {
 		$this->assertGreaterThan( 0, $first_id );
 
 		// is_unique() = true: a second schedule call for the same hook/group/args
-		// must not create a second pending action.
-		$job->schedule_at( time() + 2 * HOUR_IN_SECONDS, [ 'w' => 1 ] );
+		// must not create a second pending action, and reports 0 rather than null —
+		// null is reserved for "Action Scheduler was never asked".
+		$this->assertSame( 0, $job->schedule_at( time() + 2 * HOUR_IN_SECONDS, [ 'w' => 1 ] ) );
 
 		$ids = as_get_scheduled_actions(
 			[

@@ -68,11 +68,9 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 		 * @param array<mixed> $args
 		 */
 		public static function add( string $hook, array $args, string $group, bool $unique, ?int $timestamp, int $priority ): int {
-			if ( $unique ) {
-				$existing = self::find( $hook, $args, $group );
-				if ( null !== $existing ) {
-					return $existing;
-				}
+			// The real store returns 0 rather than the existing ID on a unique collision.
+			if ( $unique && null !== self::find( $hook, $args, $group ) ) {
+				return 0;
 			}
 
 			$id = self::$next_id++;
