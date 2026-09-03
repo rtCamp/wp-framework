@@ -34,11 +34,12 @@ PSR-4 autoloading: `rtCamp\WPFramework\` → `inc/`.
     interfaces
   - the `Loader` trait (instantiate a list of classes, register their hooks,
     cache the shared ones) and the `Container` it stores instances in
-- **Ten `Abstract*` base classes** — one per WordPress registration chore, so a
-  consumer writes intent instead of boilerplate: `AbstractModule`,
+- **Twelve `Abstract*` base classes** — one per WordPress registration chore, so
+  a consumer writes intent instead of boilerplate: `AbstractModule`,
   `AbstractPostType`, `AbstractTaxonomy`, `AbstractBlock`, `AbstractShortcode`,
   `AbstractRESTController`, `AbstractSettingsPage`, `AbstractAdminPage`,
-  `AbstractUserRole`, `AbstractFeature`
+  `AbstractUserRole`, `AbstractFeature`, `AbstractAbility`,
+  `AbstractAbilityRegistrar`
 - **Asset & render loaders** — `AssetLoader` (scripts/styles/modules +
   `*.asset.php` manifests), `ComponentLoader` and `TemplateLoader` (resolve
   components/templates across the child-theme → parent-theme → package hierarchy)

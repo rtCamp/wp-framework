@@ -1,6 +1,6 @@
 # AGENTS.md — wp-framework
 
-Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Codex). `rtcamp/wp-framework`: shared base contracts (interfaces, abstracts, traits) and small utilities consumed via Composer by every rtCamp plugin/theme skeleton. **Zero runtime dependencies.** PHP 8.2+, WordPress 6.5+ — the floor is set by the Script Modules API (`wp_register_script_module()`, new in 6.5). The only API used above 6.5 is `wp_register_block_types_from_metadata_collection()` (6.8+), and `AssetLoader::register_block_manifest()` guards it with a per-block fallback for 6.5–6.7.
+Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Codex). `rtcamp/wp-framework`: shared base contracts (interfaces, abstracts, traits) and small utilities consumed via Composer by every rtCamp plugin/theme skeleton. **Zero runtime dependencies.** PHP 8.2+, WordPress 6.5+ — the floor is set by the Script Modules API (`wp_register_script_module()`, new in 6.5). The APIs used above 6.5 are `wp_register_block_types_from_metadata_collection()` (6.8+), which `AssetLoader::register_block_manifest()` guards with a per-block fallback for 6.5–6.7, and the Abilities API (6.9+), which the ability abstracts reach only through `wp_abilities_api_*` hooks that never fire on older cores.
 
 ## Authoritative rules
 
