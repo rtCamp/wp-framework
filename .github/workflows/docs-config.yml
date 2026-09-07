@@ -30,20 +30,20 @@ jobs:
       NO_UPDATE_NOTIFIER: '1'
     steps:
       - name: Checkout configuration revision under test
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: site
           persist-credentials: false
 
       - name: Checkout documentation from main
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           path: source
           persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: npm
@@ -51,7 +51,7 @@ jobs:
 
       - name: Read GitHub Pages configuration
         id: pages
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Install locked dependencies
         run: npm ci --no-fund
@@ -67,7 +67,7 @@ jobs:
       # Validation only during setup. Production deployment will be integrated
       # with the main-branch workflow after this configuration branch is ready.
       - name: Upload validation artifact
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           name: docs-config-preview
           path: site/build/
