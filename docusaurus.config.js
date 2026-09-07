@@ -11,6 +11,7 @@ const sourceRef = process.env.DOCS_SOURCE_REF || 'main';
 const encodePath = value => value.split(path.sep).map(encodeURIComponent).join('/');
 export default {
   title,
+  noIndex: true,
   url: pagesUrl?.origin || `https://${owner.toLowerCase()}.github.io`,
   baseUrl: pagesUrl
     ? `${pagesUrl.pathname.replace(/\/$/, '')}/`
