@@ -39,6 +39,16 @@ use rtCamp\WPFramework\Contracts\Interfaces\Registrable;
 abstract class AbstractJob implements Registrable {
 
 	/**
+	 * Oldest Action Scheduler this class will talk to.
+	 *
+	 * 3.6.0 added action priorities and the `$unique` parameter to the API
+	 * signatures; older copies drop both silently.
+	 *
+	 * @var string
+	 */
+	public const MINIMUM_ACTION_SCHEDULER_VERSION = '3.6.0';
+
+	/**
 	 * {@inheritDoc}
 	 */
 	public function register_hooks(): void {
@@ -53,12 +63,41 @@ abstract class AbstractJob implements Registrable {
 	}
 
 	/**
-	 * Whether Action Scheduler is loaded and its data store is ready.
+	 * Whether a supported Action Scheduler is loaded and its data store is ready.
 	 *
 	 * @return bool
 	 */
 	public static function is_available(): bool {
-		return class_exists( \ActionScheduler::class, false ) && \ActionScheduler::is_initialized();
+		// The API check comes first: is_initialized() itself is missing from copies
+		// older than the floor, so calling it unguarded would fatal.
+		if ( ! class_exists( \ActionScheduler::class, false ) || ! self::supports_required_api() ) {
+			return false;
+		}
+
+		return \ActionScheduler::is_initialized();
+	}
+
+	/**
+	 * Whether the loaded copy exposes the API this class calls.
+	 *
+	 * @return bool
+	 */
+	private static function supports_required_api(): bool {
+		if ( ! function_exists( 'as_has_scheduled_action' ) || ! function_exists( 'as_schedule_recurring_action' ) ) {
+			return false;
+		}
+
+		$version = class_exists( \ActionScheduler_Versions::class, false )
+			? \ActionScheduler_Versions::instance()->latest_version()
+			: false;
+
+		if ( is_string( $version ) ) {
+			return version_compare( $version, static::MINIMUM_ACTION_SCHEDULER_VERSION, '>=' );
+		}
+
+		// A theme-loaded copy registers no version, so fall back to the signature
+		// itself: $priority, added in the minimum supported release, is 7th.
+		return ( new \ReflectionFunction( 'as_schedule_recurring_action' ) )->getNumberOfParameters() >= 7;
 	}
 
 	/**
@@ -103,9 +142,26 @@ abstract class AbstractJob implements Registrable {
 	 * @param array<string, mixed> $args                Arguments passed to {@see handle()}.
 	 *
 	 * @return int|null The action ID, 0 when Action Scheduler declined to schedule
-	 *                  it, or null when Action Scheduler is unavailable.
+	 *                  it, or null when the interval is not positive or Action
+	 *                  Scheduler is unavailable.
 	 */
 	public function schedule_recurring( int $timestamp, int $interval_in_seconds, array $args = [] ): ?int {
+		// Action Scheduler turns a 0 interval into a one-off action and walks a
+		// negative one backwards, leaving it permanently overdue.
+		if ( $interval_in_seconds < 1 ) {
+			_doing_it_wrong(
+				__METHOD__,
+				sprintf(
+					/* translators: %d: The interval, in seconds, that was passed. */
+					esc_html__( 'A positive interval is required, %d given. Use schedule_at() for a one-off job.', 'wp-framework' ),
+					esc_html( (string) $interval_in_seconds )
+				),
+				'1.0.0'
+			);
+
+			return null;
+		}
+
 		if ( ! static::is_available() ) {
 			return null;
 		}
@@ -199,7 +255,8 @@ abstract class AbstractJob implements Registrable {
 	 * Whether a scheduled action should be unique.
 	 *
 	 * When true, Action Scheduler skips scheduling if a pending or running
-	 * action already exists with the same hook and group.
+	 * action already exists with the same hook, group, and arguments (arguments
+	 * count only from Action Scheduler 4.0.0).
 	 *
 	 * @return bool
 	 */

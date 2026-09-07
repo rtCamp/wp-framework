@@ -127,6 +127,42 @@ final class AbstractJobTest extends TestCase {
 		$this->assertFalse( AbstractJob::is_available() );
 	}
 
+	public function test_is_available_true_at_the_minimum_supported_version(): void {
+		\ActionScheduler_Versions::$version = AbstractJob::MINIMUM_ACTION_SCHEDULER_VERSION;
+
+		$this->assertTrue( AbstractJob::is_available() );
+	}
+
+	/**
+	 * @dataProvider data_unsupported_versions
+	 *
+	 * @param string $version What ActionScheduler_Versions reports.
+	 */
+	public function test_is_available_false_for_an_unsupported_version( string $version ): void {
+		\ActionScheduler_Versions::$version = $version;
+
+		$this->assertFalse( AbstractJob::is_available() );
+	}
+
+	/**
+	 * @return array<string, array{string}> Versions below the floor.
+	 */
+	public function data_unsupported_versions(): array {
+		return [
+			'no priority/unique params' => [ '3.5.0' ],
+			'pre-3.x'                   => [ '2.2.5' ],
+		];
+	}
+
+	public function test_is_available_falls_back_to_the_api_signature_when_no_version_is_registered(): void {
+		// Action Scheduler loaded from a theme never registers a version, but is
+		// still usable — the seven-parameter signature is what actually matters.
+		\ActionScheduler_Versions::$version = false;
+
+		$this->assertTrue( AbstractJob::is_available() );
+		$this->assertIsInt( $this->make_job()->schedule_async( [ 'foo' => 'bar' ] ) );
+	}
+
 	public function test_schedule_async_enqueues_and_returns_action_id(): void {
 		$job = $this->make_job();
 		$id  = $job->schedule_async( [ 'foo' => 'bar' ] );
@@ -150,6 +186,34 @@ final class AbstractJobTest extends TestCase {
 		$this->assertIsInt( $recurring_id );
 		$this->assertGreaterThan( 0, $recurring_id );
 		$this->assertSame( $recurring_start, as_next_scheduled_action( $job::get_hook(), [ [ 'y' => 2 ] ] ) );
+
+		$this->assertSame( HOUR_IN_SECONDS, \ActionSchedulerFakeStore::$actions[ $recurring_id ]['interval'] );
+		$this->assertNull( \ActionSchedulerFakeStore::$actions[ $single_id ]['interval'] );
+	}
+
+	/**
+	 * @dataProvider data_non_positive_intervals
+	 *
+	 * @param int $interval An interval schedule_recurring() must refuse.
+	 */
+	public function test_schedule_recurring_rejects_a_non_positive_interval( int $interval ): void {
+		$this->setExpectedIncorrectUsage( AbstractJob::class . '::schedule_recurring' );
+
+		$job = $this->make_job();
+
+		// Rejected before Action Scheduler is consulted, so nothing is queued.
+		$this->assertNull( $job->schedule_recurring( time() + HOUR_IN_SECONDS, $interval, [ 'q' => 1 ] ) );
+		$this->assertSame( [], \ActionSchedulerFakeStore::$actions );
+	}
+
+	/**
+	 * @return array<string, array{int}> Intervals that are not a recurrence.
+	 */
+	public function data_non_positive_intervals(): array {
+		return [
+			'zero would become a one-off'  => [ 0 ],
+			'negative would run backwards' => [ -HOUR_IN_SECONDS ],
+		];
 	}
 
 	public function test_is_scheduled_and_unschedule_round_trip(): void {

@@ -506,6 +506,9 @@ facto WordPress queue/scheduling library. Action Scheduler is **never a
 dependency of this package** — it's a seam, same as the platform-extensibility
 abstracts below. Every scheduling method guards on `AbstractJob::is_available()`
 and degrades to a silent no-op (`null`/`false`) when the library isn't loaded.
+Action Scheduler **3.6.0 or newer** is required — that release added action
+priorities and the `$unique` parameter, which older copies drop silently, so
+`is_available()` reports anything older as unavailable rather than half-working.
 
 **Must implement:** `get_hook()` (static — the WordPress action hook the job
 runs on, e.g. `"my-plugin/send-welcome-email"`) and `handle( array $args )`
@@ -550,7 +553,11 @@ $job->schedule_async( [ 'email' => $user->user_email ] );  // imperative call si
 `schedule_recurring( $timestamp, $interval_in_seconds, $args )` each return the
 Action Scheduler action ID, `0` when Action Scheduler declined to schedule it
 (most often an `is_unique()` duplicate), or `null` when Action Scheduler is
-unavailable and nothing was attempted. `is_scheduled( $args )` and
+unavailable and nothing was attempted. `schedule_recurring()` additionally
+rejects a non-positive interval with `_doing_it_wrong()` and `null`: Action
+Scheduler would turn `0` into a one-off action and walk a negative interval
+backwards, leaving it permanently overdue — use `schedule_at()` for a one-off
+job. `is_scheduled( $args )` and
 `unschedule( $args )` round out the seam for checking and cancelling.
 
 ## Platform extensibility

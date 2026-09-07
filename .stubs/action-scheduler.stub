@@ -10,6 +10,17 @@
  * @package rtCamp\WPFramework
  */
 
+declare( strict_types = 1 );
+
+class ActionScheduler_Versions {
+	public static function instance(): ActionScheduler_Versions {}
+
+	/**
+	 * @return string|false The highest registered version, or false when none is.
+	 */
+	public function latest_version() {}
+}
+
 class ActionScheduler {
 	/**
 	 * @param string|null $function_name Calling function name, for the developer notice.
