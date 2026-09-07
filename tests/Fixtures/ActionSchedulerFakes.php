@@ -23,6 +23,25 @@ if ( ! AS_FAKES_ACTIVE ) {
 	return;
 }
 
+if ( ! class_exists( 'ActionScheduler_Versions', false ) ) {
+	final class ActionScheduler_Versions {
+		/**
+		 * Toggle to simulate an older library; reset via as_fakes_reset().
+		 *
+		 * @var string|false
+		 */
+		public static $version = '4.0.0';
+
+		public static function instance(): self {
+			return new self();
+		}
+
+		public function latest_version(): string|false {
+			return self::$version;
+		}
+	}
+}
+
 if ( ! class_exists( 'ActionScheduler', false ) ) {
 	final class ActionScheduler {
 		/**
@@ -41,7 +60,7 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 	 * In-memory scheduled-action store backing the as_*() fakes below.
 	 */
 	final class ActionSchedulerFakeStore {
-		/** @var array<int, array{hook: string, args: array<mixed>, group: string, timestamp: ?int, priority: int}> */
+		/** @var array<int, array{hook: string, args: array<mixed>, group: string, timestamp: ?int, priority: int, interval: ?int}> */
 		public static array $actions = [];
 
 		private static int $next_id = 1;
@@ -67,7 +86,7 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 		/**
 		 * @param array<mixed> $args
 		 */
-		public static function add( string $hook, array $args, string $group, bool $unique, ?int $timestamp, int $priority ): int {
+		public static function add( string $hook, array $args, string $group, bool $unique, ?int $timestamp, int $priority, ?int $interval = null ): int {
 			// The real store returns 0 rather than the existing ID on a unique collision.
 			if ( $unique && null !== self::find( $hook, $args, $group ) ) {
 				return 0;
@@ -81,6 +100,7 @@ if ( ! class_exists( 'ActionSchedulerFakeStore', false ) ) {
 				'group'     => $group,
 				'timestamp' => $timestamp,
 				'priority'  => max( 0, min( 255, $priority ) ),
+				'interval'  => $interval,
 			];
 
 			return $id;
@@ -102,7 +122,7 @@ if ( ! function_exists( 'as_schedule_single_action' ) ) {
 
 if ( ! function_exists( 'as_schedule_recurring_action' ) ) {
 	function as_schedule_recurring_action( int $timestamp, int $interval_in_seconds, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10 ): int {
-		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, $timestamp, $priority );
+		return ActionSchedulerFakeStore::add( $hook, $args, $group, $unique, $timestamp, $priority, $interval_in_seconds );
 	}
 }
 
@@ -173,10 +193,11 @@ if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
 
 if ( ! function_exists( 'as_fakes_reset' ) ) {
 	/**
-	 * Reset both fakes to a clean, "available" state. Call from setUp().
+	 * Reset every fake to a clean, "available" state. Call from setUp().
 	 */
 	function as_fakes_reset(): void {
 		ActionSchedulerFakeStore::reset();
-		ActionScheduler::$initialized = true;
+		ActionScheduler::$initialized      = true;
+		ActionScheduler_Versions::$version = '4.0.0';
 	}
 }
