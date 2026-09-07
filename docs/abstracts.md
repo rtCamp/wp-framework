@@ -612,15 +612,18 @@ final class DebugLogReader extends AbstractPlatformLog {
 
 [`AbstractPlatformProfile.php`](../inc/Contracts/Abstracts/AbstractPlatformProfile.php)
 — the ruleset a readiness lens applies: named rule buckets a hosting platform
-constrains. Every bucket defaults to empty/permissive, so a profile that
-declares nothing imposes no constraints, and new buckets can be added later
-without breaking existing subclasses.
+constrains. Every bucket defaults to permissive, so a profile that declares
+nothing imposes no constraints, and new buckets can be added later without
+breaking existing subclasses. Most buckets spell that as an empty array;
+`get_writable_paths()` uses `null`, reserving `[]` for "no path is writable".
 
 **Must implement:** `get_slug()`, `get_name()`.
 
-Overridable rule buckets, all empty/permissive by default:
-`get_restricted_functions()`, `get_writable_paths()`,
-`get_supported_php_versions()`, `get_object_cache_constraints()` (returns
+Overridable rule buckets, all permissive by default:
+`get_restricted_functions()`, `get_writable_paths()` (returns `null` when the
+platform declares no constraint — an empty array means the opposite, that no
+path is writable), `get_supported_php_versions()`,
+`get_object_cache_constraints()` (returns
 `array{max_object_bytes: ?int, backend: ?string}`), `get_incompatible_plugins()`.
 
 ```php
@@ -632,7 +635,7 @@ final class VipPlatformProfile extends AbstractPlatformProfile {
         return [ 'eval', 'exec', 'shell_exec', 'system' ];
     }
 
-    public function get_writable_paths(): array {
+    public function get_writable_paths(): ?array {
         return [ 'wp-content/uploads', '/tmp' ];
     }
 }

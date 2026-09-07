@@ -17,9 +17,10 @@ namespace rtCamp\WPFramework\Contracts\Abstracts;
  * hosting platform imposes. A subclass declares only the buckets that platform
  * actually constrains.
  *
- * Every bucket defaults to empty — which reads as permissive — so a profile
- * that declares nothing imposes nothing, and a new bucket can be added here
- * later without breaking any existing subclass.
+ * Every bucket defaults to permissive, so a profile that declares nothing
+ * imposes nothing, and a new bucket can be added here later without breaking
+ * any existing subclass. Most buckets spell that as an empty array;
+ * `get_writable_paths()` uses null, reserving `[]` for "nothing is writable".
  *
  * Unlike most abstracts here this one is deliberately not `Registrable`: it
  * registers no WordPress hook. It is constructed and queried on demand by
@@ -57,13 +58,13 @@ abstract class AbstractPlatformProfile {
 	/**
 	 * Return the paths the platform allows writes to.
 	 *
-	 * Defaults to none declared, which a lens should read as "unconstrained"
-	 * rather than "nothing is writable".
+	 * Null — the default — means the platform declares no constraint. An empty
+	 * array is the opposite: no path is writable.
 	 *
-	 * @return string[]
+	 * @return string[]|null
 	 */
-	public function get_writable_paths(): array {
-		return [];
+	public function get_writable_paths(): ?array {
+		return null;
 	}
 
 	/**
