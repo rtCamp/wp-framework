@@ -56,7 +56,7 @@ final class AbstractPlatformProfileTest extends TestCase {
 				return [ 'exec', 'shell_exec' ];
 			}
 
-			public function get_writable_paths(): array {
+			public function get_writable_paths(): ?array {
 				return [ 'wp-content/uploads', '/tmp' ];
 			}
 
@@ -88,9 +88,32 @@ final class AbstractPlatformProfileTest extends TestCase {
 		$profile = $this->make_profile();
 
 		$this->assertSame( [], $profile->get_restricted_functions() );
-		$this->assertSame( [], $profile->get_writable_paths() );
 		$this->assertSame( [], $profile->get_supported_php_versions() );
 		$this->assertSame( [], $profile->get_incompatible_plugins() );
+	}
+
+	public function test_writable_paths_default_to_unconstrained_not_empty(): void {
+		$this->assertNull( $this->make_profile()->get_writable_paths() );
+	}
+
+	public function test_writable_paths_can_declare_that_nothing_is_writable(): void {
+		// The state [] cannot express: null is "no constraint declared".
+		$profile = new class() extends AbstractPlatformProfile {
+			public function get_slug(): string {
+				return 'read-only';
+			}
+
+			public function get_name(): string {
+				return 'Read-only Platform';
+			}
+
+			public function get_writable_paths(): ?array {
+				return [];
+			}
+		};
+
+		$this->assertSame( [], $profile->get_writable_paths() );
+		$this->assertNotNull( $profile->get_writable_paths() );
 	}
 
 	public function test_object_cache_constraints_default_to_unconstrained(): void {
