@@ -69,7 +69,8 @@ abstract class AbstractJob implements Registrable {
 	 */
 	public static function is_available(): bool {
 		// The API check comes first: is_initialized() itself is missing from copies
-		// older than the floor, so calling it unguarded would fatal.
+		// older than the floor, so calling it unguarded would fatal. self:: is
+		// deliberate — the helper is private, so there is nothing to late-bind.
 		if ( ! class_exists( \ActionScheduler::class, false ) || ! self::supports_required_api() ) {
 			return false;
 		}
