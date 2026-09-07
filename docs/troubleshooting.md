@@ -1,3 +1,8 @@
+---
+sidebar_position: 8
+sidebar_label: Troubleshooting
+---
+
 # Troubleshooting
 
 Symptom → cause for the failures the framework produces. Three shapes, and which

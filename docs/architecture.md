@@ -1,3 +1,8 @@
+---
+sidebar_position: 3
+sidebar_label: Architecture
+---
+
 # Architecture — how a class becomes a live hook
 
 The framework's job is narrow: take a list of class names and turn them into

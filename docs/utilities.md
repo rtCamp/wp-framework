@@ -1,3 +1,8 @@
+---
+sidebar_position: 7
+sidebar_label: Utilities
+---
+
 # Utilities & services
 
 Standalone helpers under `inc/Utils/` (plus the `Container`, documented with the

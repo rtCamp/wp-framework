@@ -1,3 +1,8 @@
+---
+sidebar_position: 1
+sidebar_label: Overview
+---
+
 # wp-framework
 
 `rtcamp/wp-framework` is the shared PHP base that every rtCamp plugin and theme

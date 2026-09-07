@@ -1,3 +1,8 @@
+---
+sidebar_position: 6
+sidebar_label: Loaders
+---
+
 # Loaders — assets, components & templates
 
 Three concrete classes handle the "files on disk → output in the page" side of a

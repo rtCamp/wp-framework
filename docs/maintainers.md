@@ -1,3 +1,8 @@
+---
+sidebar_position: 10
+sidebar_label: Maintainer guide
+---
+
 # Maintainer guide
 
 This guide covers work on `rtcamp/wp-framework` itself. For consuming the

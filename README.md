@@ -128,6 +128,67 @@ Start with [docs/index.md](docs/index.md), then:
 | [ai-review-system.md](docs/ai-review-system.md) | How the AI review instructions are authored here and synced into the skeletons. |
 | [maintainers.md](docs/maintainers.md) | Development environment, tests, change checklist, and documentation maintenance. |
 
+### Local documentation development
+
+Docusaurus configuration, styles, tests, and locked Node dependencies live on the
+[`docs-config` branch](https://github.com/rtCamp/wp-framework/tree/docs-config).
+Markdown content stays in `docs/`. Requires Node.js 22+.
+
+From this repository's root, create a separate configuration checkout once:
+
+```bash
+git clone --single-branch --branch docs-config https://github.com/rtCamp/wp-framework.git ../wp-framework-docs-config
+```
+
+If that checkout already exists, reuse it. From this repository's root:
+
+```bash
+export DOCS_SOURCE="$PWD"
+cd ../wp-framework-docs-config
+npm ci
+npm test
+npm start -- --host 127.0.0.1 --no-open
+```
+
+Open `http://127.0.0.1:3000/wp-framework/`. Edit Markdown in the source checkout;
+Docusaurus watches it directly. Run `npm run build` in the configuration checkout
+to validate production output, then `npm run serve` to preview it. See the
+[configuration README](https://github.com/rtCamp/wp-framework/blob/docs-config/README.md)
+for source directory, source link, and site URL overrides.
+
+### Documentation publishing
+
+`.github/workflows/documentation.yml` checks out source into `source/` and the
+latest `docs-config` into `site/` on the runner. It installs the locked dependencies,
+runs configuration tests, and builds a GitHub Pages artifact. No `website/`
+directory or generated output needs committing to this branch.
+
+Documentation PRs targeting `main` build for validation only. Changes to `docs/`
+or the workflow on `main`, and manual runs on `main`, build and deploy the site.
+A successful push validation on `docs-config` also triggers a fresh build of
+`main` with the latest configuration and deploys it. Failed configuration runs
+and configuration PRs do not trigger deployment. This cross-workflow trigger
+becomes active after the publishing workflow is merged into the default branch.
+
+The build reads the site URL and base path from GitHub Pages, including the
+organization's custom domain. The `github-pages` environment deploys the uploaded
+artifact; the old generated `documentation` branch is unused. Superseded runs for
+the same deployment target are cancelled so older builds cannot deploy out of order.
+
+In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**.
+The deployment uses the built-in `GITHUB_TOKEN` with `pages: write` and
+`id-token: write`; no custom token or branch-write permission is needed. Restrict
+the `github-pages` environment to deployments from `main` and, temporarily,
+`gh/92-documentation`. After merging the
+workflow, its first matching push or a manual run publishes the site.
+See [GitHub's Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+For initial deployment testing, pushes affecting documentation or this workflow on
+`gh/92-documentation` also publish to the **same live Pages URL**. The build uses
+that branch's documentation with `docs-config`. Remove the temporary branch from
+`push.branches`, the deployment condition, and the environment's allowed branches
+after verification. Configuration-triggered deployments continue to use `main`.
+
 ## Development
 
 ```bash

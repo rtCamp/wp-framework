@@ -1,3 +1,8 @@
+---
+sidebar_position: 11
+sidebar_label: AI review system
+---
+
 # AI review & instructions system
 
 How GitHub Copilot code-review instructions and AI-agent guidance are authored, distributed, and kept in sync across the framework, the plugin/theme skeletons, and assembled `wp-content` projects.

@@ -1,3 +1,8 @@
+---
+sidebar_position: 2
+sidebar_label: Getting started
+---
+
 # Getting started
 
 This guide shows the smallest complete integration: install the package, boot it

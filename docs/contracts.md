@@ -1,3 +1,8 @@
+---
+sidebar_position: 4
+sidebar_label: Contracts
+---
+
 # Contracts — interfaces & traits
 
 This is the reference for the small set of interfaces and traits under

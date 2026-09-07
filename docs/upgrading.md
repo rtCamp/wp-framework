@@ -1,3 +1,8 @@
+---
+sidebar_position: 9
+sidebar_label: Upgrading
+---
+
 # Upgrading
 
 What changes between releases of `rtcamp/wp-framework`, and what a consuming

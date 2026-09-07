@@ -1,0 +1,121 @@
+name: Documentation
+
+# Docusaurus tooling lives on docs-config; source content stays on main.
+on:
+  push:
+    # Temporary deployment test branch; remove after verification.
+    branches: [gh/92-documentation]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Validate documentation configuration]
+    types: [completed]
+    branches: [docs-config]
+
+permissions:
+  contents: read
+
+env:
+  DOCS_DIRECTORY: docs
+
+# Cancel superseded builds so an older run cannot deploy after a newer one.
+concurrency:
+  # Ignored config runs must not cancel an active production deployment.
+  group: >-
+    documentation-${{ github.event_name == 'workflow_run' &&
+    (github.event.workflow_run.conclusion != 'success' ||
+     github.event.workflow_run.event != 'push' ||
+     github.event.workflow_run.head_repository.full_name != github.repository)
+    && github.run_id || github.event_name == 'pull_request' && github.ref || 'production' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build documentation
+    # Only a successful push validation from this repository can publish config changes.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    permissions:
+      contents: read
+      pages: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    env:
+      DOCS_SOURCE: ${{ github.workspace }}/source
+      DOCS_SOURCE_REF: ${{ github.event_name == 'workflow_run' && 'main' || github.head_ref || github.ref_name }}
+      NO_UPDATE_NOTIFIER: '1'
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Checkout Docusaurus configuration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: docs-config
+          path: site
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Read GitHub Pages configuration
+        id: pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Install Docusaurus
+        run: npm ci --no-fund
+
+      - name: Test configuration
+        run: npm test
+
+      - name: Build static site
+        env:
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+        run: npm run build
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: site/build/
+          retention-days: 7
+
+  deploy:
+    name: Deploy documentation to GitHub Pages
+    needs: build
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run') &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/gh/92-documentation')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

@@ -1,3 +1,8 @@
+---
+sidebar_position: 5
+sidebar_label: Abstracts
+---
+
 # Abstracts — the base-class cookbook
 
 The ten `Abstract*` classes in
