@@ -18,7 +18,7 @@ permissions:
 jobs:
   # These tests use Node built-ins only; installing the Docusaurus dependency tree is unnecessary.
   unit-tests:
-    runs-on: ["self-hosted"]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout builder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
