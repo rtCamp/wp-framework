@@ -130,64 +130,86 @@ Start with [docs/index.md](docs/index.md), then:
 
 ### Local documentation development
 
-Docusaurus configuration, styles, tests, and locked Node dependencies live on the
-[`docs-config` branch](https://github.com/rtCamp/wp-framework/tree/docs-config).
+Docusaurus configuration, styles, tests, and locked Node dependencies live in
+[`wp-shared-workflows/tools/documentation`](https://github.com/rtCamp/wp-shared-workflows/tree/v1.0.0/task/documentation-site/tools/documentation).
 Markdown content stays in `docs/`. Requires Node.js 22+.
 
-From this repository's root, create a separate configuration checkout once:
+From this repository's root, create a separate shared-tooling checkout once:
 
 ```bash
-git clone --single-branch --branch docs-config https://github.com/rtCamp/wp-framework.git ../wp-framework-docs-config
+git clone --single-branch --branch v1.0.0/task/documentation-site https://github.com/rtCamp/wp-shared-workflows.git ../wp-shared-workflows
 ```
 
-If that checkout already exists, reuse it. From this repository's root:
+If that checkout already exists, use the revision specified by `tooling-ref` in
+`.github/workflows/documentation.yml`. From this repository's root:
 
 ```bash
 export DOCS_SOURCE="$PWD"
-cd ../wp-framework-docs-config
+cd ../wp-shared-workflows/tools/documentation
 npm ci
 npm test
-npm start -- --host 127.0.0.1 --no-open
+npm start -- --source "$DOCS_SOURCE" --host 127.0.0.1 --no-open
 ```
 
 Open `http://127.0.0.1:3000/wp-framework/`. Edit Markdown in the source checkout;
-Docusaurus watches it directly. Run `npm run build` in the configuration checkout
-to validate production output, then `npm run serve` to preview it. See the
-[configuration README](https://github.com/rtCamp/wp-framework/blob/docs-config/README.md)
-for source directory, source link, and site URL overrides.
+Docusaurus watches it directly. Run `npm run build -- --source "$DOCS_SOURCE"`
+to validate production output, then `npm run serve -- --source "$DOCS_SOURCE"`
+to preview it. See the
+[builder README](https://github.com/rtCamp/wp-shared-workflows/blob/v1.0.0/task/documentation-site/tools/documentation/README.md)
+for settings, source links, and site URL overrides.
+
+### Documentation branding
+
+Set the `DOCS_SITE_TITLE` GitHub Actions repository variable to override the site
+title. For other branding, set `DOCS_SITE_CONFIG` to a committed JSON file such as
+`docs/branding.json`. Unset values keep the shared builder's defaults.
+
+The JSON supports `tagline`, `favicon`, `navbar`, `footer`, `customCss`, and
+`staticDirectory`. For example, use `staticDirectory: "docs/assets"` with
+`navbar.logo.src: "logo.svg"` for an image stored at `docs/assets/logo.svg`.
+Use `navbar.title`, `navbar.logo.srcDark`, and `navbar.logo.alt` for navbar title,
+dark-mode logo, and alt text. The former `DOCS_NAVBAR_TITLE`, `DOCS_LOGO_PATH`,
+`DOCS_LOGO_DARK_PATH`, `DOCS_LOGO_ALT`, and `DOCS_FAVICON_PATH` variables must be
+migrated to these JSON fields; the shared workflow does not consume them.
+
+Keep branding files under `docs/` so changes trigger the workflow.
+Variable changes require a fresh workflow run. For local branding, pass
+`--settings /path/to/site.json`, containing `title` and/or
+`siteConfig: "docs/branding.json"`, to the builder commands. See the
+[branding reference](https://github.com/rtCamp/wp-shared-workflows/blob/v1.0.0/task/documentation-site/tools/documentation/README.md#repository-branding)
+for JSON examples and defaults.
 
 ### Documentation publishing
 
-`.github/workflows/documentation.yml` checks out source into `source/` and the
-latest `docs-config` into `site/` on the runner. It installs the locked dependencies,
-runs configuration tests, and builds a GitHub Pages artifact. No `website/`
-directory or generated output needs committing to this branch.
+`.github/workflows/documentation.yml` calls the shared documentation workflow at
+`v1.0.0/task/documentation-site`, with the same revision in `tooling-ref` for its
+builder checkout. Keep both refs aligned when upgrading. The shared workflow
+installs locked dependencies, builds the source checkout's docs, uploads a GitHub
+Pages artifact, and deploys eligible builds. It requires self-hosted runners
+labelled `high-performance` with GitHub CLI installed.
 
 Documentation PRs targeting `main` build for validation only. Changes to `docs/`
-or the workflow on `main`, and manual runs on `main`, build and deploy the site.
-A successful push validation on `docs-config` also triggers a fresh build of
-`main` with the latest configuration and deploys it. Failed configuration runs
-and configuration PRs do not trigger deployment. This cross-workflow trigger
-becomes active after the publishing workflow is merged into the default branch.
+or the workflow on `main`, and manual runs on `main`, build and deploy
+the site. The `docs-config` branch is no longer used. Shared-builder changes do not
+automatically trigger this repository; update the workflow refs or run it manually.
 
-The build reads the site URL and base path from GitHub Pages, including the
-organization's custom domain. The `github-pages` environment deploys the uploaded
-artifact; the old generated `documentation` branch is unused. Superseded runs for
-the same deployment target are cancelled so older builds cannot deploy out of order.
+The build reads the site URL and base path from GitHub Pages, including custom
+domains. PR builds use repository URL defaults. The `github-pages` environment
+deploys the uploaded artifact; no generated output needs committing. Superseded
+production runs are cancelled, and the shared deployment job serializes publishing
+and skips builds whose source branch has advanced.
 
 In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**.
 The deployment uses the built-in `GITHUB_TOKEN` with `pages: write` and
-`id-token: write`; no custom token or branch-write permission is needed. Restrict
-the `github-pages` environment to deployments from `main` and, temporarily,
-`gh/92-documentation`. After merging the
-workflow, its first matching push or a manual run publishes the site.
-See [GitHub's Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+`id-token: write`; no custom token or branch-write permission is needed. Organization
+Actions policies must permit access to the shared workflow. Restrict the
+`github-pages` environment to deployments from `main` and, temporarily,
+`gh/92-documentation`.
 
-For initial deployment testing, pushes affecting documentation or this workflow on
-`gh/92-documentation` also publish to the **same live Pages URL**. The build uses
-that branch's documentation with `docs-config`. Remove the temporary branch from
-`push.branches`, the deployment condition, and the environment's allowed branches
-after verification. Configuration-triggered deployments continue to use `main`.
+For initial deployment testing, matching pushes or manual runs on
+`gh/92-documentation` also publish to the **same live Pages URL**. After verification,
+remove that branch from `push.branches` and the environment's allowed branches,
+and set `source-branch` to `main`.
 
 ## Development
 
