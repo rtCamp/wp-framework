@@ -96,3 +96,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 <p align="center">
   <a href="https://rtcamp.com"><img src="https://n8e0ka87m9.gdcdn.us/kfnbt046p8/GitHub_Banner.webp" alt="rtCamp" width="100%"></a>
 </p>
+
+## Documentation workflow PoC
+
+This branch temporarily hosts the reusable Docusaurus workflow and its complete
+builder in [`tools/documentation`](tools/documentation/README.md). Consumers call
+`rtCamp/wp-framework/.github/workflows/documentation.yml@action/docusaurus` with
+`tooling-ref: action/docusaurus`. The fixture workflow validates the current branch
+without deploying. The workflow will return to `rtCamp/wp-shared-workflows` when
+that repository is public; see the builder README for the migration steps.
