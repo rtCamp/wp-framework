@@ -116,6 +116,10 @@ instead of introducing another registration or service-location mechanism.
 
 ## Documentation sources
 
+Documentation workflow pushes are filtered to `docs/**` and the documentation
+workflow file. Empty commits do not trigger a push build; change a matching file
+or use the workflow's manual trigger to verify deployment.
+
 The documentation has two audiences:
 
 - **Implementors:** `README.md` and `docs/{getting-started,architecture,contracts,abstracts,loaders,utilities}.md`.
