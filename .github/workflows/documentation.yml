@@ -28,10 +28,8 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    uses: rtCamp/wp-framework/.github/workflows/documentation.yml@action/docusaurus
+    uses: rtCamp/action-docusaurus-build/.github/workflows/documentation.yml@codex/documentation-workflow
     with:
-      # Public PoC host; move both references back when wp-shared-workflows is public.
-      tooling-ref: action/docusaurus
       # Temporary deployment test branch; replace with main after verification.
       source-branch: ${{ github.ref_name == 'gh/92-documentation' && 'gh/92-documentation' || 'main' }}
       site-title: ${{ vars.DOCS_SITE_TITLE }}
