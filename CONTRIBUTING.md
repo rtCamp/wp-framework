@@ -17,20 +17,22 @@ treated as stable and changes to it are considered breaking.
 ## Development setup
 
 ```bash
-# 1. Install PHP dev dependencies
+# Host tooling (PHPCS and PHPStan).
 composer install
 
-# 2. Bring up WordPress for the integration tests (Docker required)
-npm install
-npm run wp-env start    # starts @wordpress/env
+# WordPress integration tests (Docker required).
+npm ci
+npm run wp-env start
 ```
 
 ## Before you open a PR
 
-Run the full check suite locally — all of it must exit `0`:
+Run all three checks locally — all of them must exit `0`:
 
 ```bash
-composer check     # PHPCS (lint) + PHPStan (analyse) + PHPUnit (test)
+composer lint
+composer analyse
+npm run test:php
 ```
 
 Individual steps:
@@ -39,17 +41,25 @@ Individual steps:
 composer lint      # PHPCS against WordPress Coding Standards
 composer lint:fix  # auto-fix fixable violations
 composer analyse   # PHPStan static analysis
-composer test      # PHPUnit
+npm run test:php   # PHPUnit in the wp-env test container
 ```
 
-Tests run against real WordPress via `@wordpress/env`. Follow TDD: add a failing
-test under `tests/` (which mirrors `inc/`) first, then the implementation.
+Tests run against real WordPress via `@wordpress/env`. The `pretest:php` script
+installs Composer dependencies inside the container before PHPUnit runs.
+`composer test` is the lower-level host command and requires a separately
+configured WordPress test suite and database; it is not the default local path.
+
+Follow TDD: add a failing test under `tests/` (which mirrors `inc/`) first, then
+the implementation. See [docs/maintainers.md](docs/maintainers.md) for test-case,
+contract-change, and documentation guidance.
 
 ## Pull request checklist
 
-- [ ] `composer check` passes (lint + analyse + test, all green).
+- [ ] `composer lint`, `composer analyse`, and `npm run test:php` pass.
 - [ ] New/changed behavior is covered by tests.
 - [ ] Any change to `inc/Contracts/` is flagged as breaking in the PR description.
+- [ ] Contract changes are reflected in `ai/framework-php.instructions.md`.
+- [ ] User-visible behavior is reflected in `README.md` or `docs/`.
 - [ ] A `CHANGELOG.md` entry is added under `## [Unreleased]`.
 - [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 

@@ -1,0 +1,36 @@
+name: Documentation
+
+on:
+  push:
+    # Temporary deployment test branch; remove after verification.
+    branches: [main, gh/92-documentation]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
+  cancel-in-progress: true
+
+jobs:
+  documentation:
+    name: Build and publish documentation
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: rtCamp/action-docusaurus-build/.github/workflows/documentation.yml@codex/documentation-workflow
+    with:
+      # Temporary deployment test branch; replace with main after verification.
+      source-branch: ${{ github.ref_name == 'gh/92-documentation' && 'gh/92-documentation' || 'main' }}
+      site-title: ${{ vars.DOCS_SITE_TITLE }}
+      site-config: ${{ vars.DOCS_SITE_CONFIG }}
