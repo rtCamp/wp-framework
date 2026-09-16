@@ -53,6 +53,7 @@ PSR-4 autoloading: `rtCamp\WPFramework\` → `inc/`.
 ```php
 use rtCamp\WPFramework\Contracts\Abstracts\AbstractPostType;
 use rtCamp\WPFramework\Contracts\Traits\Loader;
+use rtCamp\WPFramework\Contracts\Traits\Singleton;
 
 final class ArticlePostType extends AbstractPostType {
 	public static function get_slug(): string    { return 'article'; }
@@ -63,11 +64,15 @@ final class ArticlePostType extends AbstractPostType {
 
 final class Main {
 	use Loader;
+	use Singleton;
 
-	public function boot(): void {
+	protected function __construct() {
+		static::$instance = $this;   // before loading classes that can re-enter
 		$this->load( [ ArticlePostType::class ] );   // instantiates + registers hooks
 	}
 }
+
+Main::get_instance();
 ```
 
 A registered, REST-enabled post type with no `register_post_type()` call and no
@@ -127,89 +132,6 @@ Start with [docs/index.md](docs/index.md), then:
 | [troubleshooting.md](docs/troubleshooting.md) | Symptom → cause for the errors and silent no-ops the framework emits. |
 | [ai-review-system.md](docs/ai-review-system.md) | How the AI review instructions are authored here and synced into the skeletons. |
 | [maintainers.md](docs/maintainers.md) | Development environment, tests, change checklist, and documentation maintenance. |
-
-### Local documentation development
-
-Docusaurus configuration, styles, tests, and locked Node dependencies live in
-[`wp-shared-workflows/tools/documentation`](https://github.com/rtCamp/wp-shared-workflows/tree/v1.0.0/task/documentation-site/tools/documentation).
-Markdown content stays in `docs/`. Requires Node.js 22+.
-
-From this repository's root, create a separate shared-tooling checkout once:
-
-```bash
-git clone --single-branch --branch v1.0.0/task/documentation-site https://github.com/rtCamp/wp-shared-workflows.git ../wp-shared-workflows
-```
-
-If that checkout already exists, use the revision specified by `tooling-ref` in
-`.github/workflows/documentation.yml`. From this repository's root:
-
-```bash
-export DOCS_SOURCE="$PWD"
-cd ../wp-shared-workflows/tools/documentation
-npm ci
-npm test
-npm start -- --source "$DOCS_SOURCE" --host 127.0.0.1 --no-open
-```
-
-Open `http://127.0.0.1:3000/wp-framework/`. Edit Markdown in the source checkout;
-Docusaurus watches it directly. Run `npm run build -- --source "$DOCS_SOURCE"`
-to validate production output, then `npm run serve -- --source "$DOCS_SOURCE"`
-to preview it. See the
-[builder README](https://github.com/rtCamp/wp-shared-workflows/blob/v1.0.0/task/documentation-site/tools/documentation/README.md)
-for settings, source links, and site URL overrides.
-
-### Documentation branding
-
-Set the `DOCS_SITE_TITLE` GitHub Actions repository variable to override the site
-title. For other branding, set `DOCS_SITE_CONFIG` to a committed JSON file such as
-`docs/branding.json`. Unset values keep the shared builder's defaults.
-
-The JSON supports `tagline`, `favicon`, `navbar`, `footer`, `customCss`, and
-`staticDirectory`. For example, use `staticDirectory: "docs/assets"` with
-`navbar.logo.src: "logo.svg"` for an image stored at `docs/assets/logo.svg`.
-Use `navbar.title`, `navbar.logo.srcDark`, and `navbar.logo.alt` for navbar title,
-dark-mode logo, and alt text. The former `DOCS_NAVBAR_TITLE`, `DOCS_LOGO_PATH`,
-`DOCS_LOGO_DARK_PATH`, `DOCS_LOGO_ALT`, and `DOCS_FAVICON_PATH` variables must be
-migrated to these JSON fields; the shared workflow does not consume them.
-
-Keep branding files under `docs/` so changes trigger the workflow.
-Variable changes require a fresh workflow run. For local branding, pass
-`--settings /path/to/site.json`, containing `title` and/or
-`siteConfig: "docs/branding.json"`, to the builder commands. See the
-[branding reference](https://github.com/rtCamp/wp-shared-workflows/blob/v1.0.0/task/documentation-site/tools/documentation/README.md#repository-branding)
-for JSON examples and defaults.
-
-### Documentation publishing
-
-`.github/workflows/documentation.yml` calls the shared documentation workflow at
-`v1.0.0/task/documentation-site`, with the same revision in `tooling-ref` for its
-builder checkout. Keep both refs aligned when upgrading. The shared workflow
-installs locked dependencies, builds the source checkout's docs, uploads a GitHub
-Pages artifact, and deploys eligible builds. It requires self-hosted runners
-labelled `high-performance` with GitHub CLI installed.
-
-Documentation PRs targeting `main` build for validation only. Changes to `docs/`
-or the workflow on `main`, and manual runs on `main`, build and deploy
-the site. The `docs-config` branch is no longer used. Shared-builder changes do not
-automatically trigger this repository; update the workflow refs or run it manually.
-
-The build reads the site URL and base path from GitHub Pages, including custom
-domains. PR builds use repository URL defaults. The `github-pages` environment
-deploys the uploaded artifact; no generated output needs committing. Superseded
-production runs are cancelled, and the shared deployment job serializes publishing
-and skips builds whose source branch has advanced.
-
-In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**.
-The deployment uses the built-in `GITHUB_TOKEN` with `pages: write` and
-`id-token: write`; no custom token or branch-write permission is needed. Organization
-Actions policies must permit access to the shared workflow. Restrict the
-`github-pages` environment to deployments from `main` and, temporarily,
-`gh/92-documentation`.
-
-For initial deployment testing, matching pushes or manual runs on
-`gh/92-documentation` also publish to the **same live Pages URL**. After verification,
-remove that branch from `push.branches` and the environment's allowed branches,
-and set `source-branch` to `main`.
 
 ## Development
 

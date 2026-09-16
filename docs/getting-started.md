@@ -142,8 +142,10 @@ Main::get_instance();
 ### Theme entry point
 
 The same `Main` shape works in a theme. Require the theme's Composer autoloader
-from `functions.php` and attach `boot()` to `after_setup_theme` instead of
-`plugins_loaded`.
+from `functions.php`, make the `Main` class available, and call
+`Main::get_instance()` there. As in the plugin example, the constructor loads
+the modules immediately. Services register their callbacks in `register_hooks()`;
+work that depends on a later WordPress lifecycle event belongs in those callbacks.
 
 The early `static::$instance = $this` assignment is important when construction
 can re-enter `get_instance()`. A class using `Singleton` and its subclasses also

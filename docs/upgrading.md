@@ -56,9 +56,13 @@ Two consequences:
   ```php
   protected function __construct() {
       static::$instance = $this;   // before any work that can re-enter
-      add_action( 'plugins_loaded', [ $this, 'boot' ] );
+      $this->load( [ ContentModule::class ] );
   }
   ```
+
+  This follows the immediate-loading pattern in
+  [getting started](getting-started.md#3-bootstrap-the-loader): the entry point
+  calls `Main::get_instance()`, and the constructor loads the modules.
 
   On 1.0.0 this fataled with *"Access to undeclared static property"*. If that
   line was removed as a 1.0.0 workaround, restore it.
