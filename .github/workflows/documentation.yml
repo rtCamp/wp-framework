@@ -3,7 +3,7 @@ name: Documentation
 on:
   push:
     # Temporary deployment test branch; remove after verification.
-    branches: [main, gh/92-documentation]
+    branches: [main]
     paths:
       - 'docs/**'
       - '.github/workflows/documentation.yml'
@@ -39,8 +39,7 @@ jobs:
         id: pages
         if: >-
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          github.ref_type == 'branch' &&
-          (github.ref_name == 'main' || github.ref_name == 'gh/92-documentation')
+          github.ref_type == 'branch' && github.ref_name == 'main'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Build documentation
@@ -55,8 +54,7 @@ jobs:
       - name: Upload GitHub Pages artifact
         if: >-
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          github.ref_type == 'branch' &&
-          (github.ref_name == 'main' || github.ref_name == 'gh/92-documentation')
+          github.ref_type == 'branch' && github.ref_name == 'main'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ${{ steps.docs.outputs.build-directory }}
@@ -65,11 +63,9 @@ jobs:
   deploy:
     name: Deploy documentation
     needs: build
-    # Temporary deployment test branch; remove gh/92-documentation after verification.
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref_type == 'branch' &&
-      (github.ref_name == 'main' || github.ref_name == 'gh/92-documentation')
+      github.ref_type == 'branch' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
