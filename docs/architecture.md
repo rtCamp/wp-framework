@@ -1,3 +1,8 @@
+---
+sidebar_position: 3
+sidebar_label: Architecture
+---
+
 # Architecture — how a class becomes a live hook
 
 The framework's job is narrow: take a list of class names and turn them into
@@ -24,17 +29,23 @@ debuggable by reading `Loader::load()` top to bottom.
 [`Loader::load()`](../inc/Contracts/Traits/Loader.php) is the heart of the
 framework. Given `class-string[]`, for each class it:
 
-1. **Instantiates** it with `new $class_name()` — every loadable class must be
+1. **Skips a duplicate** when the same class name already appeared in this load.
+2. **Instantiates** it with `new $class_name()` — every loadable class must be
    constructible with no arguments (i.e. no *required* constructor parameters;
    all-optional is fine).
-2. **Registers hooks** if it is `Registrable` — but first, if it is also
+3. **Registers hooks** if it is `Registrable` — but first, if it is also
    `ConditionallyRegistrable`, it calls `can_register()` and skips registration
    when that returns `false`.
-3. **Caches the instance** if it is `Shareable`, storing it in a `Container`
+4. **Caches the instance** if it is `Shareable`, storing it in a `Container`
    keyed by class name.
 
 ```php
 foreach ( $classes as $class_name ) {
+    if ( isset( $seen[ $class_name ] ) ) {
+        continue;
+    }
+    $seen[ $class_name ] = true;
+
     $instance = new $class_name();
 
     if ( $instance instanceof Registrable ) {
@@ -59,6 +70,9 @@ constructor did the work).
 them, not to a global. Call `get_shared( $class_name )` on that same loader to
 retrieve one; calling it before `load()` — or for a class that wasn't
 `Shareable` — throws a `RuntimeException`.
+
+Because another `load()` replaces the container, use one complete class list per
+loader. A second call does not add to the previously shared set.
 
 ## Modules: loaders that hold loaders
 
@@ -135,7 +149,9 @@ they are not the same thing:
   default.
 - **`Singleton` trait** — global `ClassName::get_instance()` access with cloning
   and deserialization guarded. Use it only when something truly must be a process
-  global and you can't thread it through a loader.
+  global and you can't thread it through a loader. A class and its subclasses
+  share the trait's single storage slot, so do not resolve a child of a singleton
+  through `get_instance()`.
 
 If you can pass the object in a constructor instead, do that. The
 `ComponentLoader`/`TemplateLoader` pattern (a `Shareable` subclass fetched via

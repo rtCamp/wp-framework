@@ -8,7 +8,7 @@ description: "Framework-development rules for rtcamp/wp-framework PHP."
 ## Layout & contracts
 
 - `inc/Contracts/Interfaces/`: `Registrable`, `ConditionallyRegistrable`, `Shareable`, `CLICommand`.
-- `inc/Contracts/Abstracts/`: `AbstractModule`, `AbstractPostType`, `AbstractTaxonomy`, `AbstractBlock`, `AbstractShortcode`, `AbstractRESTController`, `AbstractSettingsPage`, `AbstractAdminPage`, `AbstractUserRole`.
+- `inc/Contracts/Abstracts/`: `AbstractModule`, `AbstractFeature`, `AbstractPostType`, `AbstractTaxonomy`, `AbstractBlock`, `AbstractShortcode`, `AbstractRESTController`, `AbstractSettingsPage`, `AbstractAdminPage`, `AbstractUserRole`.
 - `inc/Contracts/Traits/`: `Loader`, `Singleton`.
 - `inc/` root: `Container`, `AssetLoader`, `ComponentLoader`, `TemplateLoader`; `inc/Utils/`: utilities (e.g. `Encryptor`).
 

@@ -1,6 +1,6 @@
 # AGENTS.md — wp-framework
 
-Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Codex). `rtcamp/wp-framework`: shared base contracts (interfaces, abstracts, traits) and small utilities consumed via Composer by every rtCamp plugin/theme skeleton. **Zero runtime dependencies.** PHP 8.2+, WordPress 6.5+ — the floor is set by the Script Modules API (`wp_register_script_module()`, new in 6.5). The only API used above 6.5 is `wp_register_block_types_from_metadata_collection()` (6.8+), and `AssetLoader::register_block_manifest()` guards it with a per-block fallback for 6.5–6.7.
+Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Codex). `rtcamp/wp-framework`: shared base contracts (interfaces, abstracts, traits) and small utilities consumed via Composer by every rtCamp plugin/theme skeleton. **Zero Composer runtime dependencies.** PHP 8.2+, WordPress 6.5+ — the floor is set by the Script Modules API (`wp_register_script_module()`, new in 6.5). The only API used above 6.5 is `wp_register_block_types_from_metadata_collection()` (6.8+), and `AssetLoader::register_block_manifest()` guards it with a per-block fallback for 6.5–6.7. `Encryptor` requires the OpenSSL PHP extension when used.
 
 ## Authoritative rules
 
@@ -10,7 +10,7 @@ Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Cod
 ## Key principles (full detail in the files above)
 
 - **`inc/Contracts/` is public API.** Interfaces, abstracts, and their method signatures are consumed by every plugin/theme: a signature change breaks all of them. Treat such changes as breaking.
-- **Zero runtime deps**: `composer.json` `require` holds only `php`; everything else is `require-dev`.
+- **Zero Composer runtime deps**: `composer.json` `require` holds only `php`; everything else is `require-dev`.
 - **TDD**: failing PHPUnit test first (`tests/` mirrors `inc/`), then code.
 - **Tests run against real WordPress via wp-env** — no WP function mocking. `npm run wp-env start` then `npm run test:php` (a `pretest:php` hook runs `composer install` in the container first). WP-dependent tests extend `rtCamp\WPFramework\Tests\TestCase` (a `WP_UnitTestCase`); pure-logic tests can stay on `PHPUnit\Framework\TestCase`. CI runs a PHP × WP matrix (PHP 8.2+, WP 6.5+).
 - `declare( strict_types = 1 );`, full types, `@package`/`@since`, `static::` not `self::`, PSR-4 (`rtCamp\WPFramework\` → `inc/`).
@@ -18,7 +18,7 @@ Tool-agnostic brief for AI coding agents (Claude Code, Copilot coding agent, Cod
 
 ## Structure
 
-`inc/Contracts/{Interfaces,Abstracts,Traits}/` (the consumed contract surface), `inc/` root (`Container`, `AssetLoader`, `ComponentLoader`), `inc/Utils/`. `ai/` holds the canonical consumer instruction doc; `bin/` holds the sync tool.
+`inc/Contracts/{Interfaces,Abstracts,Traits}/` (the consumed contract surface), `inc/` root (`Container`, `AssetLoader`, `ComponentLoader`, `TemplateLoader`), `inc/Utils/`. `ai/` holds the canonical consumer instruction doc; `bin/` holds the sync tool.
 
 ## This repo also ships tooling for consumers
 

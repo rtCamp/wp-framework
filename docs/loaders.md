@@ -1,3 +1,8 @@
+---
+sidebar_position: 6
+sidebar_label: Loaders
+---
+
 # Loaders — assets, components & templates
 
 Three concrete classes handle the "files on disk → output in the page" side of a
@@ -77,6 +82,12 @@ An asset is then addressed by a path **relative to `$assets_dir`, without the
 extension** — e.g. `register_script( 'my-app', 'app' )` looks for
 `<base_dir>/<assets_dir>/app.js`.
 
+`get_base_dir()` returns the normalized, trailing-slashed package directory and
+`get_assets_dir()` returns the relative assets directory. These are useful when
+a subclass needs to resolve another build artifact. `handle( $name )` prefixes a
+short handle with `static::HANDLE_PREFIX`; override that constant in a consumer
+subclass to namespace all handles consistently.
+
 ### Registration methods
 
 | Method | Registers | Returns |
@@ -90,6 +101,10 @@ extension** — e.g. `register_script( 'my-app', 'app' )` looks for
 These **register**; they don't enqueue. Call `wp_enqueue_script()` /
 `wp_enqueue_style()` with the handle afterwards (the `ComponentLoader` does this
 for you for component assets).
+
+Asset filenames may contain relative subdirectories but may not contain `..`.
+The extension must be a bare suffix without a leading dot or path separator.
+Unsafe paths are rejected before the filesystem is probed.
 
 ### The `*.asset.php` manifest
 
@@ -196,6 +211,22 @@ method precisely so a component can't reach back into the loader. It can forward
 - A missing component emits `_doing_it_wrong()` and renders nothing rather than
   throwing a fatal error.
 
+### Component hooks
+
+With a context of `my-plugin`, the hooks use the following names and arguments:
+
+| Hook | Type | Arguments |
+|---|---|---|
+| `my-plugin/component_before_render` | action | `$name, $args, $context` |
+| `my-plugin/component_after_render` | action | `$name, $args, $context` |
+| `my-plugin/component_should_enqueue` | filter | `$enqueue, $name, $asset_type, $context` |
+| `my-plugin/component_asset_handle` | filter | `$handle, $name, $asset_type, $context` |
+
+`$asset_type` is `style` or `script`. The should-enqueue filter must return a
+boolean; the handle filter must return a string. Override
+`get_enqueue_settings()` to change the default `script` and `style` values for
+all renders from a loader.
+
 ---
 
 ## TemplateLoader
@@ -255,6 +286,23 @@ dominates the location.
 - **Per-request location cache**, cleared with `clear_cache()`.
 - A missing template is a silent no-op (`render()` echoes nothing, `locate()`
   returns `false`).
+
+### Template hooks
+
+For a prefix of `my_plugin` and the default `/` separator:
+
+| Hook | Type | Arguments / return value |
+|---|---|---|
+| `my_plugin/get_template_part_{slug}` | action | `$slug, $name, $args` |
+| `my_plugin/template_file_names` | filter | `array $templates, $slug, $name`; return candidate filenames |
+| `my_plugin/template_args` | filter | `array $args, $slug, $name`; return arguments passed to the template |
+| `my_plugin/template_paths` | filter | `array $paths`; return paths keyed by numeric priority |
+| `my_plugin/located_template` | filter | `$located, array $templates`; return a path or `false` |
+
+The request action and argument filter run only through `render()`/`get()`;
+`locate()` performs location filters without rendering. Exceptions thrown by a
+component or template propagate to the caller. The `get()` methods clean up
+their output buffer before rethrowing.
 
 > **`TemplateLoader` vs. `ComponentLoader` — when to use which.** Use a
 > **component** for a reusable, self-contained UI fragment with its own scoped

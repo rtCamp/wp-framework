@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Documentation
+
+- Added implementor getting-started and maintainer workflow guides; corrected
+  Singleton, REST-controller, compatibility, and wp-env test guidance; expanded
+  loader, cache, feature-selector, timer, and utility API coverage.
+- Added `docs/upgrading.md` (versioning promise and the 1.0.0 → 1.0.1 `Singleton`
+  migration) and `docs/troubleshooting.md` (symptom → cause for the framework's
+  exceptions, `_doing_it_wrong()` notices, and silent no-ops).
+- Documented the real install path: the package is not on public Packagist, so
+  the consumer needs a VCS `repositories` entry and a `^1.0` constraint.
+- Added a worked WP-CLI example to `docs/contracts.md`, the only contract that
+  had none, and a quick-look snippet to the README.
+- Corrected the `Loader::load()` snippet in `docs/architecture.md` to match the
+  implementation, and the `AbstractSettingsPage` capability note in
+  `docs/abstracts.md` (the `option_page_capability_*` filter is unconditional).
 
 ## [1.0.1] - 2026-07-29
 
